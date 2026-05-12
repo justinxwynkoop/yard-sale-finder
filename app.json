@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Yard Sale Finder",
+    "slug": "yard-sale-finder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "yardsalefinder",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.yardsalefinder",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to show nearby yard sales and help you pin your own sale.",
+        "NSLocationAlwaysUsageDescription": "We use your location to show nearby yard sales.",
+        "NSPhotoLibraryUsageDescription": "Upload photos of your sale items.",
+        "NSCameraUsageDescription": "Take photos of your sale items."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.yourname.yardsalefinder",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location",
+      "expo-image-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Yard Sale Finder to access your camera."
+        }
+      ],
+      "expo-web-browser"
+    ]
+  }
+}
