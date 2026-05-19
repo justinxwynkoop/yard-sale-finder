@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yourname.yardsalefinder",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to show nearby yard sales and help you pin your own sale.",
         "NSLocationAlwaysUsageDescription": "We use your location to show nearby yard sales.",
@@ -52,7 +53,8 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-apple-authentication"
     ]
   }
 }

@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +33,43 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<null | 'email' | Provider>(null);
   const [showSocial, setShowSocial] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  // Detect whether Sign in with Apple is available on this device.
+  // Returns false in Expo Go (no native module), on Android, or on
+  // iOS versions older than 13.
+  React.useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
+
+  const signInWithApple = async () => {
+    setBusy('apple');
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        throw new Error('Apple did not return an identity token.');
+      }
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      // User cancelled — silent.
+      if (e?.code === 'ERR_REQUEST_CANCELED') return;
+      Alert.alert('Sign in failed', e.message ?? 'Could not sign in with Apple.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const submitEmail = async () => {
     const cleanEmail = email.trim().toLowerCase();
@@ -301,14 +339,31 @@ export default function AuthScreen() {
             <View className="h-px flex-1 bg-zinc-200" />
           </View>
 
-          {/* Social */}
+          {/* Apple Sign In — iOS only, requires a dev build (not Expo Go) */}
+          {appleAvailable && (
+            <View style={{ marginBottom: 10 }}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={
+                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                }
+                buttonStyle={
+                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={16}
+                style={{ width: '100%', height: 56 }}
+                onPress={signInWithApple}
+              />
+            </View>
+          )}
+
+          {/* Other providers (Google / Facebook) — collapsed by default */}
           {!showSocial ? (
             <Pressable
               onPress={() => setShowSocial(true)}
               className="items-center py-2"
             >
               <Text className="text-sm font-semibold text-brand">
-                Continue with Google, Apple, or Facebook
+                Continue with Google or Facebook
               </Text>
             </Pressable>
           ) : (
@@ -319,14 +374,6 @@ export default function AuthScreen() {
                 iconColor="#4285F4"
                 onPress={() => signInWithProvider('google')}
                 loading={busy === 'google'}
-                disabled={busy !== null}
-              />
-              <SocialButton
-                label="Continue with Apple"
-                iconName="logo-apple"
-                iconColor="#000"
-                onPress={() => signInWithProvider('apple')}
-                loading={busy === 'apple'}
                 disabled={busy !== null}
               />
               <SocialButton
