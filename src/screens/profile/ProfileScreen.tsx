@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
   Alert,
   SafeAreaView,
   ActivityIndicator,
@@ -13,6 +10,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { Profile } from '../../types';
+import { Button, Input } from '../../components/ui';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -58,94 +56,55 @@ export default function ProfileScreen() {
   };
 
   if (loading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#2563EB" /></View>;
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#16a34a" />
+      </View>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="border-b border-zinc-100 px-4 py-4">
+        <Text className="text-2xl font-extrabold text-zinc-900">Profile</Text>
       </View>
 
-      <View style={styles.avatarSection}>
+      <View className="items-center py-8">
         {profile?.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          <Image
+            source={{ uri: profile.avatar_url }}
+            className="mb-3 h-24 w-24 rounded-full"
+          />
         ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarPlaceholderText}>
+          <View className="mb-3 h-24 w-24 items-center justify-center rounded-full bg-brand">
+            <Text className="text-4xl font-bold text-white">
               {displayName ? displayName[0].toUpperCase() : '?'}
             </Text>
           </View>
         )}
-        <Text style={styles.email}>{profile?.email}</Text>
+        <Text className="text-sm text-zinc-500">{profile?.email}</Text>
       </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Display Name</Text>
-        <TextInput
-          style={styles.input}
+      <View className="px-6">
+        <Input
+          label="Display Name"
           value={displayName}
           onChangeText={setDisplayName}
           placeholder="Your name"
           maxLength={50}
+          containerClassName="mb-4"
         />
 
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-          onPress={save}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveBtnText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
+        <Button onPress={save} loading={saving}>
+          Save Changes
+        </Button>
       </View>
 
-      <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-        <Text style={styles.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
+      <View className="absolute bottom-10 left-6 right-6">
+        <Button variant="outline" onPress={handleSignOut} textClassName="text-red-600">
+          Sign Out
+        </Button>
+      </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a1a' },
-  avatarSection: { alignItems: 'center', paddingVertical: 32 },
-  avatar: { width: 88, height: 88, borderRadius: 44, marginBottom: 12 },
-  avatarPlaceholder: {
-    width: 88, height: 88, borderRadius: 44,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarPlaceholderText: { fontSize: 36, color: '#fff', fontWeight: '700' },
-  email: { fontSize: 15, color: '#6B7280' },
-  form: { paddingHorizontal: 24 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#1a1a1a', marginBottom: 16,
-  },
-  saveBtn: {
-    backgroundColor: '#2563EB', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center',
-  },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  signOutBtn: {
-    position: 'absolute', bottom: 40, left: 24, right: 24,
-    borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center',
-  },
-  signOutText: { color: '#DC2626', fontWeight: '600', fontSize: 15 },
-});

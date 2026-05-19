@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
+import './global.css';
 import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/navigation';
 
