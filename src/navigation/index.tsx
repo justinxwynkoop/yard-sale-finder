@@ -126,13 +126,10 @@ export default function Navigation() {
 
   if (loading) return null;
 
-  // TODO: remove this bypass when OAuth is working
-  const DEV_BYPASS_AUTH = true;
-
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {session || DEV_BYPASS_AUTH ? (
+        {session ? (
           <RootStack.Screen name="Main" component={MainTabs} />
         ) : (
           <RootStack.Screen name="Auth" component={AuthScreen} />
