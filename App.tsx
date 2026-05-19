@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import Navigation from './src/navigation';
 import { handleAuthDeepLink } from './src/lib/authDeepLinks';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 export default function App() {
   // Listen for Supabase auth deep links (email confirmation + password reset).
@@ -26,7 +27,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <Navigation />
+      <ErrorBoundary>
+        <Navigation />
+      </ErrorBoundary>
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );
