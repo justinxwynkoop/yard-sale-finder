@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Platform,
   KeyboardAvoidingView,
+  StyleSheet,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
@@ -399,30 +400,13 @@ function LocationStep({
   address,
   onNext,
 }: any) {
+  // Full-screen map with floating search + footer (more reliable than
+  // flex-1 sandwiching the map between two flex children).
   return (
     <View className="flex-1">
-      <View className="flex-row items-center px-4 pt-3" style={{ gap: 8 }}>
-        <View className="flex-1">
-          <Input
-            placeholder="Enter an address"
-            value={addressInput}
-            onChangeText={setAddressInput}
-            onSubmitEditing={onGeocode}
-            returnKeyType="search"
-            leftIcon={<Ionicons name="search" size={18} color="#71717A" />}
-          />
-        </View>
-        <IconButton
-          variant="solid"
-          size="md"
-          onPress={onLocateMe}
-          icon={<Ionicons name="locate" size={20} color="#18181B" />}
-        />
-      </View>
-
       <MapView
         ref={mapRef}
-        style={{ flex: 1, marginTop: 12 }}
+        style={StyleSheet.absoluteFillObject}
         initialRegion={{
           latitude: 39.8283,
           longitude: -98.5795,
@@ -460,7 +444,40 @@ function LocationStep({
         )}
       </MapView>
 
-      <View className="border-t border-zinc-100 bg-white px-4 pb-6 pt-3">
+      {/* Floating search row */}
+      <View
+        className="absolute left-0 right-0 top-0 px-4 pt-3"
+        pointerEvents="box-none"
+      >
+        <View
+          className="flex-row items-center"
+          pointerEvents="box-none"
+          style={{ gap: 8 }}
+        >
+          <View className="flex-1">
+            <Input
+              placeholder="Enter an address"
+              value={addressInput}
+              onChangeText={setAddressInput}
+              onSubmitEditing={onGeocode}
+              returnKeyType="search"
+              leftIcon={<Ionicons name="search" size={18} color="#71717A" />}
+            />
+          </View>
+          <IconButton
+            variant="solid"
+            size="md"
+            onPress={onLocateMe}
+            icon={<Ionicons name="locate" size={20} color="#18181B" />}
+          />
+        </View>
+      </View>
+
+      {/* Floating bottom action card */}
+      <View
+        className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-6 pt-3"
+        pointerEvents="box-none"
+      >
         {address ? (
           <View className="mb-3 flex-row items-center">
             <Ionicons name="checkmark-circle" size={16} color="#10B981" />
