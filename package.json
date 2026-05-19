@@ -6,7 +6,13 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "db:link": "supabase link --project-ref dxahcamntwtuzftxbxgx",
+    "db:push": "supabase db push",
+    "db:pull": "supabase db pull",
+    "db:new": "supabase migration new",
+    "db:reset": "supabase db reset --linked",
+    "db:status": "supabase migration list"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -40,6 +46,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "supabase": "^2.100.1",
     "typescript": "~5.9.2"
   },
   "private": true

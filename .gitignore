@@ -43,3 +43,7 @@ client_secret_*.json
 # generated native folders
 /ios
 /android
+
+# supabase CLI local state
+supabase/.branches/
+supabase/.temp/
