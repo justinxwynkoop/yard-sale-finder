@@ -71,9 +71,12 @@ export function PhotoViewer({
           }}
         >
           {images.map((img) => (
-            <Pressable
+            // Plain <View><Image> — no Pressable here. A Pressable inside
+            // a horizontal pagingEnabled ScrollView intercepts swipes and
+            // makes paging feel broken. Use the X button in the top bar
+            // to close instead.
+            <View
               key={img.id}
-              onPress={onClose}
               style={{ width: SCREEN_W, height: SCREEN_H }}
             >
               <Image
@@ -81,7 +84,7 @@ export function PhotoViewer({
                 style={styles.image}
                 resizeMode="contain"
               />
-            </Pressable>
+            </View>
           ))}
         </ScrollView>
 
