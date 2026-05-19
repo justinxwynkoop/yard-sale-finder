@@ -18,7 +18,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory } from '../../types';
-import { Button, Chip, IconButton, Input } from '../../components/ui';
+import {
+  Button,
+  Chip,
+  DateRangePresets,
+  DateTimeField,
+  IconButton,
+  Input,
+} from '../../components/ui';
 
 type Step = 'location' | 'media' | 'details';
 
@@ -34,6 +41,11 @@ const CATEGORIES: ItemCategory[] = [
   'antiques',
   'other',
 ];
+
+const MAX_TITLE = 80;
+const MAX_DESCRIPTION = 500;
+const MAX_PRICING = 200;
+const MAX_MEDIA = 10;
 
 interface MediaItem {
   uri: string;
@@ -139,23 +151,56 @@ export default function CreateSaleScreen() {
     }
   };
 
-  const pickMedia = async () => {
+  const pickFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
       quality: 0.8,
+      selectionLimit: MAX_MEDIA - media.length,
     });
     if (!result.canceled) {
       const items: MediaItem[] = result.assets.map((a) => ({
         uri: a.uri,
         type: a.type === 'video' ? 'video' : 'image',
       }));
-      setMedia((prev) => [...prev, ...items].slice(0, 10));
+      setMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
+    }
+  };
+
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Camera permission needed',
+        'Allow camera access to snap a photo.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const items: MediaItem[] = result.assets.map((a) => ({
+        uri: a.uri,
+        type: 'image',
+      }));
+      setMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
     }
   };
 
   const removeMedia = (index: number) => {
     setMedia((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const moveMedia = (index: number, dir: -1 | 1) => {
+    setMedia((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   };
 
   const toggleCategory = (cat: ItemCategory) => {
@@ -208,10 +253,11 @@ export default function CreateSaleScreen() {
       return;
     }
     if (!startDate || !endDate || !startTime || !endTime) {
-      Alert.alert(
-        'Missing dates',
-        'Please fill in all date and time fields.',
-      );
+      Alert.alert('Missing dates', 'Please fill in all date and time fields.');
+      return;
+    }
+    if (endDate < startDate) {
+      Alert.alert('Date issue', 'End date must be after start date.');
       return;
     }
 
@@ -305,8 +351,10 @@ export default function CreateSaleScreen() {
       {step === 'media' && (
         <MediaStep
           media={media}
-          onPick={pickMedia}
+          onPickLibrary={pickFromLibrary}
+          onTakePhoto={takePhoto}
           onRemove={removeMedia}
+          onMove={moveMedia}
           onBack={() => setStep('location')}
           onNext={() => setStep('details')}
         />
@@ -438,55 +486,133 @@ function LocationStep({
 }
 
 // ---- Media Step ----
-function MediaStep({ media, onPick, onRemove, onBack, onNext }: any) {
+function MediaStep({
+  media,
+  onPickLibrary,
+  onTakePhoto,
+  onRemove,
+  onMove,
+  onBack,
+  onNext,
+}: any) {
+  const hasRoom = media.length < MAX_MEDIA;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={{
-          padding: 16,
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: 10,
-        }}
-      >
-        {media.map((item: MediaItem, i: number) => (
-          <View
-            key={i}
-            className="relative overflow-hidden rounded-2xl"
-            style={{ width: 104, height: 104 }}
-          >
-            <Image
-              source={{ uri: item.uri }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+        <Text className="mb-1 text-base font-semibold text-zinc-900">
+          Add photos & videos
+        </Text>
+        <Text className="mb-4 text-sm text-zinc-500">
+          {media.length === 0
+            ? 'A good photo helps buyers spot your sale from across the map.'
+            : `${media.length} of ${MAX_MEDIA} · the first photo is the cover image.`}
+        </Text>
+
+        {/* Add buttons */}
+        {hasRoom && (
+          <View className="mb-4 flex-row" style={{ gap: 10 }}>
             <Pressable
-              onPress={() => onRemove(i)}
-              className="absolute right-1.5 top-1.5 h-6 w-6 items-center justify-center rounded-full bg-black/60"
+              onPress={onTakePhoto}
+              className="flex-1 flex-row items-center justify-center rounded-2xl border border-zinc-200 bg-white py-3 active:bg-zinc-50"
             >
-              <Ionicons name="close" size={14} color="#fff" />
+              <Ionicons name="camera-outline" size={20} color="#18181B" />
+              <Text className="ml-2 text-sm font-semibold text-zinc-900">
+                Take photo
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={onPickLibrary}
+              className="flex-1 flex-row items-center justify-center rounded-2xl border border-zinc-200 bg-white py-3 active:bg-zinc-50"
+            >
+              <Ionicons name="images-outline" size={20} color="#18181B" />
+              <Text className="ml-2 text-sm font-semibold text-zinc-900">
+                From library
+              </Text>
             </Pressable>
           </View>
-        ))}
-        {media.length < 10 && (
+        )}
+
+        {/* Media list */}
+        {media.length === 0 ? (
           <Pressable
-            onPress={onPick}
-            className="items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 active:bg-zinc-100"
-            style={{ width: 104, height: 104 }}
+            onPress={onPickLibrary}
+            className="h-48 items-center justify-center rounded-3xl border-2 border-dashed border-zinc-300 bg-brand-50"
           >
-            <Ionicons name="camera-outline" size={28} color="#A1A1AA" />
-            <Text className="mt-1 text-2xs font-medium text-zinc-500">
-              Add photos
+            <Ionicons name="image-outline" size={40} color="#F97316" />
+            <Text className="mt-2 text-sm font-medium text-brand-700">
+              Tap to add your first photo
             </Text>
           </Pressable>
+        ) : (
+          <View style={{ gap: 10 }}>
+            {media.map((item: MediaItem, i: number) => (
+              <View
+                key={`${item.uri}-${i}`}
+                className="flex-row items-center rounded-2xl border border-zinc-100 bg-white p-2"
+              >
+                <View className="relative overflow-hidden rounded-xl" style={{ width: 88, height: 88 }}>
+                  <Image
+                    source={{ uri: item.uri }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                  {i === 0 && (
+                    <View className="absolute bottom-1 left-1 rounded-full bg-brand px-1.5 py-0.5">
+                      <Text className="text-2xs font-bold text-white">COVER</Text>
+                    </View>
+                  )}
+                  {item.type === 'video' && (
+                    <View className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5">
+                      <Ionicons name="play" size={10} color="#fff" />
+                    </View>
+                  )}
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-sm font-semibold text-zinc-900">
+                    Photo {i + 1}
+                  </Text>
+                  <Text className="text-xs text-zinc-500">
+                    {item.type === 'video' ? 'Video' : 'Image'}
+                  </Text>
+                </View>
+                <View className="flex-row items-center" style={{ gap: 4 }}>
+                  <Pressable
+                    onPress={() => onMove(i, -1)}
+                    disabled={i === 0}
+                    className={[
+                      'h-9 w-9 items-center justify-center rounded-full',
+                      i === 0 ? 'opacity-30' : 'active:bg-zinc-100',
+                    ].join(' ')}
+                  >
+                    <Ionicons name="arrow-up" size={16} color="#27272A" />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => onMove(i, 1)}
+                    disabled={i === media.length - 1}
+                    className={[
+                      'h-9 w-9 items-center justify-center rounded-full',
+                      i === media.length - 1 ? 'opacity-30' : 'active:bg-zinc-100',
+                    ].join(' ')}
+                  >
+                    <Ionicons name="arrow-down" size={16} color="#27272A" />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => onRemove(i)}
+                    className="h-9 w-9 items-center justify-center rounded-full active:bg-red-50"
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
-      <Text className="px-5 pb-3 text-xs text-zinc-500">
-        {media.length}/10 items. Good photos draw a crowd.
-      </Text>
+
       <View className="border-t border-zinc-100 bg-white px-4 pb-6 pt-3 flex-row" style={{ gap: 10 }}>
         <View className="flex-1">
           <Button variant="outline" size="lg" onPress={onBack}>
@@ -529,70 +655,102 @@ function DetailsStep({
   onSubmit,
   submitting,
 }: any) {
+  const titleLen = title.length;
+  const descLen = description.length;
+  const pricingLen = pricingNotes.length;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
-        <Input
-          label="Sale title"
-          value={title}
-          onChangeText={setTitle}
-          placeholder="e.g. Moving sale — everything must go!"
-          maxLength={80}
-        />
-        <Input
-          label="Description"
-          value={description}
-          onChangeText={setDescription}
-          placeholder="What are you selling? Any highlights?"
-          multiline
-          numberOfLines={3}
-          inputClassName="h-24 pt-2"
-          containerClassName=""
-        />
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24, gap: 16 }}>
+        <View>
+          <Input
+            label="Sale title *"
+            value={title}
+            onChangeText={(v) => setTitle(v.slice(0, MAX_TITLE))}
+            placeholder="e.g. Moving sale — everything must go!"
+            maxLength={MAX_TITLE}
+          />
+          <Text className="mt-1 text-right text-xs text-zinc-400">
+            {titleLen}/{MAX_TITLE}
+          </Text>
+        </View>
+
+        <View>
+          <Input
+            label="Description"
+            value={description}
+            onChangeText={(v) => setDescription(v.slice(0, MAX_DESCRIPTION))}
+            placeholder="What are you selling? Any highlights?"
+            multiline
+            numberOfLines={4}
+            inputClassName="min-h-[96px]"
+            maxLength={MAX_DESCRIPTION}
+          />
+          <Text className="mt-1 text-right text-xs text-zinc-400">
+            {descLen}/{MAX_DESCRIPTION}
+          </Text>
+        </View>
+
+        {/* Quick date presets */}
+        <View>
+          <Text className="mb-2 text-sm font-medium text-zinc-700">
+            Quick pick
+          </Text>
+          <DateRangePresets
+            startDate={startDate}
+            endDate={endDate}
+            startTime={startTime}
+            endTime={endTime}
+            onApply={(p) => {
+              setStartDate(p.startDate);
+              setEndDate(p.endDate);
+              setStartTime(p.startTime);
+              setEndTime(p.endTime);
+            }}
+          />
+        </View>
+
         <View className="flex-row" style={{ gap: 10 }}>
           <View className="flex-1">
-            <Input
-              label="Start date"
-              hint="YYYY-MM-DD"
+            <DateTimeField
+              label="Start date *"
+              mode="date"
               value={startDate}
-              onChangeText={setStartDate}
-              placeholder="2026-06-15"
-              keyboardType="numeric"
+              onChange={setStartDate}
+              placeholder="Pick a date"
             />
           </View>
           <View className="flex-1">
-            <Input
-              label="End date"
-              hint="YYYY-MM-DD"
+            <DateTimeField
+              label="End date *"
+              mode="date"
               value={endDate}
-              onChangeText={setEndDate}
-              placeholder="2026-06-16"
-              keyboardType="numeric"
+              onChange={setEndDate}
+              placeholder="Pick a date"
+              min={startDate ? new Date(startDate) : undefined}
             />
           </View>
         </View>
         <View className="flex-row" style={{ gap: 10 }}>
           <View className="flex-1">
-            <Input
-              label="Start time"
-              hint="HH:MM 24-hr"
+            <DateTimeField
+              label="Start time *"
+              mode="time"
               value={startTime}
-              onChangeText={setStartTime}
-              placeholder="08:00"
-              keyboardType="numeric"
+              onChange={setStartTime}
+              placeholder="Start time"
             />
           </View>
           <View className="flex-1">
-            <Input
-              label="End time"
-              hint="HH:MM 24-hr"
+            <DateTimeField
+              label="End time *"
+              mode="time"
               value={endTime}
-              onChangeText={setEndTime}
-              placeholder="14:00"
-              keyboardType="numeric"
+              onChange={setEndTime}
+              placeholder="End time"
             />
           </View>
         </View>
@@ -612,14 +770,28 @@ function DetailsStep({
               />
             ))}
           </View>
+          {selectedCategories.length > 0 && (
+            <Text className="mt-1 text-xs text-zinc-500">
+              {selectedCategories.length} selected
+            </Text>
+          )}
         </View>
 
-        <Input
-          label="Pricing notes"
-          value={pricingNotes}
-          onChangeText={setPricingNotes}
-          placeholder="e.g. Everything under $20, negotiable"
-        />
+        <View>
+          <Input
+            label="Pricing notes"
+            value={pricingNotes}
+            onChangeText={(v) => setPricingNotes(v.slice(0, MAX_PRICING))}
+            placeholder="e.g. Everything under $20, cash preferred, negotiable"
+            multiline
+            numberOfLines={2}
+            inputClassName="min-h-[64px]"
+            maxLength={MAX_PRICING}
+          />
+          <Text className="mt-1 text-right text-xs text-zinc-400">
+            {pricingLen}/{MAX_PRICING}
+          </Text>
+        </View>
       </ScrollView>
 
       <View className="border-t border-zinc-100 bg-white px-4 pb-6 pt-3 flex-row" style={{ gap: 10 }}>

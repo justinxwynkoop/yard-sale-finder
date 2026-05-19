@@ -40,7 +40,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       ) : null}
       <View
         className={[
-          'flex-row items-center rounded-xl border bg-white px-3',
+          'flex-row rounded-xl border bg-white px-3',
+          rest.multiline ? 'items-start py-2.5' : 'items-center',
           error
             ? 'border-red-500'
             : focused
@@ -48,16 +49,22 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             : 'border-zinc-300',
         ].join(' ')}
       >
-        {leftIcon ? <View className="mr-2">{leftIcon}</View> : null}
+        {leftIcon ? (
+          <View className={rest.multiline ? 'mr-2 mt-0.5' : 'mr-2'}>
+            {leftIcon}
+          </View>
+        ) : null}
         <TextInput
           ref={ref}
           className={[
-            'h-11 flex-1 text-base text-zinc-900',
+            'flex-1 text-base text-zinc-900',
+            rest.multiline ? '' : 'h-11',
             inputClassName,
           ]
             .filter(Boolean)
             .join(' ')}
           placeholderTextColor="#a1a1aa"
+          textAlignVertical={rest.multiline ? 'top' : 'center'}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);

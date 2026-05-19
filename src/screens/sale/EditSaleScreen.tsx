@@ -12,7 +12,13 @@ import {
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { SaleStackParamList, ItemCategory, SaleStatus } from '../../types';
-import { Button, Chip, Input } from '../../components/ui';
+import {
+  Button,
+  Chip,
+  DateRangePresets,
+  DateTimeField,
+  Input,
+} from '../../components/ui';
 
 type Route = RouteProp<SaleStackParamList, 'EditSale'>;
 
@@ -34,6 +40,10 @@ const STATUSES: { value: SaleStatus; label: string }[] = [
   { value: 'winding_down', label: 'Winding down' },
   { value: 'ended', label: 'Ended' },
 ];
+
+const MAX_TITLE = 80;
+const MAX_DESCRIPTION = 500;
+const MAX_PRICING = 200;
 
 export default function EditSaleScreen() {
   const route = useRoute<Route>();
@@ -65,8 +75,9 @@ export default function EditSaleScreen() {
           setDescription(data.description ?? '');
           setStartDate(data.start_date);
           setEndDate(data.end_date);
-          setStartTime(data.start_time);
-          setEndTime(data.end_time);
+          // Supabase time columns can return 'HH:MM:SS' — trim to HH:MM
+          setStartTime((data.start_time ?? '').slice(0, 5));
+          setEndTime((data.end_time ?? '').slice(0, 5));
           setSelectedCategories(data.categories ?? []);
           setPricingNotes(data.pricing_notes ?? '');
           setStatus(data.status);
@@ -84,6 +95,10 @@ export default function EditSaleScreen() {
   const save = async () => {
     if (!title.trim()) {
       Alert.alert('Title required');
+      return;
+    }
+    if (endDate < startDate) {
+      Alert.alert('Date issue', 'End date must be after start date.');
       return;
     }
     setSaving(true);
@@ -123,58 +138,90 @@ export default function EditSaleScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
-          <Input
-            label="Sale title"
-            value={title}
-            onChangeText={setTitle}
-            maxLength={80}
-          />
-          <Input
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={3}
-            inputClassName="h-24 pt-2"
-          />
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24, gap: 16 }}>
+          <View>
+            <Input
+              label="Sale title *"
+              value={title}
+              onChangeText={(v) => setTitle(v.slice(0, MAX_TITLE))}
+              maxLength={MAX_TITLE}
+            />
+            <Text className="mt-1 text-right text-xs text-zinc-400">
+              {title.length}/{MAX_TITLE}
+            </Text>
+          </View>
+
+          <View>
+            <Input
+              label="Description"
+              value={description}
+              onChangeText={(v) => setDescription(v.slice(0, MAX_DESCRIPTION))}
+              multiline
+              numberOfLines={4}
+              inputClassName="min-h-[96px]"
+              maxLength={MAX_DESCRIPTION}
+            />
+            <Text className="mt-1 text-right text-xs text-zinc-400">
+              {description.length}/{MAX_DESCRIPTION}
+            </Text>
+          </View>
+
+          <View>
+            <Text className="mb-2 text-sm font-medium text-zinc-700">
+              Quick pick
+            </Text>
+            <DateRangePresets
+              startDate={startDate}
+              endDate={endDate}
+              startTime={startTime}
+              endTime={endTime}
+              onApply={(p) => {
+                setStartDate(p.startDate);
+                setEndDate(p.endDate);
+                setStartTime(p.startTime);
+                setEndTime(p.endTime);
+              }}
+            />
+          </View>
+
           <View className="flex-row" style={{ gap: 10 }}>
             <View className="flex-1">
-              <Input
+              <DateTimeField
                 label="Start date"
-                hint="YYYY-MM-DD"
+                mode="date"
                 value={startDate}
-                onChangeText={setStartDate}
-                keyboardType="numeric"
+                onChange={setStartDate}
+                placeholder="Pick a date"
               />
             </View>
             <View className="flex-1">
-              <Input
+              <DateTimeField
                 label="End date"
-                hint="YYYY-MM-DD"
+                mode="date"
                 value={endDate}
-                onChangeText={setEndDate}
-                keyboardType="numeric"
+                onChange={setEndDate}
+                placeholder="Pick a date"
+                min={startDate ? new Date(startDate) : undefined}
               />
             </View>
           </View>
           <View className="flex-row" style={{ gap: 10 }}>
             <View className="flex-1">
-              <Input
+              <DateTimeField
                 label="Start time"
-                hint="HH:MM"
+                mode="time"
                 value={startTime}
-                onChangeText={setStartTime}
-                keyboardType="numeric"
+                onChange={setStartTime}
+                placeholder="Start time"
               />
             </View>
             <View className="flex-1">
-              <Input
+              <DateTimeField
                 label="End time"
-                hint="HH:MM"
+                mode="time"
                 value={endTime}
-                onChangeText={setEndTime}
-                keyboardType="numeric"
+                onChange={setEndTime}
+                placeholder="End time"
               />
             </View>
           </View>
@@ -196,11 +243,20 @@ export default function EditSaleScreen() {
             </View>
           </View>
 
-          <Input
-            label="Pricing notes"
-            value={pricingNotes}
-            onChangeText={setPricingNotes}
-          />
+          <View>
+            <Input
+              label="Pricing notes"
+              value={pricingNotes}
+              onChangeText={(v) => setPricingNotes(v.slice(0, MAX_PRICING))}
+              multiline
+              numberOfLines={2}
+              inputClassName="min-h-[64px]"
+              maxLength={MAX_PRICING}
+            />
+            <Text className="mt-1 text-right text-xs text-zinc-400">
+              {pricingNotes.length}/{MAX_PRICING}
+            </Text>
+          </View>
 
           <View>
             <Text className="mb-2 text-sm font-medium text-zinc-700">
