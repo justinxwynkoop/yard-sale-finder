@@ -17,6 +17,7 @@ import { File } from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
@@ -354,12 +355,9 @@ export default function CreateSaleScreen() {
   const canSubmit = !validationError && !submitting;
 
   return (
-    <View className="flex-1 bg-surface">
+    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
       {/* Header */}
-      <View
-        className="flex-row items-center justify-between border-b border-zinc-100 bg-white px-4 pb-3"
-        style={{ paddingTop: Platform.OS === 'ios' ? 8 : 12 }}
-      >
+      <View className="flex-row items-center justify-between border-b border-zinc-100 bg-white px-4 py-2">
         <IconButton
           variant="ghost"
           size="md"
@@ -703,7 +701,7 @@ export default function CreateSaleScreen() {
           </Button>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
