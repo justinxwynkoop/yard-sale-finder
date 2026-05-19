@@ -19,12 +19,13 @@ export type ButtonProps = Omit<PressableProps, 'children'> & {
   rightIcon?: React.ReactNode;
   className?: string;
   textClassName?: string;
+  fullWidth?: boolean;
 };
 
 const containerByVariant: Record<Variant, string> = {
-  primary: 'bg-brand active:bg-brand-dark',
-  secondary: 'bg-zinc-200 active:bg-zinc-300',
-  outline: 'bg-transparent border border-zinc-300 active:bg-zinc-100',
+  primary: 'bg-brand active:bg-brand-600',
+  secondary: 'bg-zinc-100 active:bg-zinc-200',
+  outline: 'bg-white border border-zinc-200 active:bg-zinc-50',
   ghost: 'bg-transparent active:bg-zinc-100',
   destructive: 'bg-red-600 active:bg-red-700',
 };
@@ -38,9 +39,9 @@ const textByVariant: Record<Variant, string> = {
 };
 
 const containerBySize: Record<Size, string> = {
-  sm: 'h-9 px-3',
-  md: 'h-11 px-4',
-  lg: 'h-12 px-5',
+  sm: 'h-9 px-3 rounded-lg',
+  md: 'h-12 px-4 rounded-xl',
+  lg: 'h-14 px-6 rounded-2xl',
 };
 
 const textBySize: Record<Size, string> = {
@@ -60,6 +61,7 @@ export const Button = forwardRef<View, ButtonProps>(function Button(
     rightIcon,
     className = '',
     textClassName = '',
+    fullWidth = false,
     ...rest
   },
   ref,
@@ -71,9 +73,10 @@ export const Button = forwardRef<View, ButtonProps>(function Button(
       ref={ref}
       disabled={isDisabled}
       className={[
-        'flex-row items-center justify-center rounded-xl',
+        'flex-row items-center justify-center',
         containerByVariant[variant],
         containerBySize[size],
+        fullWidth ? 'w-full' : '',
         isDisabled ? 'opacity-50' : '',
         className,
       ]
@@ -84,7 +87,9 @@ export const Button = forwardRef<View, ButtonProps>(function Button(
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'destructive' ? '#fff' : '#18181b'}
+          color={
+            variant === 'primary' || variant === 'destructive' ? '#fff' : '#18181b'
+          }
         />
       ) : (
         <>

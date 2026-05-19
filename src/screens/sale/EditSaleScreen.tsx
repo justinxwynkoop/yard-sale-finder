@@ -1,17 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { SaleStackParamList, ItemCategory, SaleStatus } from '../../types';
+import { Button, Chip, Input } from '../../components/ui';
 
 type Route = RouteProp<SaleStackParamList, 'EditSale'>;
 
 const CATEGORIES: ItemCategory[] = [
-  'furniture', 'clothing', 'electronics', 'toys', 'tools',
-  'books', 'kitchen', 'sports', 'antiques', 'other',
+  'furniture',
+  'clothing',
+  'electronics',
+  'toys',
+  'tools',
+  'books',
+  'kitchen',
+  'sports',
+  'antiques',
+  'other',
+];
+
+const STATUSES: { value: SaleStatus; label: string }[] = [
+  { value: 'active', label: 'Live now' },
+  { value: 'winding_down', label: 'Winding down' },
+  { value: 'ended', label: 'Ended' },
 ];
 
 export default function EditSaleScreen() {
@@ -33,132 +54,178 @@ export default function EditSaleScreen() {
   const [status, setStatus] = useState<SaleStatus>('active');
 
   useEffect(() => {
-    supabase.from('sales').select('*').eq('id', saleId).single().then(({ data }) => {
-      if (data) {
-        setTitle(data.title);
-        setDescription(data.description ?? '');
-        setStartDate(data.start_date);
-        setEndDate(data.end_date);
-        setStartTime(data.start_time);
-        setEndTime(data.end_time);
-        setSelectedCategories(data.categories ?? []);
-        setPricingNotes(data.pricing_notes ?? '');
-        setStatus(data.status);
-      }
-      setLoading(false);
-    });
+    supabase
+      .from('sales')
+      .select('*')
+      .eq('id', saleId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setTitle(data.title);
+          setDescription(data.description ?? '');
+          setStartDate(data.start_date);
+          setEndDate(data.end_date);
+          setStartTime(data.start_time);
+          setEndTime(data.end_time);
+          setSelectedCategories(data.categories ?? []);
+          setPricingNotes(data.pricing_notes ?? '');
+          setStatus(data.status);
+        }
+        setLoading(false);
+      });
   }, [saleId]);
 
   const toggleCategory = (cat: ItemCategory) => {
-    setSelectedCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
   };
 
   const save = async () => {
-    if (!title.trim()) { Alert.alert('Title required'); return; }
+    if (!title.trim()) {
+      Alert.alert('Title required');
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase.from('sales').update({
-      title: title.trim(),
-      description: description.trim() || null,
-      start_date: startDate,
-      end_date: endDate,
-      start_time: startTime,
-      end_time: endTime,
-      categories: selectedCategories,
-      pricing_notes: pricingNotes.trim() || null,
-      status,
-    }).eq('id', saleId);
+    const { error } = await supabase
+      .from('sales')
+      .update({
+        title: title.trim(),
+        description: description.trim() || null,
+        start_date: startDate,
+        end_date: endDate,
+        start_time: startTime,
+        end_time: endTime,
+        categories: selectedCategories,
+        pricing_notes: pricingNotes.trim() || null,
+        status,
+      })
+      .eq('id', saleId);
     setSaving(false);
-    if (error) { Alert.alert('Error', error.message); return; }
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
     navigation.goBack();
   };
 
-  if (loading) return <View style={s.centered}><ActivityIndicator size="large" color="#2563EB" /></View>;
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#F97316" />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={s.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={s.scroll}>
-          <Label text="Sale Title *" />
-          <TextInput style={s.input} value={title} onChangeText={setTitle} maxLength={80} />
-
-          <Label text="Description" />
-          <TextInput style={[s.input, s.textArea]} value={description} onChangeText={setDescription} multiline numberOfLines={3} />
-
-          <Label text="Start Date (YYYY-MM-DD)" />
-          <TextInput style={s.input} value={startDate} onChangeText={setStartDate} keyboardType="numeric" />
-
-          <Label text="End Date (YYYY-MM-DD)" />
-          <TextInput style={s.input} value={endDate} onChangeText={setEndDate} keyboardType="numeric" />
-
-          <Label text="Start Time (HH:MM)" />
-          <TextInput style={s.input} value={startTime} onChangeText={setStartTime} keyboardType="numeric" />
-
-          <Label text="End Time (HH:MM)" />
-          <TextInput style={s.input} value={endTime} onChangeText={setEndTime} keyboardType="numeric" />
-
-          <Label text="Categories" />
-          <View style={s.catGrid}>
-            {CATEGORIES.map(cat => (
-              <TouchableOpacity
-                key={cat}
-                style={[s.catChip, selectedCategories.includes(cat) && s.catChipActive]}
-                onPress={() => toggleCategory(cat)}
-              >
-                <Text style={[s.catChipText, selectedCategories.includes(cat) && s.catChipTextActive]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
+    <SafeAreaView className="flex-1 bg-white">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
+          <Input
+            label="Sale title"
+            value={title}
+            onChangeText={setTitle}
+            maxLength={80}
+          />
+          <Input
+            label="Description"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+            inputClassName="h-24 pt-2"
+          />
+          <View className="flex-row" style={{ gap: 10 }}>
+            <View className="flex-1">
+              <Input
+                label="Start date"
+                hint="YYYY-MM-DD"
+                value={startDate}
+                onChangeText={setStartDate}
+                keyboardType="numeric"
+              />
+            </View>
+            <View className="flex-1">
+              <Input
+                label="End date"
+                hint="YYYY-MM-DD"
+                value={endDate}
+                onChangeText={setEndDate}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+          <View className="flex-row" style={{ gap: 10 }}>
+            <View className="flex-1">
+              <Input
+                label="Start time"
+                hint="HH:MM"
+                value={startTime}
+                onChangeText={setStartTime}
+                keyboardType="numeric"
+              />
+            </View>
+            <View className="flex-1">
+              <Input
+                label="End time"
+                hint="HH:MM"
+                value={endTime}
+                onChangeText={setEndTime}
+                keyboardType="numeric"
+              />
+            </View>
           </View>
 
-          <Label text="Pricing Notes" />
-          <TextInput style={s.input} value={pricingNotes} onChangeText={setPricingNotes} />
-
-          <Label text="Status" />
-          <View style={s.statusRow}>
-            {(['active', 'winding_down', 'ended'] as SaleStatus[]).map(st => (
-              <TouchableOpacity
-                key={st}
-                style={[s.statusChip, status === st && s.statusChipActive]}
-                onPress={() => setStatus(st)}
-              >
-                <Text style={[s.statusChipText, status === st && s.statusChipTextActive]}>
-                  {st === 'winding_down' ? 'Winding Down' : st.charAt(0).toUpperCase() + st.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View>
+            <Text className="mb-2 text-sm font-medium text-zinc-700">
+              Categories
+            </Text>
+            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+              {CATEGORIES.map((cat) => (
+                <Chip
+                  key={cat}
+                  label={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  size="sm"
+                  active={selectedCategories.includes(cat)}
+                  onPress={() => toggleCategory(cat)}
+                />
+              ))}
+            </View>
           </View>
 
-          <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Save Changes</Text>}
-          </TouchableOpacity>
+          <Input
+            label="Pricing notes"
+            value={pricingNotes}
+            onChangeText={setPricingNotes}
+          />
+
+          <View>
+            <Text className="mb-2 text-sm font-medium text-zinc-700">
+              Status
+            </Text>
+            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+              {STATUSES.map((s) => (
+                <Chip
+                  key={s.value}
+                  label={s.label}
+                  size="sm"
+                  active={status === s.value}
+                  onPress={() => setStatus(s.value)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <View className="mt-4">
+            <Button size="lg" onPress={save} loading={saving}>
+              Save changes
+            </Button>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-function Label({ text }: { text: string }) {
-  return <Text style={s.label}>{text}</Text>;
-}
-
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 16, gap: 4 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 12, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#1a1a1a' },
-  textArea: { height: 80, textAlignVertical: 'top' },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  catChip: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
-  catChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  catChipText: { fontSize: 13, color: '#374151', textTransform: 'capitalize' },
-  catChipTextActive: { color: '#fff' },
-  statusRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  statusChip: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
-  statusChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  statusChipText: { fontSize: 13, color: '#374151' },
-  statusChipTextActive: { color: '#fff' },
-  saveBtn: { marginTop: 24, backgroundColor: '#2563EB', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});

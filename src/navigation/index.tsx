@@ -2,10 +2,15 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
-import { RootStackParamList, MainTabParamList, MapStackParamList, SaleStackParamList } from '../types';
+import {
+  RootStackParamList,
+  MainTabParamList,
+  MapStackParamList,
+  SaleStackParamList,
+} from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
 import MapHomeScreen from '../screens/map/MapHomeScreen';
@@ -20,6 +25,9 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
 const SaleStack = createNativeStackNavigator<SaleStackParamList>();
 
+const BRAND = '#F97316';
+const INACTIVE = '#A1A1AA';
+
 function MapNavigator() {
   return (
     <MapStack.Navigator screenOptions={{ headerShown: false }}>
@@ -27,7 +35,7 @@ function MapNavigator() {
       <MapStack.Screen
         name="SaleDetail"
         component={SaleDetailScreen}
-        options={{ headerShown: true, title: 'Sale Details', headerBackTitle: 'Map' }}
+        options={{ headerShown: false }}
       />
     </MapStack.Navigator>
   );
@@ -35,38 +43,79 @@ function MapNavigator() {
 
 function SaleNavigator() {
   return (
-    <SaleStack.Navigator>
-      <SaleStack.Screen name="MySalesHome" component={MySalesScreen} options={{ headerShown: false }} />
-      <SaleStack.Screen name="CreateSale" component={CreateSaleScreen} options={{ title: 'Post a Sale', headerBackTitle: 'My Sales' }} />
-      <SaleStack.Screen name="EditSale" component={EditSaleScreen} options={{ title: 'Edit Sale', headerBackTitle: 'My Sales' }} />
+    <SaleStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerShadowVisible: false,
+        headerTintColor: '#18181B',
+      }}
+    >
+      <SaleStack.Screen
+        name="MySalesHome"
+        component={MySalesScreen}
+        options={{ headerShown: false }}
+      />
+      <SaleStack.Screen
+        name="CreateSale"
+        component={CreateSaleScreen}
+        options={{ title: 'Post a Sale', headerBackTitle: 'Back' }}
+      />
+      <SaleStack.Screen
+        name="EditSale"
+        component={EditSaleScreen}
+        options={{ title: 'Edit Sale', headerBackTitle: 'Back' }}
+      />
     </SaleStack.Navigator>
   );
 }
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: { borderTopColor: '#F3F4F6' },
-      }}
+        tabBarActiveTintColor: BRAND,
+        tabBarInactiveTintColor: INACTIVE,
+        tabBarStyle: {
+          borderTopColor: '#F4F4F5',
+          height: 64,
+          paddingTop: 6,
+          paddingBottom: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+        tabBarIcon: ({ color, focused, size }) => {
+          let iconName: IoniconName = 'ellipse-outline';
+          if (route.name === 'Map') {
+            iconName = focused ? 'map' : 'map-outline';
+          } else if (route.name === 'MySales') {
+            iconName = focused ? 'pricetag' : 'pricetag-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person-circle' : 'person-circle-outline';
+          }
+          return <Ionicons name={iconName} size={size ?? 24} color={color} />;
+        },
+      })}
     >
       <Tab.Screen
         name="Map"
         component={MapNavigator}
-        options={{ tabBarLabel: 'Discover', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🗺️</Text> }}
+        options={{ tabBarLabel: 'Discover' }}
       />
       <Tab.Screen
         name="MySales"
         component={SaleNavigator}
-        options={{ tabBarLabel: 'My Sales', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏷️</Text> }}
+        options={{ tabBarLabel: 'My Sales' }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text> }}
+        options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
   );
@@ -83,7 +132,7 @@ export default function Navigation() {
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {(session || DEV_BYPASS_AUTH) ? (
+        {session || DEV_BYPASS_AUTH ? (
           <RootStack.Screen name="Main" component={MainTabs} />
         ) : (
           <RootStack.Screen name="Auth" component={AuthScreen} />

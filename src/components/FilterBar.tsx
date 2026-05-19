@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { ScrollView } from 'react-native';
+import { Chip } from './ui';
 import { ItemCategory } from '../types';
 
 const CATEGORIES: { label: string; value: ItemCategory }[] = [
@@ -25,14 +26,14 @@ export default function FilterBar({ selected, onSelect }: Props) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.scroll}
-      style={styles.container}
+      contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 4 }}
     >
-      <Chip label="All" active={!selected} onPress={() => onSelect(null)} />
-      {CATEGORIES.map(cat => (
+      <Chip label="All" active={!selected} onPress={() => onSelect(null)} size="sm" />
+      {CATEGORIES.map((cat) => (
         <Chip
           key={cat.value}
           label={cat.label}
+          size="sm"
           active={selected === cat.value}
           onPress={() => onSelect(selected === cat.value ? null : cat.value)}
         />
@@ -40,49 +41,3 @@ export default function FilterBar({ selected, onSelect }: Props) {
     </ScrollView>
   );
 }
-
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
-      onPress={onPress}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 8,
-    marginHorizontal: 16,
-  },
-  scroll: {
-    gap: 8,
-    paddingBottom: 4,
-  },
-  chip: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  chipActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
-  chipText: {
-    fontSize: 13,
-    color: '#444',
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#fff',
-  },
-});

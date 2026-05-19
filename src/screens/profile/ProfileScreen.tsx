@@ -5,12 +5,13 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
-  Image,
+  ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { Profile } from '../../types';
-import { Button, Input } from '../../components/ui';
+import { Avatar, Badge, Button, Card, Input } from '../../components/ui';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -20,7 +21,10 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     supabase
       .from('profiles')
       .select('*')
@@ -34,7 +38,10 @@ export default function ProfileScreen() {
   }, [user]);
 
   const save = async () => {
-    if (!user) return;
+    if (!user) {
+      Alert.alert('Not signed in', 'Sign in to save your profile.');
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
@@ -49,62 +56,80 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   };
 
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#16a34a" />
+        <ActivityIndicator size="large" color="#F97316" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="border-b border-zinc-100 px-4 py-4">
+    <SafeAreaView className="flex-1 bg-surface">
+      <View className="bg-white px-5 py-4">
         <Text className="text-2xl font-extrabold text-zinc-900">Profile</Text>
       </View>
 
-      <View className="items-center py-8">
-        {profile?.avatar_url ? (
-          <Image
-            source={{ uri: profile.avatar_url }}
-            className="mb-3 h-24 w-24 rounded-full"
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+        <Card className="items-center px-6 py-8">
+          <Avatar uri={profile?.avatar_url} name={displayName} size="xl" />
+          <Text className="mt-4 text-lg font-bold text-zinc-900">
+            {displayName || 'Add your name'}
+          </Text>
+          <Text className="mt-1 text-sm text-zinc-500">
+            {profile?.email ?? (user ? user.email : 'Not signed in')}
+          </Text>
+          {!user && (
+            <View className="mt-3">
+              <Badge tone="winding">Dev bypass — no user</Badge>
+            </View>
+          )}
+        </Card>
+
+        <Card className="p-5">
+          <Input
+            label="Display name"
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Your name"
+            maxLength={50}
+            containerClassName="mb-4"
           />
-        ) : (
-          <View className="mb-3 h-24 w-24 items-center justify-center rounded-full bg-brand">
-            <Text className="text-4xl font-bold text-white">
-              {displayName ? displayName[0].toUpperCase() : '?'}
-            </Text>
+          <Button onPress={save} loading={saving} size="md">
+            Save changes
+          </Button>
+        </Card>
+
+        <Card className="p-5">
+          <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
+            App
+          </Text>
+          <View className="flex-row items-center" style={{ gap: 12 }}>
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+              <Ionicons name="information-circle-outline" size={20} color="#F97316" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-zinc-900">
+                Yard Sale Finder
+              </Text>
+              <Text className="text-xs text-zinc-500">Version 1.0.0</Text>
+            </View>
           </View>
-        )}
-        <Text className="text-sm text-zinc-500">{profile?.email}</Text>
-      </View>
+        </Card>
 
-      <View className="px-6">
-        <Input
-          label="Display Name"
-          value={displayName}
-          onChangeText={setDisplayName}
-          placeholder="Your name"
-          maxLength={50}
-          containerClassName="mb-4"
-        />
-
-        <Button onPress={save} loading={saving}>
-          Save Changes
-        </Button>
-      </View>
-
-      <View className="absolute bottom-10 left-6 right-6">
-        <Button variant="outline" onPress={handleSignOut} textClassName="text-red-600">
-          Sign Out
-        </Button>
-      </View>
+        <View className="mt-2">
+          <Button variant="outline" onPress={handleSignOut} textClassName="text-red-600"
+            leftIcon={<Ionicons name="log-out-outline" size={18} color="#DC2626" />}>
+            Sign out
+          </Button>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

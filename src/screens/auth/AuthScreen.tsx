@@ -2,23 +2,24 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
-  Image,
   SafeAreaView,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export default function AuthScreen() {
-  const [loading, setLoading] = useState<string | null>(null);
+type Provider = 'google' | 'apple' | 'facebook';
 
-  const signInWithProvider = async (provider: 'google' | 'apple' | 'facebook') => {
+export default function AuthScreen() {
+  const [loading, setLoading] = useState<Provider | null>(null);
+
+  const signInWithProvider = async (provider: Provider) => {
     setLoading(provider);
     try {
       const redirectTo = Linking.createURL('auth-callback');
@@ -39,20 +40,24 @@ export default function AuthScreen() {
       if (result.type === 'success' && result.url) {
         const returnedUrl = result.url;
 
-        // PKCE flow: URL contains ?code=
         const codeMatch = returnedUrl.match(/[?&]code=([^&]+)/);
         if (codeMatch) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(codeMatch[1]);
+          const { error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(codeMatch[1]);
           if (exchangeError) throw exchangeError;
           return;
         }
 
-        // Implicit flow: tokens in hash fragment
-        const hashParams = new URLSearchParams(returnedUrl.split('#')[1] ?? '');
+        const hashParams = new URLSearchParams(
+          returnedUrl.split('#')[1] ?? '',
+        );
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         if (accessToken && refreshToken) {
-          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
         }
       }
     } catch (e: any) {
@@ -63,132 +68,81 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.hero}>
-        <Text style={styles.logo}>🏷️</Text>
-        <Text style={styles.title}>Yard Sale Finder</Text>
-        <Text style={styles.subtitle}>Discover local sales. Host your own.</Text>
-      </View>
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="flex-1 justify-between px-6 py-12">
+        {/* Hero */}
+        <View className="mt-12 items-center">
+          <View className="mb-6 h-20 w-20 items-center justify-center rounded-3xl bg-brand">
+            <Ionicons name="pricetag" size={40} color="#fff" />
+          </View>
+          <Text className="text-center text-4xl font-extrabold text-zinc-900">
+            Yard Sale Finder
+          </Text>
+          <Text className="mt-3 text-center text-base text-zinc-500">
+            Discover local sales. Host your own.
+          </Text>
+        </View>
 
-      <View style={styles.buttons}>
-        <SocialButton
-          label="Continue with Google"
-          icon="G"
-          iconBg="#4285F4"
-          onPress={() => signInWithProvider('google')}
-          loading={loading === 'google'}
-        />
-        <SocialButton
-          label="Continue with Apple"
-          icon=""
-          iconBg="#000"
-          onPress={() => signInWithProvider('apple')}
-          loading={loading === 'apple'}
-        />
-        <SocialButton
-          label="Continue with Facebook"
-          icon="f"
-          iconBg="#1877F2"
-          onPress={() => signInWithProvider('facebook')}
-          loading={loading === 'facebook'}
-        />
-      </View>
+        {/* Sign-in buttons */}
+        <View style={{ gap: 12 }}>
+          <SocialButton
+            label="Continue with Google"
+            iconName="logo-google"
+            iconColor="#4285F4"
+            onPress={() => signInWithProvider('google')}
+            loading={loading === 'google'}
+          />
+          <SocialButton
+            label="Continue with Apple"
+            iconName="logo-apple"
+            iconColor="#000"
+            onPress={() => signInWithProvider('apple')}
+            loading={loading === 'apple'}
+          />
+          <SocialButton
+            label="Continue with Facebook"
+            iconName="logo-facebook"
+            iconColor="#1877F2"
+            onPress={() => signInWithProvider('facebook')}
+            loading={loading === 'facebook'}
+          />
+        </View>
 
-      <Text style={styles.terms}>
-        By continuing, you agree to our Terms of Service and Privacy Policy.
-      </Text>
+        <Text className="text-center text-xs leading-5 text-zinc-400">
+          By continuing, you agree to our Terms of Service and Privacy Policy.
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
 
 function SocialButton({
   label,
-  icon,
-  iconBg,
+  iconName,
+  iconColor,
   onPress,
   loading,
 }: {
   label: string;
-  icon: string;
-  iconBg: string;
+  iconName: React.ComponentProps<typeof Ionicons>['name'];
+  iconColor: string;
   onPress: () => void;
   loading: boolean;
 }) {
   return (
-    <TouchableOpacity style={styles.socialBtn} onPress={onPress} disabled={loading}>
-      <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-        <Text style={styles.iconText}>{icon}</Text>
+    <Pressable
+      onPress={onPress}
+      disabled={loading}
+      className="h-14 flex-row items-center rounded-2xl border border-zinc-200 bg-white px-4 active:bg-zinc-50"
+    >
+      <View className="mr-3 h-9 w-9 items-center justify-center rounded-xl bg-zinc-50">
+        <Ionicons name={iconName} size={20} color={iconColor} />
       </View>
       {loading ? (
-        <ActivityIndicator color="#333" style={styles.btnLabel} />
+        <ActivityIndicator color="#333" />
       ) : (
-        <Text style={styles.btnLabel}>{label}</Text>
+        <Text className="text-base font-semibold text-zinc-900">{label}</Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 48,
-  },
-  hero: {
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  logo: {
-    fontSize: 72,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  buttons: {
-    gap: 12,
-  },
-  socialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: '#fafafa',
-  },
-  iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  iconText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  btnLabel: {
-    fontSize: 16,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
-  terms: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#999',
-    lineHeight: 18,
-  },
-});

@@ -2,13 +2,14 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Image,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Sale } from '../types';
 import { formatSaleDate, formatSaleTime } from '../utils/format';
+import { Badge, Button, IconButton, StatusBadge } from './ui';
 
 interface Props {
   sale: Sale;
@@ -17,118 +18,87 @@ interface Props {
 }
 
 export default function SalePinCallout({ sale, onClose, onViewDetails }: Props) {
-  const firstImage = sale.media?.find(m => m.type === 'image');
+  const images = sale.media?.filter((m) => m.type === 'image') ?? [];
+  const screenWidth = 360;
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
-        {sale.media && sale.media.length > 0 ? (
-          sale.media.filter(m => m.type === 'image').map(m => (
-            <Image key={m.id} source={{ uri: m.url }} style={styles.image} />
-          ))
+    <View className="absolute bottom-6 left-4 right-4 overflow-hidden rounded-3xl bg-white shadow-lg">
+      {/* Media */}
+      <View className="relative">
+        {images.length > 0 ? (
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+          >
+            {images.map((m) => (
+              <Image
+                key={m.id}
+                source={{ uri: m.url }}
+                style={{ width: screenWidth - 32, height: 180 }}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
         ) : (
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>🏡</Text>
+          <View className="h-32 items-center justify-center bg-brand-50">
+            <Ionicons name="image-outline" size={40} color="#F97316" />
           </View>
         )}
-      </ScrollView>
-
-      <View style={styles.info}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>{sale.title}</Text>
+        <View className="absolute right-3 top-3">
+          <IconButton
+            variant="glass"
+            size="sm"
+            icon={<Ionicons name="close" size={18} color="#18181B" />}
+            onPress={onClose}
+          />
+        </View>
+        <View className="absolute left-3 top-3">
           <StatusBadge status={sale.status} />
         </View>
-        <Text style={styles.address} numberOfLines={1}>{sale.address}</Text>
-        <Text style={styles.date}>
-          {formatSaleDate(sale.start_date, sale.end_date)} · {formatSaleTime(sale.start_time, sale.end_time)}
+      </View>
+
+      {/* Body */}
+      <View className="p-4">
+        <Text className="mb-1 text-lg font-bold text-zinc-900" numberOfLines={1}>
+          {sale.title}
         </Text>
+        <View className="mb-1 flex-row items-center">
+          <Ionicons name="location-outline" size={14} color="#71717A" />
+          <Text className="ml-1 flex-1 text-sm text-zinc-500" numberOfLines={1}>
+            {sale.address}
+          </Text>
+        </View>
+        <View className="mb-3 flex-row items-center">
+          <Ionicons name="time-outline" size={14} color="#F97316" />
+          <Text className="ml-1 text-sm font-medium text-brand-600">
+            {formatSaleDate(sale.start_date, sale.end_date)} ·{' '}
+            {formatSaleTime(sale.start_time, sale.end_time)}
+          </Text>
+        </View>
+
         {sale.categories.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
-            {sale.categories.map(cat => (
-              <View key={cat} style={styles.catChip}>
-                <Text style={styles.catText}>{cat}</Text>
-              </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-3"
+            contentContainerStyle={{ gap: 6 }}
+          >
+            {sale.categories.slice(0, 6).map((cat) => (
+              <Badge key={cat} tone="neutral">
+                {cat}
+              </Badge>
             ))}
           </ScrollView>
         )}
-        <TouchableOpacity style={styles.detailBtn} onPress={onViewDetails}>
-          <Text style={styles.detailBtnText}>View Details & Directions</Text>
-        </TouchableOpacity>
+
+        <Button
+          onPress={onViewDetails}
+          rightIcon={<Ionicons name="arrow-forward" size={18} color="#fff" />}
+        >
+          View details
+        </Button>
       </View>
     </View>
   );
 }
-
-function StatusBadge({ status }: { status: Sale['status'] }) {
-  const config = {
-    active: { bg: '#D1FAE5', text: '#065F46', label: 'Active' },
-    winding_down: { bg: '#FEF3C7', text: '#92400E', label: 'Winding Down' },
-    ended: { bg: '#F3F4F6', text: '#6B7280', label: 'Ended' },
-  }[status];
-
-  return (
-    <View style={[styles.badge, { backgroundColor: config.bg }]}>
-      <Text style={[styles.badgeText, { color: config.text }]}>{config.label}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 80,
-    left: 16,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-    overflow: 'hidden',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  imageScroll: { maxHeight: 160 },
-  image: { width: 280, height: 160, resizeMode: 'cover' },
-  imagePlaceholder: {
-    width: 280,
-    height: 120,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePlaceholderText: { fontSize: 48 },
-  info: { padding: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  title: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', flex: 1, marginRight: 8 },
-  address: { fontSize: 13, color: '#666', marginBottom: 4 },
-  date: { fontSize: 13, color: '#2563EB', fontWeight: '500', marginBottom: 8 },
-  catScroll: { marginBottom: 12 },
-  catChip: { backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6 },
-  catText: { fontSize: 12, color: '#2563EB', textTransform: 'capitalize' },
-  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 11, fontWeight: '600' },
-  detailBtn: {
-    backgroundColor: '#2563EB',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  detailBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});

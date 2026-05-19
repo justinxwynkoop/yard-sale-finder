@@ -2,21 +2,32 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Image,
-  TouchableOpacity,
   Linking,
   Platform,
   ActivityIndicator,
-  SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  IconButton,
+  Section,
+  StatusBadge,
+} from '../../components/ui';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const GALLERY_HEIGHT = 320;
 
 export default function SaleDetailScreen() {
   const route = useRoute<Route>();
@@ -25,6 +36,7 @@ export default function SaleDetailScreen() {
 
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
     supabase
@@ -51,168 +63,197 @@ export default function SaleDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#F97316" />
       </View>
     );
   }
 
   if (!sale) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Sale not found.</Text>
+      <View className="flex-1 items-center justify-center bg-white px-8">
+        <Ionicons name="alert-circle-outline" size={48} color="#A1A1AA" />
+        <Text className="mt-3 text-base text-zinc-500">Sale not found.</Text>
+        <View className="mt-6 w-full max-w-xs">
+          <Button variant="outline" onPress={() => navigation.goBack()}>
+            Go back
+          </Button>
+        </View>
       </View>
     );
   }
 
-  const images = sale.media?.filter(m => m.type === 'image') ?? [];
-  const videos = sale.media?.filter(m => m.type === 'video') ?? [];
+  const images = sale.media?.filter((m) => m.type === 'image') ?? [];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView bounces={false}>
-        {/* Media gallery */}
-        {images.length > 0 ? (
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.gallery}>
-            {images.map(img => (
-              <Image key={img.id} source={{ uri: img.url }} style={styles.galleryImage} />
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.galleryPlaceholder}>
-            <Text style={styles.galleryPlaceholderText}>🏡</Text>
-          </View>
-        )}
+    <View className="flex-1 bg-white">
+      <ScrollView bounces={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Hero gallery */}
+        <View style={{ height: GALLERY_HEIGHT }}>
+          {images.length > 0 ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const idx = Math.round(
+                  e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
+                );
+                setActiveImage(idx);
+              }}
+            >
+              {images.map((img) => (
+                <Image
+                  key={img.id}
+                  source={{ uri: img.url }}
+                  style={{
+                    width: SCREEN_WIDTH,
+                    height: GALLERY_HEIGHT,
+                    resizeMode: 'cover',
+                  }}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View className="flex-1 items-center justify-center bg-brand-50">
+              <Ionicons name="image-outline" size={72} color="#FB923C" />
+              <Text className="mt-2 text-sm text-brand-700">No photos yet</Text>
+            </View>
+          )}
 
-        <View style={styles.body}>
-          {/* Status + title */}
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{sale.title}</Text>
+          {/* Floating back button */}
+          <View className="absolute left-4" style={{ top: 56 }}>
+            <IconButton
+              variant="glass"
+              size="md"
+              icon={<Ionicons name="chevron-back" size={22} color="#18181B" />}
+              onPress={() => navigation.goBack()}
+            />
+          </View>
+
+          {/* Floating status badge */}
+          <View className="absolute right-4" style={{ top: 56 }}>
             <StatusBadge status={sale.status} />
           </View>
 
-          {/* Date / time */}
-          <InfoRow icon="📅" text={`${formatSaleDate(sale.start_date, sale.end_date)} · ${formatSaleTime(sale.start_time, sale.end_time)}`} />
+          {/* Page dots */}
+          {images.length > 1 && (
+            <View className="absolute bottom-3 left-0 right-0 flex-row items-center justify-center">
+              {images.map((_, i) => (
+                <View
+                  key={i}
+                  className={[
+                    'mx-1 h-1.5 rounded-full',
+                    i === activeImage ? 'w-6 bg-white' : 'w-1.5 bg-white/60',
+                  ].join(' ')}
+                />
+              ))}
+            </View>
+          )}
+        </View>
 
-          {/* Address */}
-          <InfoRow icon="📍" text={sale.address} />
+        {/* Body */}
+        <View className="px-5 pt-5">
+          <Text className="text-2xl font-extrabold text-zinc-900">
+            {sale.title}
+          </Text>
 
-          {/* Seller */}
-          {sale.profile?.display_name && (
-            <InfoRow icon="👤" text={`Hosted by ${sale.profile.display_name}`} />
+          {/* Quick info card */}
+          <Card className="mt-4 p-4">
+            <View className="flex-row items-center">
+              <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+                <Ionicons name="calendar-outline" size={20} color="#F97316" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs uppercase tracking-wide text-zinc-400">
+                  When
+                </Text>
+                <Text className="text-sm font-semibold text-zinc-900">
+                  {formatSaleDate(sale.start_date, sale.end_date)}
+                </Text>
+                <Text className="text-sm text-zinc-600">
+                  {formatSaleTime(sale.start_time, sale.end_time)}
+                </Text>
+              </View>
+            </View>
+            <View className="my-3 h-px bg-zinc-100" />
+            <View className="flex-row items-center">
+              <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+                <Ionicons name="location-outline" size={20} color="#F97316" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs uppercase tracking-wide text-zinc-400">
+                  Where
+                </Text>
+                <Text className="text-sm font-semibold text-zinc-900">
+                  {sale.address}
+                </Text>
+              </View>
+            </View>
+          </Card>
+
+          {/* Host */}
+          {sale.profile && (
+            <Card className="mt-3 flex-row items-center p-4">
+              <Avatar
+                uri={sale.profile.avatar_url}
+                name={sale.profile.display_name ?? sale.profile.email}
+                size="md"
+              />
+              <View className="ml-3 flex-1">
+                <Text className="text-xs uppercase tracking-wide text-zinc-400">
+                  Hosted by
+                </Text>
+                <Text className="text-sm font-semibold text-zinc-900">
+                  {sale.profile.display_name ?? 'Anonymous'}
+                </Text>
+              </View>
+            </Card>
           )}
 
           {/* Categories */}
           {sale.categories.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Categories</Text>
-              <View style={styles.chipRow}>
-                {sale.categories.map(cat => (
-                  <View key={cat} style={styles.chip}>
-                    <Text style={styles.chipText}>{cat}</Text>
-                  </View>
+            <Section title="What you'll find">
+              <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+                {sale.categories.map((cat) => (
+                  <Badge key={cat} tone="brand">
+                    {cat}
+                  </Badge>
                 ))}
               </View>
-            </View>
+            </Section>
           )}
 
           {/* Description */}
           {sale.description && (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>About this Sale</Text>
-              <Text style={styles.description}>{sale.description}</Text>
-            </View>
+            <Section title="About this sale">
+              <Text className="text-base leading-6 text-zinc-700">
+                {sale.description}
+              </Text>
+            </Section>
           )}
 
           {/* Pricing notes */}
           {sale.pricing_notes && (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Pricing Notes</Text>
-              <Text style={styles.description}>{sale.pricing_notes}</Text>
-            </View>
+            <Section title="Pricing">
+              <Text className="text-base leading-6 text-zinc-700">
+                {sale.pricing_notes}
+              </Text>
+            </Section>
           )}
         </View>
       </ScrollView>
 
-      {/* Directions CTA */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.directionsBtn} onPress={openDirections}>
-          <Text style={styles.directionsBtnText}>🗺️  Get Directions</Text>
-        </TouchableOpacity>
+      {/* Sticky CTA */}
+      <View className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3">
+        <Button
+          size="lg"
+          onPress={openDirections}
+          leftIcon={<Ionicons name="navigate" size={20} color="#fff" />}
+        >
+          Get directions
+        </Button>
       </View>
-    </SafeAreaView>
-  );
-}
-
-function InfoRow({ icon, text }: { icon: string; text: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoIcon}>{icon}</Text>
-      <Text style={styles.infoText}>{text}</Text>
     </View>
   );
 }
-
-function StatusBadge({ status }: { status: Sale['status'] }) {
-  const config = {
-    active: { bg: '#D1FAE5', text: '#065F46', label: 'Active' },
-    winding_down: { bg: '#FEF3C7', text: '#92400E', label: 'Winding Down' },
-    ended: { bg: '#F3F4F6', text: '#6B7280', label: 'Ended' },
-  }[status];
-
-  return (
-    <View style={[styles.badge, { backgroundColor: config.bg }]}>
-      <Text style={[styles.badgeText, { color: config.text }]}>{config.label}</Text>
-    </View>
-  );
-}
-
-const SCREEN_WIDTH = 390;
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: '#666', fontSize: 16 },
-  gallery: { height: 260 },
-  galleryImage: { width: SCREEN_WIDTH, height: 260, resizeMode: 'cover' },
-  galleryPlaceholder: {
-    height: 200,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  galleryPlaceholderText: { fontSize: 64 },
-  body: { padding: 20 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    gap: 8,
-  },
-  title: { fontSize: 24, fontWeight: '800', color: '#1a1a1a', flex: 1 },
-  badge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginTop: 4 },
-  badgeText: { fontSize: 12, fontWeight: '600' },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 },
-  infoIcon: { fontSize: 16, marginTop: 1 },
-  infoText: { fontSize: 15, color: '#444', flex: 1, lineHeight: 22 },
-  section: { marginTop: 20 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  chipText: { fontSize: 13, color: '#2563EB', textTransform: 'capitalize' },
-  description: { fontSize: 15, color: '#444', lineHeight: 22 },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    backgroundColor: '#fff',
-  },
-  directionsBtn: {
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  directionsBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-});
