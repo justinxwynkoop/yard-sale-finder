@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Modal, Platform, Pressable, Text, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  View,
+  StyleSheet,
+} from 'react-native';
 import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
@@ -10,7 +17,7 @@ type Mode = 'date' | 'time';
 export type DateTimeFieldProps = {
   label: string;
   mode: Mode;
-  /** ISO date 'YYYY-MM-DD' for date, 'HH:MM' for time */
+  /** 'YYYY-MM-DD' for date, 'HH:MM' for time */
   value: string;
   onChange: (next: string) => void;
   hint?: string;
@@ -46,20 +53,15 @@ function toString(date: Date, mode: Mode) {
 
 function format(value: string, mode: Mode) {
   if (!value) return '';
+  const d = fromString(value, mode);
   if (mode === 'date') {
-    const d = fromString(value, mode);
     return d.toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
     });
   }
-  // time
-  const d = fromString(value, mode);
-  return d.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 export function DateTimeField({
@@ -74,6 +76,17 @@ export function DateTimeField({
   const [open, setOpen] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(fromString(value, mode));
 
+  const display = value ? format(value, mode) : placeholder ?? 'Select…';
+  const isPlaceholder = !value;
+  const iconName = mode === 'date' ? 'calendar-outline' : 'time-outline';
+
+  const openPicker = () => {
+    setTempDate(fromString(value, mode));
+    setOpen(true);
+  };
+
+  // ---- Android: native dialog ----
+  // The dialog mounts only while open and reports back via a single callback.
   const handleAndroidChange = (event: DateTimePickerEvent, date?: Date) => {
     setOpen(false);
     if (event.type === 'set' && date) {
@@ -81,23 +94,18 @@ export function DateTimeField({
     }
   };
 
-  const handleIOSDone = () => {
-    setOpen(false);
+  // ---- iOS: bottom-sheet Modal with spinner ----
+  const handleIOSConfirm = () => {
     onChange(toString(tempDate, mode));
+    setOpen(false);
   };
 
-  const display = value ? format(value, mode) : placeholder ?? 'Select…';
-  const isPlaceholder = !value;
-  const iconName = mode === 'date' ? 'calendar-outline' : 'time-outline';
-
   return (
-    <View className="w-full">
+    <View style={{ width: '100%' }}>
       <Text className="mb-1.5 text-sm font-medium text-zinc-700">{label}</Text>
+
       <Pressable
-        onPress={() => {
-          setTempDate(fromString(value, mode));
-          setOpen(true);
-        }}
+        onPress={openPicker}
         className="h-11 flex-row items-center rounded-xl border border-zinc-300 bg-white px-3 active:bg-zinc-50"
       >
         <Ionicons name={iconName} size={18} color="#71717A" />
@@ -111,10 +119,12 @@ export function DateTimeField({
         </Text>
         <Ionicons name="chevron-down" size={16} color="#A1A1AA" />
       </Pressable>
+
       {hint ? (
         <Text className="mt-1 text-xs text-zinc-500">{hint}</Text>
       ) : null}
 
+      {/* ANDROID: render the native dialog only while open */}
       {open && Platform.OS === 'android' && (
         <DateTimePicker
           value={tempDate}
@@ -124,6 +134,8 @@ export function DateTimeField({
         />
       )}
 
+      {/* iOS: bottom-sheet Modal. Backdrop and sheet are SIBLINGS — no
+          Pressable wraps the picker, so the wheel gesture isn't eaten. */}
       {Platform.OS === 'ios' && (
         <Modal
           visible={open}
@@ -131,25 +143,24 @@ export function DateTimeField({
           animationType="slide"
           onRequestClose={() => setOpen(false)}
         >
-          <Pressable
-            className="flex-1 justify-end bg-black/40"
-            onPress={() => setOpen(false)}
-          >
+          <View style={styles.modalRoot}>
+            {/* Backdrop — tap to dismiss */}
             <Pressable
-              onPress={() => undefined}
-              className="rounded-t-3xl bg-white pb-8 pt-4"
-            >
-              <View className="mb-2 flex-row items-center justify-between px-5">
-                <Pressable onPress={() => setOpen(false)}>
-                  <Text className="text-base text-zinc-500">Cancel</Text>
+              style={StyleSheet.absoluteFill}
+              onPress={() => setOpen(false)}
+            />
+            {/* Sheet — plain View so picker gestures work */}
+            <View style={styles.sheet}>
+              <View style={styles.sheetHeader}>
+                <Pressable
+                  onPress={() => setOpen(false)}
+                  hitSlop={8}
+                >
+                  <Text style={styles.cancel}>Cancel</Text>
                 </Pressable>
-                <Text className="text-base font-semibold text-zinc-900">
-                  {label}
-                </Text>
-                <Pressable onPress={handleIOSDone}>
-                  <Text className="text-base font-semibold text-brand">
-                    Done
-                  </Text>
+                <Text style={styles.sheetTitle}>{label}</Text>
+                <Pressable onPress={handleIOSConfirm} hitSlop={8}>
+                  <Text style={styles.done}>Done</Text>
                 </Pressable>
               </View>
               <DateTimePicker
@@ -157,12 +168,51 @@ export function DateTimeField({
                 mode={mode}
                 display="spinner"
                 minimumDate={min}
-                onChange={(_, d) => d && setTempDate(d)}
+                themeVariant="light"
+                onChange={(_, d) => {
+                  if (d) setTempDate(d);
+                }}
               />
-            </Pressable>
-          </Pressable>
+            </View>
+          </View>
         </Modal>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 32,
+    paddingTop: 12,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#18181B',
+  },
+  cancel: {
+    fontSize: 16,
+    color: '#71717A',
+  },
+  done: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F97316',
+  },
+});
