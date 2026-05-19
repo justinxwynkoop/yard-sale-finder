@@ -62,7 +62,7 @@ export type MainTabParamList = {
 };
 
 export type MapStackParamList = {
-  MapHome: undefined;
+  MapHome: { focusLat?: number; focusLng?: number } | undefined;
   SaleDetail: { saleId: string };
 };
 

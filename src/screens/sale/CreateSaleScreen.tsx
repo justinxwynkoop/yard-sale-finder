@@ -320,8 +320,27 @@ export default function CreateSaleScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(sale.id);
 
+      const focusLat = pinCoords![1];
+      const focusLng = pinCoords![0];
+
       Alert.alert('Sale is live!', 'Your sale is now visible on the map.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        {
+          text: 'View on map',
+          onPress: () => {
+            navigation.goBack();
+            // Jump to the Map tab (sibling) and pan to the new sale
+            setTimeout(() => {
+              const parent: any = navigation.getParent();
+              const grandparent: any = parent?.getParent?.();
+              const target = grandparent ?? parent;
+              target?.navigate('Map', {
+                screen: 'MapHome',
+                params: { focusLat, focusLng },
+              });
+            }, 50);
+          },
+        },
+        { text: 'Done', style: 'cancel', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
       Alert.alert('Error', e.message);

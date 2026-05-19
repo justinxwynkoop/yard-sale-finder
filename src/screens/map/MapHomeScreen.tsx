@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
@@ -18,6 +18,7 @@ import { MapPin } from '../../components/MapPin';
 import { IconButton } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<MapStackParamList, 'MapHome'>;
+type Route = RouteProp<MapStackParamList, 'MapHome'>;
 
 const DEFAULT_REGION: Region = {
   latitude: 39.8283,
@@ -28,7 +29,9 @@ const DEFAULT_REGION: Region = {
 
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
   const mapRef = useRef<MapView>(null);
+  const initialPanDone = useRef(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [mapBounds, setMapBounds] = useState<
     | {
@@ -42,6 +45,59 @@ export default function MapHomeScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   const { sales, loading } = useSales(mapBounds);
+
+  const focusLat = route.params?.focusLat;
+  const focusLng = route.params?.focusLng;
+
+  // 1) If we arrive with focus coords (from a just-posted sale), pan there.
+  // 2) Otherwise, on first mount, try to pan to the user's location so they
+  //    see nearby sales instead of staring at the geographic center of the US.
+  useEffect(() => {
+    if (initialPanDone.current) return;
+    if (focusLat != null && focusLng != null) {
+      initialPanDone.current = true;
+      // Give MapView a tick to mount before animating
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(
+          {
+            latitude: focusLat,
+            longitude: focusLng,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          },
+          800,
+        );
+      }, 250);
+      // Clear the focus param so subsequent renders don't re-pan
+      navigation.setParams({ focusLat: undefined, focusLng: undefined });
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (cancelled || status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({});
+        if (cancelled) return;
+        initialPanDone.current = true;
+        mapRef.current?.animateToRegion(
+          {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          },
+          800,
+        );
+      } catch {
+        /* swallow */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [focusLat, focusLng, navigation]);
 
   const filteredSales = categoryFilter
     ? sales.filter((s) => s.categories.includes(categoryFilter as any))
