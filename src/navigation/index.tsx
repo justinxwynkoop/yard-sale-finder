@@ -59,7 +59,7 @@ function SaleNavigator() {
       <SaleStack.Screen
         name="CreateSale"
         component={CreateSaleScreen}
-        options={{ title: 'Post a Sale', headerBackTitle: 'Back' }}
+        options={{ headerShown: false }}
       />
       <SaleStack.Screen
         name="EditSale"
