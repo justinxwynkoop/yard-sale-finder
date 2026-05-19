@@ -11,9 +11,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
-import { Sale, MapStackParamList } from '../../types';
+import { MapStackParamList } from '../../types';
 import FilterBar from '../../components/FilterBar';
-import SalePinCallout from '../../components/SalePinCallout';
 import { MapPin } from '../../components/MapPin';
 import { IconButton } from '../../components/ui';
 
@@ -32,7 +31,6 @@ export default function MapHomeScreen() {
   const route = useRoute<Route>();
   const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [mapBounds, setMapBounds] = useState<
     | {
         minLat: number;
@@ -138,13 +136,14 @@ export default function MapHomeScreen() {
         onRegionChangeComplete={onRegionChangeComplete}
         showsUserLocation
         showsMyLocationButton={false}
-        onPress={() => setSelectedSale(null)}
       >
         {filteredSales.map((sale) => (
           <Marker
             key={sale.id}
             coordinate={{ latitude: sale.latitude, longitude: sale.longitude }}
-            onPress={() => setSelectedSale(sale)}
+            onPress={() =>
+              navigation.navigate('SaleDetail', { saleId: sale.id })
+            }
             tracksViewChanges={false}
           >
             <MapPin status={sale.status} />
@@ -197,18 +196,6 @@ export default function MapHomeScreen() {
         />
       </View>
 
-      {/* Callout */}
-      {selectedSale && (
-        <SalePinCallout
-          sale={selectedSale}
-          onClose={() => setSelectedSale(null)}
-          onViewDetails={() => {
-            const id = selectedSale.id;
-            setSelectedSale(null);
-            navigation.navigate('SaleDetail', { saleId: id });
-          }}
-        />
-      )}
     </View>
   );
 }

@@ -13,6 +13,7 @@ import {
 import MapView, { Marker, MapPressEvent, Region } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { File } from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -249,30 +250,35 @@ export default function CreateSaleScreen() {
   const uploadMedia = async (saleId: string): Promise<void> => {
     for (let i = 0; i < media.length; i++) {
       const item = media[i];
-      const ext = item.uri.split('.').pop() ?? 'jpg';
+      const ext = (item.uri.split('.').pop() ?? 'jpg').toLowerCase();
       const path = `${user!.id}/${saleId}/${i}.${ext}`;
+      const contentType = item.type === 'video' ? 'video/mp4' : 'image/jpeg';
 
-      const response = await fetch(item.uri);
-      const blob = await response.blob();
+      // React Native's `fetch(uri).blob()` returns a 0-byte blob — files
+      // upload but are empty. Read the file as an ArrayBuffer using
+      // expo-file-system's new File API and upload that instead.
+      const file = new File(item.uri);
+      const arrayBuffer = await file.arrayBuffer();
 
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('sale-media')
-        .upload(path, blob, {
-          contentType: item.type === 'video' ? 'video/mp4' : 'image/jpeg',
+        .upload(path, arrayBuffer, {
+          contentType,
           upsert: true,
         });
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const {
         data: { publicUrl },
       } = supabase.storage.from('sale-media').getPublicUrl(path);
 
-      await supabase.from('sale_media').insert({
+      const { error: insertError } = await supabase.from('sale_media').insert({
         sale_id: saleId,
         url: publicUrl,
         type: item.type,
         order: i,
       });
+      if (insertError) throw insertError;
     }
   };
 
