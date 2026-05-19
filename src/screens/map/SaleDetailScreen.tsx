@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   Image,
+  Pressable,
   Linking,
   Platform,
   ActivityIndicator,
@@ -23,6 +24,7 @@ import {
   Section,
   StatusBadge,
 } from '../../components/ui';
+import { PhotoViewer } from '../../components/PhotoViewer';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
@@ -37,6 +39,8 @@ export default function SaleDetailScreen() {
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
   useEffect(() => {
     supabase
@@ -102,16 +106,23 @@ export default function SaleDetailScreen() {
                 setActiveImage(idx);
               }}
             >
-              {images.map((img) => (
-                <Image
+              {images.map((img, i) => (
+                <Pressable
                   key={img.id}
-                  source={{ uri: img.url }}
-                  style={{
-                    width: SCREEN_WIDTH,
-                    height: GALLERY_HEIGHT,
-                    resizeMode: 'cover',
+                  onPress={() => {
+                    setViewerStartIndex(i);
+                    setViewerOpen(true);
                   }}
-                />
+                >
+                  <Image
+                    source={{ uri: img.url }}
+                    style={{
+                      width: SCREEN_WIDTH,
+                      height: GALLERY_HEIGHT,
+                      resizeMode: 'cover',
+                    }}
+                  />
+                </Pressable>
               ))}
             </ScrollView>
           ) : (
@@ -243,6 +254,13 @@ export default function SaleDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <PhotoViewer
+        visible={viewerOpen}
+        images={images.map((m) => ({ id: m.id, url: m.url }))}
+        initialIndex={viewerStartIndex}
+        onClose={() => setViewerOpen(false)}
+      />
 
       {/* Sticky CTA */}
       <View className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3">
