@@ -51,7 +51,7 @@ const CATEGORIES: ItemCategory[] = [
 
 const STATUSES: { value: SaleStatus; label: string }[] = [
   { value: 'active', label: 'Live now' },
-  { value: 'winding_down', label: 'Winding down' },
+  { value: 'winding_down', label: 'Ending soon' },
   { value: 'ended', label: 'Ended' },
 ];
 

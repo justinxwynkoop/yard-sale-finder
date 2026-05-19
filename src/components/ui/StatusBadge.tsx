@@ -5,14 +5,14 @@ export function StatusBadge({ status }: { status: SaleStatus }) {
   if (status === 'active') {
     return (
       <Badge tone="live" dot>
-        Live now
+        Live
       </Badge>
     );
   }
   if (status === 'winding_down') {
     return (
       <Badge tone="winding" dot>
-        Winding down
+        Ending soon
       </Badge>
     );
   }

@@ -4,9 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SaleStatus } from '../types';
 
 const STATUS_COLOR: Record<SaleStatus, string> = {
-  active: '#F97316', // brand
-  winding_down: '#F59E0B', // amber
-  ended: '#9CA3AF', // zinc
+  active: '#10B981', // emerald-500 — bright green for go!
+  winding_down: '#EAB308', // yellow-500 — clearly yellow
+  ended: '#9CA3AF', // zinc — muted
 };
 
 export function MapPin({ status }: { status: SaleStatus }) {

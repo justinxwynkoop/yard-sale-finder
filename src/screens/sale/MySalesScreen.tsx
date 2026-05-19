@@ -33,7 +33,7 @@ type Filter = 'all' | 'active' | 'winding_down' | 'ended';
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'active', label: 'Live' },
-  { key: 'winding_down', label: 'Winding down' },
+  { key: 'winding_down', label: 'Ending soon' },
   { key: 'ended', label: 'Ended' },
 ];
 
@@ -258,7 +258,7 @@ function SaleCard({
         )}
         {sale.status === 'active' && (
           <Chip
-            label="Winding down"
+            label="Ending soon"
             size="sm"
             onPress={() => onUpdateStatus(sale.id, 'winding_down')}
           />

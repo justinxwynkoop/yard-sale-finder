@@ -30,9 +30,9 @@ module.exports = {
           fg: '#065F46',
         },
         winding: {
-          DEFAULT: '#F59E0B', // amber-500
-          bg: '#FEF3C7',
-          fg: '#92400E',
+          DEFAULT: '#EAB308', // yellow-500 — clearly yellow, not orange
+          bg: '#FEF9C3',
+          fg: '#854D0E',
         },
         ended: {
           DEFAULT: '#9CA3AF',
