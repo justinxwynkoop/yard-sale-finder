@@ -4,11 +4,12 @@ import {
   Text,
   ScrollView,
   Image,
-  Pressable,
   Linking,
   Platform,
   ActivityIndicator,
   Dimensions,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +25,6 @@ import {
   Section,
   StatusBadge,
 } from '../../components/ui';
-import { PhotoViewer } from '../../components/PhotoViewer';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
@@ -39,8 +39,7 @@ export default function SaleDetailScreen() {
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerStartIndex, setViewerStartIndex] = useState(0);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   useEffect(() => {
     supabase
@@ -106,12 +105,12 @@ export default function SaleDetailScreen() {
                 setActiveImage(idx);
               }}
             >
-              {images.map((img, i) => (
+              {images.map((img, idx) => (
                 <Pressable
                   key={img.id}
                   onPress={() => {
-                    setViewerStartIndex(i);
-                    setViewerOpen(true);
+                    setActiveImage(idx);
+                    setIsViewerOpen(true);
                   }}
                 >
                   <Image
@@ -255,12 +254,40 @@ export default function SaleDetailScreen() {
         </View>
       </ScrollView>
 
-      <PhotoViewer
-        visible={viewerOpen}
-        images={images.map((m) => ({ id: m.id, url: m.url }))}
-        initialIndex={viewerStartIndex}
-        onClose={() => setViewerOpen(false)}
-      />
+      <Modal
+        visible={isViewerOpen}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => setIsViewerOpen(false)}
+      >
+        <View className="flex-1 bg-black">
+          <View className="absolute right-4 top-10 z-10">
+            <IconButton
+              variant="glass"
+              size="md"
+              icon={<Ionicons name="close" size={22} color="#fff" />}
+              onPress={() => setIsViewerOpen(false)}
+            />
+          </View>
+
+          {images[activeImage] ? (
+            <Image
+              source={{ uri: images[activeImage].url }}
+              style={{
+                width: '100%',
+                height: '100%',
+                resizeMode: 'contain',
+              }}
+            />
+          ) : null}
+
+          <View className="absolute bottom-10 left-0 right-0 items-center">
+            <Text className="text-sm text-white/80">
+              {activeImage + 1} / {images.length}
+            </Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* Sticky CTA */}
       <View className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3">
