@@ -329,12 +329,12 @@ export default function CreateSaleScreen() {
           text: 'View on map',
           onPress: () => {
             navigation.goBack();
-            // Jump to the Map tab (sibling) and pan to the new sale
+            // The SaleStack's parent is the bottom-tab navigator, which is
+            // the one that owns the 'Map' tab. Jump to it with nested
+            // params so MapHome animates to the new sale's coords.
             setTimeout(() => {
-              const parent: any = navigation.getParent();
-              const grandparent: any = parent?.getParent?.();
-              const target = grandparent ?? parent;
-              target?.navigate('Map', {
+              const tabNav: any = navigation.getParent();
+              tabNav?.navigate('Map', {
                 screen: 'MapHome',
                 params: { focusLat, focusLng },
               });
