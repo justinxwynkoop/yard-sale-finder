@@ -28,13 +28,16 @@ export function useProfile() {
     }
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
+      // Use maybeSingle so a missing row isn't treated as an error —
+      // it just means the profile hasn't been created yet (Apple sign-in
+      // with private relay can race the auto-create trigger).
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      setState({ profile: data, loading: false, error: null });
+      setState({ profile: data ?? null, loading: false, error: null });
     } catch (e: any) {
       setState({
         profile: null,

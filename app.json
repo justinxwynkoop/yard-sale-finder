@@ -37,11 +37,12 @@
       "package": "com.jwynkoop.yardsalefinder",
       "versionCode": 1,
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "CAMERA"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "config": {
         "googleMaps": {
@@ -66,6 +67,15 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "21cc3271-4b50-4f32-a4e4-6823f78ec3e7"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/21cc3271-4b50-4f32-a4e4-6823f78ec3e7"
+    },
+    "owner": "jasonwynkoop1"
   }
 }

@@ -26,19 +26,36 @@ export default function CompleteProfileScreen() {
       Alert.alert('Name required', 'Please tell us what to call you.');
       return;
     }
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ display_name: name })
-      .eq('id', user.id);
-    setSaving(false);
-    if (error) {
-      Alert.alert('Could not save', error.message);
+    if (!user) {
+      Alert.alert('Not signed in', 'Please sign in again.');
       return;
     }
-    // Refetch so useProfile flips and the Navigator swaps to MainTabs.
-    await refetch();
+    setSaving(true);
+    try {
+      // Use upsert so this works even if the profile row was never
+      // auto-created (which can happen with Apple Sign In when the
+      // user chose 'Hide My Email' / private relay).
+      const { error } = await supabase.from('profiles').upsert(
+        {
+          id: user.id,
+          email: user.email ?? '',
+          display_name: name,
+        },
+        { onConflict: 'id' },
+      );
+      if (error) {
+        console.warn('Profile upsert failed:', error);
+        Alert.alert('Could not save', error.message);
+        return;
+      }
+      // Refetch so useProfile flips and the Navigator swaps to MainTabs.
+      await refetch();
+    } catch (e: any) {
+      console.warn('Profile save threw:', e);
+      Alert.alert('Could not save', e.message ?? 'Unknown error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
