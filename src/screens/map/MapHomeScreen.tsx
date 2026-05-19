@@ -2,12 +2,12 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
-  SafeAreaView,
   ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -195,17 +195,17 @@ export default function MapHomeScreen() {
             ))}
           </MapView>
 
-          {/* Floating my-location button */}
+          {/* Floating my-location button — sits above the tab bar */}
           <View
-            className="absolute bottom-6 right-4"
+            className="absolute right-4"
+            style={{ bottom: 24, gap: 12 }}
             pointerEvents="box-none"
-            style={{ gap: 12 }}
           >
             <IconButton
               variant="solid"
-              size="md"
+              size="lg"
               onPress={goToUserLocation}
-              icon={<Ionicons name="locate" size={20} color="#18181B" />}
+              icon={<Ionicons name="locate" size={22} color="#18181B" />}
             />
           </View>
         </>
