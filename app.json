@@ -66,11 +66,6 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID_AFTER_eas_init"
-      }
-    }
+    ]
   }
 }
