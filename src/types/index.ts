@@ -51,7 +51,13 @@ export interface SaleMedia {
 }
 
 export type RootStackParamList = {
+  // Signed-out flows
   Auth: undefined;
+  ForgotPassword: undefined;
+  CheckEmail: { email: string };
+  ResetPassword: undefined;
+  // Post-signin gate
+  CompleteProfile: undefined;
   Main: undefined;
 };
 

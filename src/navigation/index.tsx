@@ -1,10 +1,12 @@
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
+import { useProfile, isProfileComplete } from '../hooks/useProfile';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -13,6 +15,10 @@ import {
 } from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import CheckEmailScreen from '../screens/auth/CheckEmailScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
 import MapHomeScreen from '../screens/map/MapHomeScreen';
 import SaleDetailScreen from '../screens/map/SaleDetailScreen';
 import MySalesScreen from '../screens/sale/MySalesScreen';
@@ -131,18 +137,65 @@ function MainTabs() {
   );
 }
 
+/**
+ * Once the user is signed in, we still need to make sure they have a
+ * profile row with a display name. If not, force them through
+ * CompleteProfile before they can touch the app. The check waits until
+ * the profile fetch settles so we don't flicker between screens.
+ */
+function MainGate() {
+  const { profile, loading } = useProfile();
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#fff',
+        }}
+      >
+        <ActivityIndicator size="large" color="#F97316" />
+      </View>
+    );
+  }
+
+  if (!isProfileComplete(profile)) {
+    return <CompleteProfileScreen />;
+  }
+
+  return <MainTabs />;
+}
+
 export default function Navigation() {
-  const { session, loading } = useAuth();
+  const { session, loading, inRecovery } = useAuth();
 
   if (loading) return null;
 
+  // Three top-level routing decisions:
+  // 1) Active password-recovery session  -> ResetPasswordScreen
+  // 2) Signed in                         -> MainGate (profile check then tabs)
+  // 3) Signed out                        -> Auth stack
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {session ? (
-          <RootStack.Screen name="Main" component={MainTabs} />
+        {inRecovery ? (
+          <RootStack.Screen
+            name="ResetPassword"
+            component={ResetPasswordScreen}
+          />
+        ) : session ? (
+          <RootStack.Screen name="Main" component={MainGate} />
         ) : (
-          <RootStack.Screen name="Auth" component={AuthScreen} />
+          <>
+            <RootStack.Screen name="Auth" component={AuthScreen} />
+            <RootStack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
+            <RootStack.Screen name="CheckEmail" component={CheckEmailScreen} />
+          </>
         )}
       </RootStack.Navigator>
     </NavigationContainer>

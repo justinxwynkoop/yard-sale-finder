@@ -12,16 +12,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { Button, Input } from '../../components/ui';
+import { RootStackParamList } from '../../types';
 
 WebBrowser.maybeCompleteAuthSession();
 
 type Provider = 'google' | 'apple' | 'facebook';
 type Mode = 'signin' | 'signup';
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
 export default function AuthScreen() {
+  const navigation = useNavigation<Nav>();
   const [mode, setMode] = useState<Mode>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,17 +46,18 @@ export default function AuthScreen() {
     setBusy('email');
     try {
       if (mode === 'signup') {
+        const redirectTo = Linking.createURL('auth-callback');
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
+          options: { emailRedirectTo: redirectTo },
         });
         if (error) throw error;
-        // If email confirmation is enabled, session will be null until the user clicks the link
+        // If email confirmation is enabled, session will be null until
+        // the user clicks the link — route to a dedicated CheckEmail
+        // screen with a resend option.
         if (!data.session) {
-          Alert.alert(
-            'Check your email',
-            "We sent a confirmation link. For dev: in your Supabase dashboard, Authentication → Providers → Email → turn off 'Confirm email'.",
-          );
+          navigation.navigate('CheckEmail', { email: cleanEmail });
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -256,6 +262,16 @@ export default function AuthScreen() {
                 <Ionicons name="lock-closed-outline" size={18} color="#71717A" />
               }
             />
+            {isSignIn && (
+              <Pressable
+                onPress={() => navigation.navigate('ForgotPassword')}
+                hitSlop={8}
+              >
+                <Text className="text-right text-sm font-semibold text-brand">
+                  Forgot password?
+                </Text>
+              </Pressable>
+            )}
             <Button
               size="lg"
               onPress={submitEmail}
