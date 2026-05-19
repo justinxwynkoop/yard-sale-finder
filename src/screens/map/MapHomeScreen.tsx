@@ -6,6 +6,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -166,23 +167,23 @@ export default function MapHomeScreen() {
     });
   }, []);
 
-  // Both views stay mounted and we toggle visibility via display.
-  // Conditionally unmounting MapView when switching to list view was
-  // tripping up React Navigation's internal context propagation — keeping
-  // both mounted avoids that whole class of bug and also makes view
-  // switching feel instant.
+  // NO className anywhere in this screen — every wrapper uses inline
+  // styles via a local StyleSheet. NativeWind v4's css-interop runtime
+  // was throwing a phantom 'no navigation context' error when several
+  // className Views were nested inside MapHomeScreen (see error
+  // boundary trace pointing into react-native-css-interop). Until we
+  // can find / fix the upstream bug, sidestep it by not using className
+  // on this screen. Child components (IconButton, FilterBar, EmptyState,
+  // SaleListCard) still use NativeWind — they're fine in isolation.
   return (
-    <View className="flex-1 bg-surface">
+    <View style={styles.root}>
       {/* MAP MODE — always mounted, hidden when in list mode */}
       <View
-        style={{
-          flex: 1,
-          display: viewMode === 'map' ? 'flex' : 'none',
-        }}
+        style={[styles.mode, { display: viewMode === 'map' ? 'flex' : 'none' }]}
       >
         <MapView
           ref={mapRef}
-          style={{ flex: 1 }}
+          style={styles.map}
           initialRegion={DEFAULT_REGION}
           onRegionChangeComplete={onRegionChangeComplete}
           showsUserLocation
@@ -206,11 +207,7 @@ export default function MapHomeScreen() {
         </MapView>
 
         {/* Floating my-location button — sits above the tab bar */}
-        <View
-          className="absolute right-4"
-          style={{ bottom: 24, gap: 12 }}
-          pointerEvents="box-none"
-        >
+        <View style={styles.locateWrap}>
           <IconButton
             variant="solid"
             size="lg"
@@ -222,11 +219,11 @@ export default function MapHomeScreen() {
 
       {/* LIST MODE — always mounted, hidden when in map mode */}
       <View
-        style={{
-          flex: 1,
-          display: viewMode === 'list' ? 'flex' : 'none',
-          paddingTop: 168,
-        }}
+        style={[
+          styles.mode,
+          styles.listMode,
+          { display: viewMode === 'list' ? 'flex' : 'none' },
+        ]}
       >
         {filteredSales.length === 0 && !loading ? (
           <EmptyState
@@ -266,32 +263,15 @@ export default function MapHomeScreen() {
         )}
       </View>
 
-      {/* Floating top bar — same on both views.
-          Use a plain View + useSafeAreaInsets instead of SafeAreaView so
-          NativeWind v4 doesn't try to compose its className wrapper with
-          safe-area-context's forwardRef — that combo throws a phantom
-          'no navigation context' error inside the css-interop runtime. */}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: insets.top,
-          pointerEvents: 'box-none',
-        }}
-      >
-        <View
-          style={{ pointerEvents: 'box-none' }}
-          className="mx-4 mt-2 flex-row items-center rounded-2xl bg-white px-4 py-3 shadow"
-        >
-          <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+      {/* Floating top bar — same on both views */}
+      <View style={[styles.topBarWrap, { top: insets.top }]}>
+        <View style={styles.topBarCard}>
+          <View style={styles.topBarIcon}>
             <Ionicons name="map" size={20} color="#F97316" />
           </View>
-          <View className="flex-1">
-            <Text className="text-base font-bold text-zinc-900">
-              Discover sales
-            </Text>
-            <Text className="text-xs text-zinc-500">
+          <View style={{ flex: 1 }}>
+            <Text style={styles.topBarTitle}>Discover sales</Text>
+            <Text style={styles.topBarSubtitle}>
               {loading
                 ? 'Loading nearby sales…'
                 : openNowCount > 0
@@ -306,16 +286,13 @@ export default function MapHomeScreen() {
           {loading && <ActivityIndicator color="#F97316" />}
 
           {/* Map/List toggle */}
-          <View
-            className="ml-3 flex-row rounded-full bg-zinc-100 p-0.5"
-            style={{ gap: 0 }}
-          >
+          <View style={styles.toggleWrap}>
             <Pressable
               onPress={() => setViewMode('map')}
-              className={[
-                'h-8 w-8 items-center justify-center rounded-full',
-                viewMode === 'map' ? 'bg-white shadow' : '',
-              ].join(' ')}
+              style={[
+                styles.toggleBtn,
+                viewMode === 'map' && styles.toggleBtnActive,
+              ]}
             >
               <Ionicons
                 name="map"
@@ -325,10 +302,10 @@ export default function MapHomeScreen() {
             </Pressable>
             <Pressable
               onPress={() => setViewMode('list')}
-              className={[
-                'h-8 w-8 items-center justify-center rounded-full',
-                viewMode === 'list' ? 'bg-white shadow' : '',
-              ].join(' ')}
+              style={[
+                styles.toggleBtn,
+                viewMode === 'list' && styles.toggleBtnActive,
+              ]}
             >
               <Ionicons
                 name="list"
@@ -338,10 +315,84 @@ export default function MapHomeScreen() {
             </Pressable>
           </View>
         </View>
-        <View className="mt-2">
+        <View style={{ marginTop: 8 }}>
           <FilterBar selected={categoryFilter} onSelect={setCategoryFilter} />
         </View>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#FAFAF9' },
+  mode: { flex: 1 },
+  listMode: { paddingTop: 168 },
+  map: { flex: 1 },
+  locateWrap: {
+    position: 'absolute',
+    right: 16,
+    bottom: 24,
+    pointerEvents: 'box-none',
+  },
+  topBarWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    pointerEvents: 'box-none',
+  },
+  topBarCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  topBarIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFEDD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  topBarTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#18181B',
+  },
+  topBarSubtitle: {
+    fontSize: 12,
+    color: '#71717A',
+  },
+  toggleWrap: {
+    marginLeft: 12,
+    flexDirection: 'row',
+    borderRadius: 999,
+    backgroundColor: '#F4F4F5',
+    padding: 2,
+  },
+  toggleBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+});
