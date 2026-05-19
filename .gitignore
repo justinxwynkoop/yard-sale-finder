@@ -47,3 +47,9 @@ client_secret_*.json
 # supabase CLI local state
 supabase/.branches/
 supabase/.temp/
+
+# EAS / submission secrets (Play service-account key, App Store API key, etc.)
+secrets/
+*.p8
+google-services.json
+GoogleService-Info.plist

@@ -12,7 +12,16 @@
     "db:pull": "supabase db pull",
     "db:new": "supabase migration new",
     "db:reset": "supabase db reset --linked",
-    "db:status": "supabase migration list"
+    "db:status": "supabase migration list",
+    "build:dev": "eas build --profile development --platform all",
+    "build:dev:ios": "eas build --profile development --platform ios",
+    "build:dev:android": "eas build --profile development --platform android",
+    "build:preview": "eas build --profile preview --platform all",
+    "build:prod": "eas build --profile production --platform all",
+    "build:prod:ios": "eas build --profile production --platform ios",
+    "build:prod:android": "eas build --profile production --platform android",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "submit:android": "eas submit --platform android --profile production"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -48,6 +57,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "eas-cli": "^19.0.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "supabase": "^2.100.1",
     "typescript": "~5.9.2"

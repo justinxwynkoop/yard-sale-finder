@@ -8,6 +8,9 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "yardsalefinder",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,21 +18,24 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.yardsalefinder",
+      "bundleIdentifier": "com.jwynkoop.yardsalefinder",
+      "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to show nearby yard sales and help you pin your own sale.",
         "NSLocationAlwaysUsageDescription": "We use your location to show nearby yard sales.",
         "NSPhotoLibraryUsageDescription": "Upload photos of your sale items.",
-        "NSCameraUsageDescription": "Take photos of your sale items."
+        "NSCameraUsageDescription": "Take photos of your sale items.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFEDD5"
       },
-      "package": "com.yourname.yardsalefinder",
+      "package": "com.jwynkoop.yardsalefinder",
+      "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -37,6 +43,11 @@
         "WRITE_EXTERNAL_STORAGE",
         "CAMERA"
       ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "REPLACE_WITH_GOOGLE_MAPS_API_KEY"
+        }
+      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -55,6 +66,11 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID_AFTER_eas_init"
+      }
+    }
   }
 }
