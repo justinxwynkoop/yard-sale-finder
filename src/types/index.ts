@@ -51,6 +51,8 @@ export interface SaleMedia {
 }
 
 export type RootStackParamList = {
+  // Boot state
+  Loading: undefined;
   // Signed-out flows
   Auth: undefined;
   ForgotPassword: undefined;

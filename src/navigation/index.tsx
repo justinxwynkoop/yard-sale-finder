@@ -168,19 +168,34 @@ function MainGate() {
   return <MainTabs />;
 }
 
+function LoadingScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+      }}
+    >
+      <ActivityIndicator size="large" color="#F97316" />
+    </View>
+  );
+}
+
 export default function Navigation() {
   const { session, loading, inRecovery } = useAuth();
 
-  if (loading) return null;
-
-  // Three top-level routing decisions:
-  // 1) Active password-recovery session  -> ResetPasswordScreen
-  // 2) Signed in                         -> MainGate (profile check then tabs)
-  // 3) Signed out                        -> Auth stack
+  // NavigationContainer is mounted unconditionally. While auth is
+  // still resolving we render a Loading screen INSIDE the navigator
+  // instead of returning null — that way useNavigation / useRoute
+  // hooks anywhere in the tree never see an empty context.
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {inRecovery ? (
+        {loading ? (
+          <RootStack.Screen name="Loading" component={LoadingScreen} />
+        ) : inRecovery ? (
           <RootStack.Screen
             name="ResetPassword"
             component={ResetPasswordScreen}
