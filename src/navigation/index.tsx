@@ -18,6 +18,7 @@ import SaleDetailScreen from '../screens/map/SaleDetailScreen';
 import MySalesScreen from '../screens/sale/MySalesScreen';
 import CreateSaleScreen from '../screens/sale/CreateSaleScreen';
 import EditSaleScreen from '../screens/sale/EditSaleScreen';
+import CaptureSaleScreen from '../screens/sale/CaptureSaleScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -65,6 +66,15 @@ function SaleNavigator() {
         name="EditSale"
         component={EditSaleScreen}
         options={{ title: 'Edit Sale', headerBackTitle: 'Back' }}
+      />
+      <SaleStack.Screen
+        name="Capture"
+        component={CaptureSaleScreen}
+        options={{
+          headerShown: false,
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
       />
     </SaleStack.Navigator>
   );

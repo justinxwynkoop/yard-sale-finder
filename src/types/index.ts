@@ -70,4 +70,5 @@ export type SaleStackParamList = {
   MySalesHome: undefined;
   CreateSale: undefined;
   EditSale: { saleId: string };
+  Capture: { max?: number } | undefined;
 };

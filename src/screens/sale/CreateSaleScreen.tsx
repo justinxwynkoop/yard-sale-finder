@@ -15,10 +15,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { File } from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import { ItemCategory } from '../../types';
+import { ItemCategory, SaleStackParamList } from '../../types';
+import { captureBus } from '../../lib/captureBus';
 import {
   Button,
   Chip,
@@ -59,8 +61,10 @@ interface MediaItem {
   type: 'image' | 'video';
 }
 
+type Nav = NativeStackNavigationProp<SaleStackParamList, 'CreateSale'>;
+
 export default function CreateSaleScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const { user } = useAuth();
   const mapRef = useRef<MapView>(null);
 
@@ -106,26 +110,16 @@ export default function CreateSaleScreen() {
     }
   };
 
-  const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Camera permission needed',
-        'Allow camera access to snap a photo.',
-      );
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      const items: MediaItem[] = result.assets.map((a) => ({
-        uri: a.uri,
-        type: 'image',
-      }));
+  const takePhoto = () => {
+    // The system camera picker only takes one shot per launch. Use our
+    // custom CaptureSaleScreen so you can rack up multiple photos in
+    // one session and hand them all back here.
+    captureBus.setListener((uris) => {
+      if (uris.length === 0) return;
+      const items: MediaItem[] = uris.map((uri) => ({ uri, type: 'image' }));
       setMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
-    }
+    });
+    navigation.navigate('Capture', { max: MAX_MEDIA - media.length });
   };
 
   const removeMedia = (index: number) => {
