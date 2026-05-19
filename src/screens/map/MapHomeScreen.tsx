@@ -165,93 +165,105 @@ export default function MapHomeScreen() {
     });
   }, []);
 
+  // Both views stay mounted and we toggle visibility via display.
+  // Conditionally unmounting MapView when switching to list view was
+  // tripping up React Navigation's internal context propagation — keeping
+  // both mounted avoids that whole class of bug and also makes view
+  // switching feel instant.
   return (
     <View className="flex-1 bg-surface">
-      {/* MAP MODE */}
-      {viewMode === 'map' && (
-        <>
-          <MapView
-            ref={mapRef}
-            style={{ flex: 1 }}
-            initialRegion={DEFAULT_REGION}
-            onRegionChangeComplete={onRegionChangeComplete}
-            showsUserLocation
-            showsMyLocationButton={false}
-          >
-            {filteredSales.map((sale) => (
-              <Marker
-                key={sale.id}
-                coordinate={{
-                  latitude: sale.latitude,
-                  longitude: sale.longitude,
-                }}
-                onPress={() =>
-                  navigation.navigate('SaleDetail', { saleId: sale.id })
-                }
-                tracksViewChanges={false}
-              >
-                <MapPin status={sale.status} />
-              </Marker>
-            ))}
-          </MapView>
-
-          {/* Floating my-location button — sits above the tab bar */}
-          <View
-            className="absolute right-4"
-            style={{ bottom: 24, gap: 12 }}
-            pointerEvents="box-none"
-          >
-            <IconButton
-              variant="solid"
-              size="lg"
-              onPress={goToUserLocation}
-              icon={<Ionicons name="locate" size={22} color="#18181B" />}
-            />
-          </View>
-        </>
-      )}
-
-      {/* LIST MODE */}
-      {viewMode === 'list' && (
-        <View className="flex-1" style={{ paddingTop: 168 }}>
-          {filteredSales.length === 0 && !loading ? (
-            <EmptyState
-              icon={<Ionicons name="pricetag-outline" size={32} color="#F97316" />}
-              title="No sales found"
-              description={
-                categoryFilter
-                  ? 'Try a different category or clear the filter.'
-                  : "There aren't any active sales right now."
+      {/* MAP MODE — always mounted, hidden when in list mode */}
+      <View
+        style={{
+          flex: 1,
+          display: viewMode === 'map' ? 'flex' : 'none',
+        }}
+      >
+        <MapView
+          ref={mapRef}
+          style={{ flex: 1 }}
+          initialRegion={DEFAULT_REGION}
+          onRegionChangeComplete={onRegionChangeComplete}
+          showsUserLocation
+          showsMyLocationButton={false}
+        >
+          {filteredSales.map((sale) => (
+            <Marker
+              key={sale.id}
+              coordinate={{
+                latitude: sale.latitude,
+                longitude: sale.longitude,
+              }}
+              onPress={() =>
+                navigation.navigate('SaleDetail', { saleId: sale.id })
               }
-            />
-          ) : (
-            <FlatList
-              data={filteredSales}
-              keyExtractor={(s) => s.id}
-              contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={loading}
-                  onRefresh={refetch}
-                  tintColor="#F97316"
-                  colors={['#F97316']}
-                />
-              }
-              renderItem={({ item }) => (
-                <SaleListCard
-                  sale={item}
-                  userLat={userLocation?.latitude}
-                  userLng={userLocation?.longitude}
-                  onPress={() =>
-                    navigation.navigate('SaleDetail', { saleId: item.id })
-                  }
-                />
-              )}
-            />
-          )}
+              tracksViewChanges={false}
+            >
+              <MapPin status={sale.status} />
+            </Marker>
+          ))}
+        </MapView>
+
+        {/* Floating my-location button — sits above the tab bar */}
+        <View
+          className="absolute right-4"
+          style={{ bottom: 24, gap: 12 }}
+          pointerEvents="box-none"
+        >
+          <IconButton
+            variant="solid"
+            size="lg"
+            onPress={goToUserLocation}
+            icon={<Ionicons name="locate" size={22} color="#18181B" />}
+          />
         </View>
-      )}
+      </View>
+
+      {/* LIST MODE — always mounted, hidden when in map mode */}
+      <View
+        style={{
+          flex: 1,
+          display: viewMode === 'list' ? 'flex' : 'none',
+          paddingTop: 168,
+        }}
+      >
+        {filteredSales.length === 0 && !loading ? (
+          <EmptyState
+            icon={<Ionicons name="pricetag-outline" size={32} color="#F97316" />}
+            title="No sales found"
+            description={
+              categoryFilter
+                ? 'Try a different category or clear the filter.'
+                : "There aren't any active sales right now."
+            }
+          />
+        ) : (
+          <FlatList
+            data={filteredSales}
+            keyExtractor={(s) => s.id}
+            contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={refetch}
+                tintColor="#F97316"
+                colors={['#F97316']}
+              />
+            }
+            renderItem={({ item }) => (
+              <SaleListCard
+                sale={item}
+                userLat={userLocation?.latitude}
+                userLng={userLocation?.longitude}
+                onPress={() =>
+                  navigation.navigate('SaleDetail', { saleId: item.id })
+                }
+              />
+            )}
+          />
+        )}
+      </View>
 
       {/* Floating top bar — same on both views */}
       <SafeAreaView
