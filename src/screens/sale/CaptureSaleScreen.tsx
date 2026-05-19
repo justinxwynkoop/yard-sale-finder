@@ -12,6 +12,7 @@ import {
 import { CameraView, useCameraPermissions, CameraType } from 'expo-camera';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
 import { Button } from '../../components/ui';
@@ -21,6 +22,7 @@ type Route = RouteProp<SaleStackParamList, 'Capture'>;
 export default function CaptureSaleScreen() {
   const navigation = useNavigation();
   const route = useRoute<Route>();
+  const insets = useSafeAreaInsets();
   const maxPhotos = route.params?.max ?? 10;
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -106,7 +108,10 @@ export default function CaptureSaleScreen() {
       />
 
       {/* Top bar */}
-      <View style={styles.topBar} pointerEvents="box-none">
+      <View
+        style={[styles.topBar, { top: Math.max(insets.top, 12) }]}
+        pointerEvents="box-none"
+      >
         <Pressable onPress={cancel} style={styles.topBtn}>
           <Ionicons name="close" size={22} color="#fff" />
         </Pressable>
@@ -122,7 +127,10 @@ export default function CaptureSaleScreen() {
       </View>
 
       {/* Bottom strip */}
-      <View style={styles.bottom} pointerEvents="box-none">
+      <View
+        style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        pointerEvents="box-none"
+      >
         {/* Thumbnail strip */}
         {shots.length > 0 && (
           <ScrollView
@@ -222,7 +230,6 @@ const styles = StyleSheet.create({
 
   topBar: {
     position: 'absolute',
-    top: 50,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -258,7 +265,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: 32,
   },
   thumbWrap: {
     position: 'relative',

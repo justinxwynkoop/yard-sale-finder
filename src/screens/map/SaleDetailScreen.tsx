@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
+import { isOpenNow } from '../../utils/saleStatus';
 import {
   Avatar,
   Badge,
@@ -141,8 +142,16 @@ export default function SaleDetailScreen() {
             />
           </View>
 
-          {/* Floating status badge */}
-          <View className="absolute right-4" style={{ top: 56 }}>
+          {/* Floating status / open-now badge */}
+          <View
+            className="absolute right-4 flex-row"
+            style={{ top: 56, gap: 6 }}
+          >
+            {isOpenNow(sale) && (
+              <Badge tone="live" dot>
+                Open now
+              </Badge>
+            )}
             <StatusBadge status={sale.status} />
           </View>
 
