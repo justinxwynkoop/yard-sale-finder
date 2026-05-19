@@ -7,7 +7,7 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -38,6 +38,7 @@ type ViewMode = 'map' | 'list';
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
   const [mapBounds, setMapBounds] = useState<
@@ -265,14 +266,23 @@ export default function MapHomeScreen() {
         )}
       </View>
 
-      {/* Floating top bar — same on both views */}
-      <SafeAreaView
-        className="absolute left-0 right-0 top-0"
-        pointerEvents="box-none"
+      {/* Floating top bar — same on both views.
+          Use a plain View + useSafeAreaInsets instead of SafeAreaView so
+          NativeWind v4 doesn't try to compose its className wrapper with
+          safe-area-context's forwardRef — that combo throws a phantom
+          'no navigation context' error inside the css-interop runtime. */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: insets.top,
+          pointerEvents: 'box-none',
+        }}
       >
         <View
+          style={{ pointerEvents: 'box-none' }}
           className="mx-4 mt-2 flex-row items-center rounded-2xl bg-white px-4 py-3 shadow"
-          pointerEvents="box-none"
         >
           <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
             <Ionicons name="map" size={20} color="#F97316" />
@@ -331,7 +341,7 @@ export default function MapHomeScreen() {
         <View className="mt-2">
           <FilterBar selected={categoryFilter} onSelect={setCategoryFilter} />
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
