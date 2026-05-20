@@ -14,7 +14,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFEDD5"
     },
     "ios": {
       "supportsTablet": false,
@@ -67,7 +67,16 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFEDD5",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ]
     ],
     "extra": {
       "eas": {
