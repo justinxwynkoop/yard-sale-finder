@@ -32,7 +32,8 @@
     "typecheck": "tsc --noEmit",
     "update:dev": "eas update --branch development --message",
     "update:preview": "eas update --branch preview --message",
-    "update:prod": "eas update --branch production --message"
+    "update:prod": "eas update --branch production --message",
+    "icons:generate": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -85,6 +86,7 @@
     "jest-expo": "^55.0.18",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "sharp": "^0.34.5",
     "supabase": "^2.100.1",
     "typescript": "~5.9.2"
   },
