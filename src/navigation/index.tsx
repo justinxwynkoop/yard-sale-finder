@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
 import { useProfile, isProfileComplete } from '../hooks/useProfile';
+import { useOnboarding } from '../hooks/useOnboarding';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -20,6 +21,7 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import CheckEmailScreen from '../screens/auth/CheckEmailScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
+import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import MapHomeScreen from '../screens/map/MapHomeScreen';
 import SaleDetailScreen from '../screens/map/SaleDetailScreen';
 import MySalesScreen from '../screens/sale/MySalesScreen';
@@ -145,9 +147,11 @@ function MainTabs() {
  * the profile fetch settles so we don't flicker between screens.
  */
 function MainGate() {
-  const { profile, loading } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
+  const { loading: onboardingLoading, completed: onboardingCompleted } =
+    useOnboarding();
 
-  if (loading) {
+  if (profileLoading || onboardingLoading) {
     return (
       <View
         style={{
@@ -162,8 +166,16 @@ function MainGate() {
     );
   }
 
+  // Order of gates after sign-in:
+  //   1) profile.display_name missing  -> CompleteProfileScreen
+  //   2) onboarding not yet seen       -> OnboardingScreen
+  //   3) otherwise                     -> MainTabs
   if (!isProfileComplete(profile)) {
     return <CompleteProfileScreen />;
+  }
+
+  if (!onboardingCompleted) {
+    return <OnboardingScreen />;
   }
 
   return <MainTabs />;

@@ -64,8 +64,9 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   CheckEmail: { email: string };
   ResetPassword: undefined;
-  // Post-signin gate
+  // Post-signin gates
   CompleteProfile: undefined;
+  Onboarding: undefined;
   Main: undefined;
 };
 
