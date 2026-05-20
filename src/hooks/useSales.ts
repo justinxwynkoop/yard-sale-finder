@@ -16,9 +16,13 @@ export function useSales(bounds?: {
     setLoading(true);
     setError(null);
     try {
+      // Use !left so missing profile rows don't filter out sales.
+      // (PostgREST treats user_id (NOT NULL) → profile as INNER JOIN by
+      // default, which drops sales whose owner has no profile row —
+      // e.g. an Apple-Sign-In user who hasn't completed onboarding.)
       let query = supabase
         .from('sales')
-        .select('*, profile:profiles(*), media:sale_media(*)')
+        .select('*, profile:profiles!left(*), media:sale_media(*)')
         .neq('status', 'ended')
         .order('created_at', { ascending: false });
 
