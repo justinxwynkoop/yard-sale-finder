@@ -5,17 +5,27 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../hooks/useAuth';
+import { useFavorites } from '../../hooks/useFavorites';
 import { supabase } from '../../lib/supabase';
-import { Profile } from '../../types';
+import { Profile, MainTabParamList } from '../../types';
 import { Avatar, Badge, Button, Card, Input } from '../../components/ui';
 import { toast } from '../../lib/toast';
+import { formatSaleDate } from '../../utils/format';
+
+type Nav = NativeStackNavigationProp<MainTabParamList, 'Profile'>;
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
+  const navigation = useNavigation<Nav>();
+  const { favorites } = useFavorites();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -106,6 +116,65 @@ export default function ProfileScreen() {
             Save changes
           </Button>
         </Card>
+
+        {/* Saved sales */}
+        {favorites.length > 0 && (
+          <Card className="p-5">
+            <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
+              Saved sales ({favorites.length})
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10 }}
+            >
+              {favorites.map((s) => {
+                const cover = s.media?.find((m) => m.type === 'image');
+                return (
+                  <Pressable
+                    key={s.id}
+                    onPress={() =>
+                      (navigation as any).navigate('Map', {
+                        screen: 'SaleDetail',
+                        params: { saleId: s.id },
+                      })
+                    }
+                    style={{ width: 140 }}
+                  >
+                    <View
+                      style={{
+                        width: 140,
+                        height: 100,
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        backgroundColor: '#FFEDD5',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {cover ? (
+                        <Image
+                          source={{ uri: cover.url }}
+                          style={{ width: '100%', height: '100%' }}
+                          contentFit="cover"
+                          transition={150}
+                        />
+                      ) : (
+                        <Ionicons name="image-outline" size={28} color="#F97316" />
+                      )}
+                    </View>
+                    <Text className="mt-1.5 text-sm font-semibold text-zinc-900" numberOfLines={1}>
+                      {s.title}
+                    </Text>
+                    <Text className="text-xs text-zinc-500" numberOfLines={1}>
+                      {formatSaleDate(s.start_date, s.end_date)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Card>
+        )}
 
         <Card className="p-5">
           <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">

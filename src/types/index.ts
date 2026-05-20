@@ -50,6 +50,12 @@ export interface SaleMedia {
   created_at: string;
 }
 
+export interface Favorite {
+  user_id: string;
+  sale_id: string;
+  created_at: string;
+}
+
 export type RootStackParamList = {
   // Boot state
   Loading: undefined;

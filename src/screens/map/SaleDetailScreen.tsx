@@ -17,6 +17,7 @@ import { MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import { isOpenNow } from '../../utils/saleStatus';
+import { useFavorites } from '../../hooks/useFavorites';
 import {
   Avatar,
   Badge,
@@ -42,6 +43,7 @@ export default function SaleDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const { isFavorited, toggle: toggleFavorite } = useFavorites();
 
   useEffect(() => {
     supabase
@@ -148,6 +150,18 @@ export default function SaleDetailScreen() {
               </Badge>
             )}
             <StatusBadge status={sale.status} />
+            <IconButton
+              variant="glass"
+              size="sm"
+              icon={
+                <Ionicons
+                  name={isFavorited(sale.id) ? 'heart' : 'heart-outline'}
+                  size={16}
+                  color={isFavorited(sale.id) ? '#DC2626' : '#18181B'}
+                />
+              }
+              onPress={() => toggleFavorite(sale.id)}
+            />
             <IconButton
               variant="glass"
               size="sm"
