@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Yard Sale Finder",
+    "name": "Local Hauls",
     "slug": "yard-sale-finder",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -61,7 +61,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Yard Sale Finder to access your camera."
+          "cameraPermission": "Allow Local Hauls to access your camera."
         }
       ],
       "expo-web-browser",

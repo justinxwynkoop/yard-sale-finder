@@ -1,6 +1,8 @@
-# Yard Sale Finder
+# Local Hauls
 
 A mobile app that connects yard sale hosts with nearby buyers through a live map experience. Think of it as the "Waze of yard sales" — community-powered, map-driven, and built for spontaneous discovery.
+
+> The git repo + bundle ID are still `yard-sale-finder` / `com.jwynkoop.yardsalefinder` for historical reasons. Only the user-facing app name is **Local Hauls**.
 
 ---
 

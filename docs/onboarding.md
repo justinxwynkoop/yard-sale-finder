@@ -75,7 +75,7 @@ add a new native module or change `app.json` plugin config.
    on their phone (Safari on iOS).
 4. iOS: they'll need to **trust the developer profile** under
    *Settings → General → VPN & Device Management*.
-5. The **Yard Sale Finder (dev)** icon appears on their home screen.
+5. The **Local Hauls (dev)** icon appears on their home screen.
 
 ### Path B — Build their own (15 min + Apple Dev account for iOS)
 
@@ -113,7 +113,7 @@ npx expo start --dev-client
 
 They'll see a QR code in the terminal. On their phone:
 
-- Open the **Yard Sale Finder (dev)** app
+- Open the **Local Hauls (dev)** app
 - It auto-detects Metro on the same Wi-Fi network and shows a "Recently
   in development" entry — tap to connect
 - Or tap "Scan QR code" and scan the one from Metro

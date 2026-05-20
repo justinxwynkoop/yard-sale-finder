@@ -116,7 +116,7 @@ export default function ProfileScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-sm font-semibold text-zinc-900">
-                Yard Sale Finder
+                Local Hauls
               </Text>
               <Text className="text-xs text-zinc-500">Version 1.0.0</Text>
             </View>

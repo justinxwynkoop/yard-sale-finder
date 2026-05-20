@@ -1,6 +1,6 @@
 # Deployment guide
 
-How to ship Yard Sale Finder to TestFlight (iOS) and Google Play Internal
+How to ship Local Hauls to TestFlight (iOS) and Google Play Internal
 Testing (Android) using EAS Build + Submit.
 
 ---
@@ -137,7 +137,7 @@ npx eas build --profile development-simulator --platform ios
 ### 4a. Apple — create the app in App Store Connect
 
 1. https://appstoreconnect.apple.com → **My Apps → +**
-2. Platform iOS, name `Yard Sale Finder`, primary language English,
+2. Platform iOS, name `Local Hauls`, primary language English,
    bundle ID = the one in `app.json`, SKU = anything unique
    (e.g. `yardsalefinder-001`).
 3. Once created, note the **App Store Connect App ID** (a numeric string
@@ -149,7 +149,7 @@ npx eas build --profile development-simulator --platform ios
 ### 4b. Google — create the app in Google Play Console
 
 1. https://play.google.com/console → **Create app**
-2. App name `Yard Sale Finder`, default language English, **App**, **Free**.
+2. App name `Local Hauls`, default language English, **App**, **Free**.
 3. After creation, go to **Setup → App integrity** to set up the app
    signing key — accept Google's recommended "use Play app signing"
    (free, automatic).

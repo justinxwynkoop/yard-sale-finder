@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Yard Sale Finder is a mobile-first community marketplace app for discovering and posting yard sales. Built with React Native + Expo SDK 54, TypeScript (strict mode), and Supabase backend.
+Local Hauls (repo name `yard-sale-finder`) is a mobile-first community marketplace app for discovering and posting yard sales. Built with React Native + Expo SDK 54, TypeScript (strict mode), and Supabase backend.
 
 ## Development Commands
 
