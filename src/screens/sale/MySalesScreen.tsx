@@ -6,8 +6,8 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -207,7 +207,8 @@ function SaleCard({
               <Image
                 source={{ uri: firstImage.url }}
                 style={{ width: '100%', height: '100%' }}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={150}
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-brand-50">

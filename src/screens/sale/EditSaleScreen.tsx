@@ -32,6 +32,8 @@ import {
   Input,
 } from '../../components/ui';
 import { captureBus } from '../../lib/captureBus';
+import { toast } from '../../lib/toast';
+import { compressImage } from '../../lib/imageCompression';
 
 type Route = RouteProp<SaleStackParamList, 'EditSale'>;
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'EditSale'>;
@@ -188,10 +190,11 @@ export default function EditSaleScreen() {
     let nextOrder = existingOrderMax + 1;
     for (let i = 0; i < newMedia.length; i++) {
       const item = newMedia[i];
-      const ext = (item.uri.split('.').pop() ?? 'jpg').toLowerCase();
-      const path = `${user!.id}/${saleId}/new-${Date.now()}-${i}.${ext}`;
+      // Compress before upload.
+      const uri = await compressImage(item.uri);
+      const path = `${user!.id}/${saleId}/new-${Date.now()}-${i}.jpg`;
 
-      const file = new File(item.uri);
+      const file = new File(uri);
       const arrayBuffer = await file.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
@@ -280,9 +283,10 @@ export default function EditSaleScreen() {
         await uploadNewMedia(maxOrder);
       }
 
+      toast.success('Saved');
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Save failed', e.message ?? 'Could not save changes.');
+      toast.error('Save failed', e.message ?? 'Could not save changes.');
     } finally {
       setSaving(false);
     }

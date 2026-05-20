@@ -3,13 +3,13 @@ import {
   Modal,
   View,
   Text,
-  Image,
   ScrollView,
   Pressable,
   Dimensions,
   StyleSheet,
   StatusBar,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 export type ViewerImage = {
@@ -82,7 +82,8 @@ export function PhotoViewer({
               <Image
                 source={{ uri: img.url }}
                 style={styles.image}
-                resizeMode="contain"
+                contentFit="contain"
+                transition={200}
               />
             </View>
           ))}

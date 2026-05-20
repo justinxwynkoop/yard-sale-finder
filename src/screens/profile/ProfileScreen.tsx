@@ -12,6 +12,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { Profile } from '../../types';
 import { Avatar, Badge, Button, Card, Input } from '../../components/ui';
+import { toast } from '../../lib/toast';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -49,9 +50,9 @@ export default function ProfileScreen() {
       .eq('id', user.id);
     setSaving(false);
     if (error) {
-      Alert.alert('Error', error.message);
+      toast.error('Could not save', error.message);
     } else {
-      Alert.alert('Saved', 'Your profile has been updated.');
+      toast.success('Profile saved');
     }
   };
 

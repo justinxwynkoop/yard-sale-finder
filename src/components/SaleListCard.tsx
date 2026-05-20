@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Sale } from '../types';
 import { formatSaleDate, formatSaleTime } from '../utils/format';
@@ -41,7 +42,8 @@ export default function SaleListCard({
               <Image
                 source={{ uri: firstImage.url }}
                 style={{ width: '100%', height: '100%' }}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={150}
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-brand-50">

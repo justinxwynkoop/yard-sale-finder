@@ -22,6 +22,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
+import { compressImage } from '../../lib/imageCompression';
 import {
   Button,
   Chip,
@@ -245,14 +246,18 @@ export default function CreateSaleScreen() {
   const uploadMedia = async (saleId: string): Promise<void> => {
     for (let i = 0; i < media.length; i++) {
       const item = media[i];
-      const ext = (item.uri.split('.').pop() ?? 'jpg').toLowerCase();
+      // Compress images before upload — saves bandwidth, storage, and
+      // upload time. Videos are passed through as-is.
+      const uri =
+        item.type === 'image' ? await compressImage(item.uri) : item.uri;
+      const ext = item.type === 'video' ? 'mp4' : 'jpg';
       const path = `${user!.id}/${saleId}/${i}.${ext}`;
       const contentType = item.type === 'video' ? 'video/mp4' : 'image/jpeg';
 
       // React Native's `fetch(uri).blob()` returns a 0-byte blob — files
       // upload but are empty. Read the file as an ArrayBuffer using
       // expo-file-system's new File API and upload that instead.
-      const file = new File(item.uri);
+      const file = new File(uri);
       const arrayBuffer = await file.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage

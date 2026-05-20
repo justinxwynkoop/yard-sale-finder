@@ -3,12 +3,12 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   Linking,
   Platform,
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MapStackParamList, Sale } from '../../types';
@@ -112,8 +112,9 @@ export default function SaleDetailScreen() {
                   style={{
                     width: SCREEN_WIDTH,
                     height: GALLERY_HEIGHT,
-                    resizeMode: 'cover',
                   }}
+                  contentFit="cover"
+                  transition={200}
                 />
               ))}
             </ScrollView>

@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
+import Toast from 'react-native-toast-message';
 import Navigation from './src/navigation';
 import { handleAuthDeepLink } from './src/lib/authDeepLinks';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -31,6 +32,8 @@ export default function App() {
         <Navigation />
       </ErrorBoundary>
       <StatusBar style="auto" />
+      {/* Toast root — rendered above everything so it sits over modals too */}
+      <Toast />
     </SafeAreaProvider>
   );
 }
