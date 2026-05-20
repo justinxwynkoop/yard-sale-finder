@@ -9,7 +9,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Region } from 'react-native-maps';
+import RNMaps, { Marker, Region } from 'react-native-maps';
+import MapView from 'react-native-map-clustering';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -40,7 +41,10 @@ export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  // react-native-map-clustering wraps react-native-maps' MapView and
+  // forwards its instance — type the ref as RNMaps to expose
+  // animateToRegion + friends.
+  const mapRef = useRef<RNMaps>(null);
   const initialPanDone = useRef(false);
   const [mapBounds, setMapBounds] = useState<
     | {
@@ -188,6 +192,13 @@ export default function MapHomeScreen() {
           onRegionChangeComplete={onRegionChangeComplete}
           showsUserLocation
           showsMyLocationButton={false}
+          // Clustering: group nearby pins into a single bubble until the
+          // user zooms in. radius=40 (default 50) tightens groups; tapping
+          // a cluster zooms in to expand it.
+          clusterColor="#F97316"
+          clusterTextColor="#fff"
+          radius={40}
+          minPoints={3}
         >
           {filteredSales.map((sale) => (
             <Marker
