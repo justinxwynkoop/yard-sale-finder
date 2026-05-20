@@ -49,7 +49,7 @@
     "production": {
       "ios": {
         "appleId": "jasonwynkoop1@yahoo.com",
-        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
+        "ascAppId": "6771190709",
         "appleTeamId": "8PHR5L3F6L"
       },
       "android": {
