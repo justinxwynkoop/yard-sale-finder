@@ -10,6 +10,7 @@ import Toast from 'react-native-toast-message';
 import Navigation from './src/navigation';
 import { handleAuthDeepLink } from './src/lib/authDeepLinks';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { OnboardingProvider } from './src/hooks/useOnboarding';
 
 // Initialize Sentry if a DSN is configured. Set EXPO_PUBLIC_SENTRY_DSN
 // in your .env (or via EAS secrets) when you're ready to track crashes.
@@ -42,9 +43,11 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
-        <Navigation />
-      </ErrorBoundary>
+      <OnboardingProvider>
+        <ErrorBoundary>
+          <Navigation />
+        </ErrorBoundary>
+      </OnboardingProvider>
       <StatusBar style="auto" />
       {/* Toast root — rendered above everything so it sits over modals too */}
       <Toast />
