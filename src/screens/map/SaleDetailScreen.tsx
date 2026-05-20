@@ -7,7 +7,9 @@ import {
   Platform,
   ActivityIndicator,
   Dimensions,
+  Share,
 } from 'react-native';
+import * as ExpoLinking from 'expo-linking';
 import { Image } from 'expo-image';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,7 +139,7 @@ export default function SaleDetailScreen() {
 
           {/* Floating status / open-now badge */}
           <View
-            className="absolute right-4 flex-row"
+            className="absolute right-4 flex-row items-center"
             style={{ top: 56, gap: 6 }}
           >
             {isOpenNow(sale) && (
@@ -146,6 +148,23 @@ export default function SaleDetailScreen() {
               </Badge>
             )}
             <StatusBadge status={sale.status} />
+            <IconButton
+              variant="glass"
+              size="sm"
+              icon={<Ionicons name="share-outline" size={16} color="#18181B" />}
+              onPress={async () => {
+                const url = ExpoLinking.createURL(`sale/${sale.id}`);
+                try {
+                  await Share.share({
+                    title: sale.title,
+                    message: `${sale.title}\n${sale.address}\n${url}`,
+                    url, // iOS-only — Android uses message
+                  });
+                } catch {
+                  /* user dismissed sheet */
+                }
+              }}
+            />
           </View>
 
           {/* Floating 'expand' button — opens full-screen viewer at the current photo */}

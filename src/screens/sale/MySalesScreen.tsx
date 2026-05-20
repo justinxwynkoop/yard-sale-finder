@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   Alert,
   Pressable,
 } from 'react-native';
@@ -23,6 +22,8 @@ import {
   Chip,
   EmptyState,
   IconButton,
+  Input,
+  SaleCardSkeleton,
   StatusBadge,
 } from '../../components/ui';
 
@@ -42,6 +43,7 @@ export default function MySalesScreen() {
   const { user } = useAuth();
   const { sales, loading, refetch } = useMySales(user?.id);
   const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
 
   const counts = useMemo(() => {
     return {
@@ -52,7 +54,18 @@ export default function MySalesScreen() {
     };
   }, [sales]);
 
-  const filtered = filter === 'all' ? sales : sales.filter((s) => s.status === filter);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sales.filter((s) => {
+      if (filter !== 'all' && s.status !== filter) return false;
+      if (!q) return true;
+      return (
+        s.title.toLowerCase().includes(q) ||
+        s.address.toLowerCase().includes(q) ||
+        s.categories.some((c) => c.toLowerCase().includes(q))
+      );
+    });
+  }, [sales, filter, query]);
 
   const updateStatus = async (saleId: string, status: SaleStatus) => {
     await supabase.from('sales').update({ status }).eq('id', saleId);
@@ -113,25 +126,40 @@ export default function MySalesScreen() {
           />
         </View>
 
-        {/* Filter chips */}
+        {/* Search + filter chips */}
         {sales.length > 0 && (
-          <View className="mt-3 flex-row" style={{ gap: 6 }}>
-            {FILTERS.map((f) => (
-              <Chip
-                key={f.key}
-                label={`${f.label}${counts[f.key] ? ` · ${counts[f.key]}` : ''}`}
-                size="sm"
-                active={filter === f.key}
-                onPress={() => setFilter(f.key)}
+          <>
+            <View className="mt-3">
+              <Input
+                placeholder="Search your sales"
+                value={query}
+                onChangeText={setQuery}
+                leftIcon={<Ionicons name="search" size={18} color="#71717A" />}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
-            ))}
-          </View>
+            </View>
+            <View className="mt-3 flex-row" style={{ gap: 6 }}>
+              {FILTERS.map((f) => (
+                <Chip
+                  key={f.key}
+                  label={`${f.label}${counts[f.key] ? ` · ${counts[f.key]}` : ''}`}
+                  size="sm"
+                  active={filter === f.key}
+                  onPress={() => setFilter(f.key)}
+                />
+              ))}
+            </View>
+          </>
         )}
       </View>
 
       {loading && sales.length === 0 ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#F97316" />
+        <View style={{ padding: 16, gap: 12 }}>
+          <SaleCardSkeleton />
+          <SaleCardSkeleton />
+          <SaleCardSkeleton />
         </View>
       ) : sales.length === 0 ? (
         <EmptyState

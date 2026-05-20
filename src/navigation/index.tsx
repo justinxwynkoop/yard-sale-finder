@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
@@ -183,6 +184,28 @@ function LoadingScreen() {
   );
 }
 
+// Deep-link config: maps incoming URLs (yardsalefinder://sale/<id>,
+// https://locahauls.app/sale/<id>) to the right screen + params. Used
+// by the Share button on SaleDetail to generate URLs friends can tap
+// to jump straight to that sale in-app.
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [Linking.createURL('/'), 'https://localhauls.app'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          Map: {
+            screens: {
+              MapHome: 'map',
+              SaleDetail: 'sale/:saleId',
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
 export default function Navigation() {
   const { session, loading, inRecovery } = useAuth();
 
@@ -191,7 +214,7 @@ export default function Navigation() {
   // instead of returning null — that way useNavigation / useRoute
   // hooks anywhere in the tree never see an empty context.
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {loading ? (
           <RootStack.Screen name="Loading" component={LoadingScreen} />
