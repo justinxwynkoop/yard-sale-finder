@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 
 type Props = {
   children: React.ReactNode;
@@ -29,6 +30,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error('[ErrorBoundary] caught:', error);
     console.error('[ErrorBoundary] componentStack:', info.componentStack);
     this.setState({ componentStack: info.componentStack ?? null });
+    // Forward to Sentry so production crashes are tracked.
+    try {
+      Sentry.captureException(error, {
+        contexts: {
+          react: { componentStack: info.componentStack ?? 'unavailable' },
+        },
+      });
+    } catch {
+      /* sentry isn't configured (no DSN) — ignore */
+    }
   }
 
   reset = () => {
