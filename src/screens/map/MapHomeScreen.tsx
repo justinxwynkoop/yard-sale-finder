@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNMaps, { Marker, Region } from 'react-native-maps';
@@ -66,6 +67,7 @@ export default function MapHomeScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   // List-mode sort. Persisted across viewMode toggles within a session.
   const [sortBy, setSortBy] = useState<SortBy>('distance');
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
 
   // In list mode we want ALL active sales (not bounded). In map mode the
   // bounds filter is useful so we don't pull the world.
@@ -235,20 +237,11 @@ export default function MapHomeScreen() {
           ))}
         </MapView>
 
-        {/* Floating FAB stack — sits above the tab bar */}
+        {/* Floating my-location FAB. No refresh button: useSales
+            auto-refetches on map-bounds change AND subscribes to
+            postgres_changes, so the map already reflects new sales
+            within a second of them being posted. */}
         <View style={styles.locateWrap}>
-          <IconButton
-            variant="solid"
-            size="md"
-            onPress={refetch}
-            icon={
-              <Ionicons
-                name={loading ? 'sync' : 'refresh'}
-                size={20}
-                color="#18181B"
-              />
-            }
-          />
           <IconButton
             variant="solid"
             size="lg"
@@ -266,31 +259,28 @@ export default function MapHomeScreen() {
           { display: viewMode === 'list' ? 'flex' : 'none' },
         ]}
       >
-        {/* Sort chips — only shown when there are sales to sort */}
+        {/* Single compact 'Sort: X' pill — opens a sheet to pick.
+            Hides 2 chips' worth of horizontal noise vs the old
+            three-chip row. */}
         {filteredSales.length > 0 && (
           <View style={styles.sortRow}>
-            {SORT_OPTIONS.map((opt) => {
-              const active = sortBy === opt.key;
-              return (
-                <Pressable
-                  key={opt.key}
-                  onPress={() => setSortBy(opt.key)}
-                  style={[
-                    styles.sortChip,
-                    active && styles.sortChipActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.sortChipText,
-                      active && styles.sortChipTextActive,
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            <Pressable
+              onPress={() => setSortSheetOpen(true)}
+              style={styles.sortPill}
+            >
+              <Ionicons name="swap-vertical" size={14} color="#71717A" />
+              <Text style={styles.sortPillText}>
+                Sort:{' '}
+                <Text style={styles.sortPillValue}>
+                  {SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? ''}
+                </Text>
+              </Text>
+              <Ionicons name="chevron-down" size={12} color="#71717A" />
+            </Pressable>
+            <Text style={styles.sortCount}>
+              {filteredSales.length}{' '}
+              {filteredSales.length === 1 ? 'sale' : 'sales'}
+            </Text>
           </View>
         )}
 
@@ -388,6 +378,48 @@ export default function MapHomeScreen() {
           <FilterBar selected={categoryFilter} onSelect={setCategoryFilter} />
         </View>
       </View>
+
+      {/* Sort sheet — bottom modal with the three options */}
+      <Modal
+        visible={sortSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSortSheetOpen(false)}
+      >
+        <Pressable
+          style={styles.sheetBackdrop}
+          onPress={() => setSortSheetOpen(false)}
+        />
+        <View style={styles.sheetCard}>
+          <View style={styles.sheetGrabber} />
+          <Text style={styles.sheetTitle}>Sort by</Text>
+          {SORT_OPTIONS.map((opt) => {
+            const active = sortBy === opt.key;
+            return (
+              <Pressable
+                key={opt.key}
+                onPress={() => {
+                  setSortBy(opt.key);
+                  setSortSheetOpen(false);
+                }}
+                style={styles.sheetRow}
+              >
+                <Text
+                  style={[
+                    styles.sheetRowText,
+                    active && styles.sheetRowTextActive,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+                {active && (
+                  <Ionicons name="checkmark" size={20} color="#F97316" />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -407,27 +439,85 @@ const styles = StyleSheet.create({
   },
   sortRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 8,
-    gap: 6,
   },
-  sortChip: {
-    paddingHorizontal: 12,
+  sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: '#F4F4F5',
   },
-  sortChipActive: {
-    backgroundColor: '#FFEDD5',
-  },
-  sortChipText: {
+  sortPillText: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#71717A',
   },
-  sortChipTextActive: {
-    color: '#C2410C',
+  sortPillValue: {
+    fontWeight: '700',
+    color: '#18181B',
+  },
+  sortCount: {
+    fontSize: 12,
+    color: '#A1A1AA',
+    fontWeight: '500',
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheetCard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+    paddingBottom: 36,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -2 },
+  },
+  sheetGrabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E4E4E7',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A1A1AA',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F4F4F5',
+  },
+  sheetRowText: {
+    fontSize: 16,
+    color: '#27272A',
+  },
+  sheetRowTextActive: {
+    color: '#F97316',
+    fontWeight: '700',
   },
   topBarWrap: {
     position: 'absolute',
