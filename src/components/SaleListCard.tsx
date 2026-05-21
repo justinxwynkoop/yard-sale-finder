@@ -6,6 +6,7 @@ import { Sale } from '../types';
 import { formatSaleDate, formatSaleTime } from '../utils/format';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
 import { isOpenNow } from '../utils/saleStatus';
+import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
 import { Badge, Card, StatusBadge } from './ui';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
   onPress: () => void;
 }
 
-export default function SaleListCard({
+function SaleListCardInner({
   sale,
   userLat,
   userLng,
@@ -23,6 +24,14 @@ export default function SaleListCard({
 }: Props) {
   const firstImage = sale.media?.find((m) => m.type === 'image');
   const open = isOpenNow(sale);
+  // 200×200 server-side thumbnail — ~25KB instead of ~250KB for the
+  // full-size image. Retina-friendly at the 96pt slot we render in.
+  const thumbUrl = transformedImageUrl(firstImage?.url, {
+    width: 200,
+    height: 200,
+    resize: 'cover',
+    quality: 75,
+  });
 
   const distance =
     userLat != null && userLng != null
@@ -38,12 +47,14 @@ export default function SaleListCard({
             className="overflow-hidden rounded-xl"
             style={{ width: 96, height: 96 }}
           >
-            {firstImage ? (
+            {thumbUrl ? (
               <Image
-                source={{ uri: firstImage.url }}
+                source={{ uri: thumbUrl }}
+                placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
                 transition={150}
+                cachePolicy="memory-disk"
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-brand-50">
@@ -118,3 +129,19 @@ export default function SaleListCard({
     </Card>
   );
 }
+
+/**
+ * Memoize so FlatList rows don't re-render when their sibling rows
+ * change. Sales come back as new objects from each fetch, so use a
+ * shallow comparison on the fields the card actually reads.
+ */
+export default React.memo(SaleListCardInner, (prev, next) => {
+  return (
+    prev.sale.id === next.sale.id &&
+    prev.sale.updated_at === next.sale.updated_at &&
+    prev.sale.status === next.sale.status &&
+    prev.userLat === next.userLat &&
+    prev.userLng === next.userLng &&
+    prev.onPress === next.onPress
+  );
+});

@@ -9,7 +9,7 @@ const STATUS_COLOR: Record<SaleStatus, string> = {
   ended: '#9CA3AF', // zinc — muted
 };
 
-export function MapPin({ status }: { status: SaleStatus }) {
+function MapPinInner({ status }: { status: SaleStatus }) {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -74,3 +74,7 @@ export function MapPin({ status }: { status: SaleStatus }) {
     </View>
   );
 }
+
+// Pins re-render constantly when the map pans; memo by status so the
+// pulse Animation doesn't restart every frame.
+export const MapPin = React.memo(MapPinInner);

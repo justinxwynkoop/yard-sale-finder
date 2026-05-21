@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useMySales } from '../../hooks/useSales';
 import { supabase } from '../../lib/supabase';
+import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
 import { Sale, SaleStackParamList, SaleStatus } from '../../types';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import {
@@ -97,6 +98,28 @@ export default function MySalesScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            // 1. List all storage objects for this sale (we name them
+            //    {user_id}/{sale_id}/...) so we can purge them after
+            //    the DB row is gone. The sale_media rows cascade-delete
+            //    automatically via the FK, but the actual files in the
+            //    storage bucket don't — they'd become orphans.
+            if (user) {
+              const folder = `${user.id}/${sale.id}`;
+              try {
+                const { data: files } = await supabase.storage
+                  .from('sale-media')
+                  .list(folder);
+                const paths = (files ?? []).map(
+                  (f) => `${folder}/${f.name}`,
+                );
+                if (paths.length > 0) {
+                  await supabase.storage.from('sale-media').remove(paths);
+                }
+              } catch {
+                /* best-effort cleanup; don't block the delete on it */
+              }
+            }
+            // 2. Now delete the DB row (sale_media cascades).
             await supabase.from('sales').delete().eq('id', sale.id);
             refetch();
           },
@@ -221,6 +244,12 @@ function SaleCard({
   onView: () => void;
 }) {
   const firstImage = sale.media?.find((m) => m.type === 'image');
+  const thumbUrl = transformedImageUrl(firstImage?.url, {
+    width: 200,
+    height: 200,
+    resize: 'cover',
+    quality: 75,
+  });
 
   return (
     <Card className="overflow-hidden">
@@ -231,12 +260,14 @@ function SaleCard({
             className="overflow-hidden rounded-xl"
             style={{ width: 88, height: 88 }}
           >
-            {firstImage ? (
+            {thumbUrl ? (
               <Image
-                source={{ uri: firstImage.url }}
+                source={{ uri: thumbUrl }}
+                placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
                 transition={150}
+                cachePolicy="memory-disk"
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-brand-50">

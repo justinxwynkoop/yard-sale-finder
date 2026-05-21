@@ -15,6 +15,10 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
+import {
+  PLACEHOLDER_BLURHASH,
+  transformedImageUrl,
+} from '../../lib/imageUrl';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import { isOpenNow } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -129,13 +133,22 @@ export default function SaleDetailScreen() {
               {images.map((img) => (
                 <Image
                   key={img.id}
-                  source={{ uri: img.url }}
+                  source={{
+                    uri: transformedImageUrl(img.url, {
+                      width: Math.round(SCREEN_WIDTH * 2),
+                      height: GALLERY_HEIGHT * 2,
+                      resize: 'cover',
+                      quality: 80,
+                    }),
+                  }}
+                  placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
                   style={{
                     width: SCREEN_WIDTH,
                     height: GALLERY_HEIGHT,
                   }}
                   contentFit="cover"
                   transition={200}
+                  cachePolicy="memory-disk"
                 />
               ))}
             </ScrollView>
