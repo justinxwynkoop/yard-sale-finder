@@ -227,7 +227,8 @@ function AppInfoCard() {
  * Long-press to copy details for bug reports.
  */
 function DebugInfoCard() {
-  const { runtimeVersion, channel, updateId, isEmbedded } = useAppVersion();
+  const { runtimeVersion, channel, updateId, isEmbedded, createdAt } =
+    useAppVersion();
   return (
     <Card className="p-5">
       <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
@@ -241,6 +242,19 @@ function DebugInfoCard() {
           isEmbedded
             ? 'embedded (no OTA applied)'
             : (updateId ?? 'embedded').slice(0, 8)
+        }
+      />
+      <Row
+        label="Pushed"
+        value={
+          createdAt
+            ? createdAt.toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })
+            : '—'
         }
       />
     </Card>

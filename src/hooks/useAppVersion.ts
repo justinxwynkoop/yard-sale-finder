@@ -16,6 +16,9 @@ import * as Updates from 'expo-updates';
  * - isEmbedded       — true if the running bundle is the one baked into
  *                       the binary (no OTA applied yet); false if an
  *                       OTA bundle is active.
+ * - createdAt        — Date the running bundle was published (for OTA)
+ *                       or the binary was built (for embedded). null
+ *                       when running from Metro.
  */
 export function useAppVersion() {
   const expoConfig = Constants.expoConfig ?? Constants.manifest2 ?? {};
@@ -34,6 +37,7 @@ export function useAppVersion() {
   const channel = Updates.channel ?? '(none)';
   const updateId = Updates.updateId ?? null;
   const isEmbedded = Updates.isEmbeddedLaunch ?? true;
+  const createdAt = Updates.createdAt ?? null;
 
   return {
     appVersion,
@@ -42,5 +46,6 @@ export function useAppVersion() {
     channel,
     updateId,
     isEmbedded,
+    createdAt,
   };
 }
