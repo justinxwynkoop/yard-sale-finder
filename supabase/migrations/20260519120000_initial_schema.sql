@@ -23,6 +23,14 @@ drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update using (auth.uid() = id);
 
+-- Needed so client-side upsert() during onboarding (which always emits
+-- an INSERT, even when ON CONFLICT will turn it into an UPDATE) passes
+-- RLS. The trigger above handles most signups, but Apple private-relay
+-- and legacy users still hit the upsert path.
+drop policy if exists "Users can insert their own profile" on public.profiles;
+create policy "Users can insert their own profile"
+  on public.profiles for insert with check (auth.uid() = id);
+
 -- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger as $$
