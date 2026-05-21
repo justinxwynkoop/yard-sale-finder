@@ -46,15 +46,32 @@ export default function SaleDetailScreen() {
   const { isFavorited, toggle: toggleFavorite } = useFavorites();
 
   useEffect(() => {
-    supabase
-      .from('sales')
-      .select('*, profile:profiles(*), media:sale_media(*)')
-      .eq('id', saleId)
-      .single()
-      .then(({ data }) => {
-        setSale(data);
-        setLoading(false);
-      });
+    let cancelled = false;
+    (async () => {
+      // Fetch sale + media first (no profile embed, so the sale loads
+      // even if the host has no profile row). Then best-effort fetch
+      // the host profile separately.
+      const { data: saleData } = await supabase
+        .from('sales')
+        .select('*, media:sale_media(*)')
+        .eq('id', saleId)
+        .single();
+      if (cancelled || !saleData) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', saleData.user_id)
+        .maybeSingle();
+      if (cancelled) return;
+      setSale({ ...saleData, profile: profileData ?? undefined });
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [saleId]);
 
   const openDirections = () => {

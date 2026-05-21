@@ -24,7 +24,10 @@ export function useFavorites() {
     setLoading(true);
     const { data } = await supabase
       .from('favorites')
-      .select('sale_id, sale:sales(*, media:sale_media(*), profile:profiles(*))')
+      // No profile embed: PostgREST's auto-INNER-JOIN on the NOT NULL
+      // sales.user_id FK would drop sales whose owner has no profile.
+      // See useSales for the same reasoning.
+      .select('sale_id, sale:sales(*, media:sale_media(*))')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     const sales: Sale[] = (data ?? [])
