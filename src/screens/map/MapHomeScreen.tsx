@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import { useLastMapRegion } from '../../hooks/useLastMapRegion';
 import { MapStackParamList } from '../../types';
 import FilterBar from '../../components/FilterBar';
 import { MapPin } from '../../components/MapPin';
@@ -75,15 +76,27 @@ export default function MapHomeScreen() {
     viewMode === 'map' ? mapBounds : undefined,
   );
   const userLocation = useUserLocation();
+  // Restore the map to wherever it was last time the app was closed.
+  // Avoids the "starts in Kansas, then awkwardly pans to me" flash.
+  const { region: lastRegion, save: saveLastRegion, ready: regionReady } =
+    useLastMapRegion();
 
   const focusLat = route.params?.focusLat;
   const focusLng = route.params?.focusLng;
 
-  // 1) If we arrive with focus coords (from a just-posted sale), pan there.
-  // 2) Otherwise, on first mount, try to pan to the user's location so they
-  //    see nearby sales instead of staring at the geographic center of the US.
+  // Map pan strategy (in order):
+  //   1) Just posted a sale? Pan to it (focus coords from route params).
+  //   2) Have a saved region from a previous session? Don't auto-pan at
+  //      all — the MapView's initialRegion is already set to it below,
+  //      so the user opens exactly where they left off.
+  //   3) No saved region (first ever launch)? Use Location.getLastKnown
+  //      first for an instant approximate pan, then refine with a fresh
+  //      getCurrentPosition. Avoids the iOS-cache-stale jump.
   useEffect(() => {
+    // Wait until the AsyncStorage read settles before deciding.
+    if (!regionReady) return;
     if (initialPanDone.current) return;
+
     if (focusLat != null && focusLng != null) {
       initialPanDone.current = true;
       setTimeout(() => {
@@ -101,18 +114,48 @@ export default function MapHomeScreen() {
       return;
     }
 
+    // We had a saved region — initialRegion already handled it. Skip
+    // the auto-pan so we don't yank the user to "where iOS thinks
+    // they are right now" instead of where they were looking.
+    if (lastRegion) {
+      initialPanDone.current = true;
+      return;
+    }
+
+    // True first launch: locate them.
     let cancelled = false;
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } =
+          await Location.requestForegroundPermissionsAsync();
         if (cancelled || status !== 'granted') return;
-        const loc = await Location.getCurrentPositionAsync({});
+
+        // Fast path: last-known-position is instant (cached). May be a
+        // bit stale but is way better than the US center.
+        const last = await Location.getLastKnownPositionAsync({});
+        if (!cancelled && last) {
+          initialPanDone.current = true;
+          mapRef.current?.animateToRegion(
+            {
+              latitude: last.coords.latitude,
+              longitude: last.coords.longitude,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            },
+            500,
+          );
+        }
+
+        // Slow path: a fresh fix. May take 3-5s. Refines the pan.
+        const fresh = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
         if (cancelled) return;
         initialPanDone.current = true;
         mapRef.current?.animateToRegion(
           {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
+            latitude: fresh.coords.latitude,
+            longitude: fresh.coords.longitude,
             latitudeDelta: 0.05,
             longitudeDelta: 0.05,
           },
@@ -125,7 +168,7 @@ export default function MapHomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [focusLat, focusLng, navigation]);
+  }, [focusLat, focusLng, navigation, regionReady, lastRegion]);
 
   // Filter + sort
   const filteredSales = useMemo(() => {
@@ -182,14 +225,21 @@ export default function MapHomeScreen() {
     );
   }, []);
 
-  const onRegionChangeComplete = useCallback((region: Region) => {
-    setMapBounds({
-      minLat: region.latitude - region.latitudeDelta / 2,
-      maxLat: region.latitude + region.latitudeDelta / 2,
-      minLng: region.longitude - region.longitudeDelta / 2,
-      maxLng: region.longitude + region.longitudeDelta / 2,
-    });
-  }, []);
+  const onRegionChangeComplete = useCallback(
+    (region: Region) => {
+      setMapBounds({
+        minLat: region.latitude - region.latitudeDelta / 2,
+        maxLat: region.latitude + region.latitudeDelta / 2,
+        minLng: region.longitude - region.longitudeDelta / 2,
+        maxLng: region.longitude + region.longitudeDelta / 2,
+      });
+      // Persist where the user is looking so re-opening the app drops
+      // them right back here instead of US-center or wherever iOS
+      // thinks they are. Debounced inside useLastMapRegion.
+      saveLastRegion(region);
+    },
+    [saveLastRegion],
+  );
 
   // NO className anywhere in this screen — every wrapper uses inline
   // styles via a local StyleSheet. NativeWind v4's css-interop runtime
@@ -208,7 +258,7 @@ export default function MapHomeScreen() {
         <MapView
           ref={mapRef}
           style={styles.map}
-          initialRegion={DEFAULT_REGION}
+          initialRegion={lastRegion ?? DEFAULT_REGION}
           onRegionChangeComplete={onRegionChangeComplete}
           showsUserLocation
           showsMyLocationButton={false}
