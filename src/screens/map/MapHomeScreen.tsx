@@ -36,6 +36,13 @@ const DEFAULT_REGION: Region = {
 };
 
 type ViewMode = 'map' | 'list';
+type SortBy = 'distance' | 'newest' | 'open';
+
+const SORT_OPTIONS: { key: SortBy; label: string }[] = [
+  { key: 'distance', label: 'Nearest' },
+  { key: 'newest', label: 'Newest' },
+  { key: 'open', label: 'Open now' },
+];
 
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
@@ -57,6 +64,8 @@ export default function MapHomeScreen() {
   >(undefined);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
+  // List-mode sort. Persisted across viewMode toggles within a session.
+  const [sortBy, setSortBy] = useState<SortBy>('distance');
 
   // In list mode we want ALL active sales (not bounded). In map mode the
   // bounds filter is useful so we don't pull the world.
@@ -121,26 +130,35 @@ export default function MapHomeScreen() {
     const filtered = categoryFilter
       ? sales.filter((s) => s.categories.includes(categoryFilter as any))
       : sales;
-    if (viewMode === 'list' && userLocation) {
-      // Sort by distance (closest first) in list view when we have a location
-      return [...filtered].sort((a, b) => {
-        const da = haversineMeters(
-          userLocation.latitude,
-          userLocation.longitude,
-          a.latitude,
-          a.longitude,
-        );
-        const db = haversineMeters(
-          userLocation.latitude,
-          userLocation.longitude,
-          b.latitude,
-          b.longitude,
-        );
-        return da - db;
+    if (viewMode !== 'list') return filtered;
+
+    // List-mode sort. Distance fallback for any sort that doesn't apply
+    // (e.g. 'open' partitions, then sorts by distance within each group).
+    const distance = (s: typeof filtered[number]) =>
+      userLocation
+        ? haversineMeters(
+            userLocation.latitude,
+            userLocation.longitude,
+            s.latitude,
+            s.longitude,
+          )
+        : Number.POSITIVE_INFINITY;
+
+    const sorted = [...filtered];
+    if (sortBy === 'distance') {
+      sorted.sort((a, b) => distance(a) - distance(b));
+    } else if (sortBy === 'newest') {
+      sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    } else if (sortBy === 'open') {
+      sorted.sort((a, b) => {
+        const ao = isOpenNow(a) ? 0 : 1;
+        const bo = isOpenNow(b) ? 0 : 1;
+        if (ao !== bo) return ao - bo;
+        return distance(a) - distance(b);
       });
     }
-    return filtered;
-  }, [sales, categoryFilter, viewMode, userLocation]);
+    return sorted;
+  }, [sales, categoryFilter, viewMode, userLocation, sortBy]);
 
   const openNowCount = useMemo(
     () => filteredSales.filter((s) => isOpenNow(s)).length,
@@ -217,8 +235,20 @@ export default function MapHomeScreen() {
           ))}
         </MapView>
 
-        {/* Floating my-location button — sits above the tab bar */}
+        {/* Floating FAB stack — sits above the tab bar */}
         <View style={styles.locateWrap}>
+          <IconButton
+            variant="solid"
+            size="md"
+            onPress={refetch}
+            icon={
+              <Ionicons
+                name={loading ? 'sync' : 'refresh'}
+                size={20}
+                color="#18181B"
+              />
+            }
+          />
           <IconButton
             variant="solid"
             size="lg"
@@ -236,6 +266,34 @@ export default function MapHomeScreen() {
           { display: viewMode === 'list' ? 'flex' : 'none' },
         ]}
       >
+        {/* Sort chips — only shown when there are sales to sort */}
+        {filteredSales.length > 0 && (
+          <View style={styles.sortRow}>
+            {SORT_OPTIONS.map((opt) => {
+              const active = sortBy === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => setSortBy(opt.key)}
+                  style={[
+                    styles.sortChip,
+                    active && styles.sortChipActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sortChipText,
+                      active && styles.sortChipTextActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
         {filteredSales.length === 0 && !loading ? (
           <EmptyState
             icon={<Ionicons name="pricetag-outline" size={32} color="#F97316" />}
@@ -344,6 +402,32 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 24,
     pointerEvents: 'box-none',
+    gap: 10,
+    alignItems: 'flex-end',
+  },
+  sortRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  sortChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F4F4F5',
+  },
+  sortChipActive: {
+    backgroundColor: '#FFEDD5',
+  },
+  sortChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#71717A',
+  },
+  sortChipTextActive: {
+    color: '#C2410C',
   },
   topBarWrap: {
     position: 'absolute',

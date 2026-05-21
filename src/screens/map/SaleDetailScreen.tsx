@@ -20,7 +20,7 @@ import {
   transformedImageUrl,
 } from '../../lib/imageUrl';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
-import { isOpenNow } from '../../utils/saleStatus';
+import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
 import {
   Avatar,
@@ -245,6 +245,8 @@ export default function SaleDetailScreen() {
             {sale.title}
           </Text>
 
+          <EndsSoonBanner sale={sale} />
+
           {/* Quick info card */}
           <Card className="mt-4 p-4">
             <View className="flex-row items-center">
@@ -348,6 +350,58 @@ export default function SaleDetailScreen() {
           Get directions
         </Button>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Banner that shows under the title when the sale closes within the
+ * next 2 hours TODAY. Re-evaluates every minute via a tick state so
+ * the countdown stays fresh as long as the user is on the page.
+ */
+function EndsSoonBanner({ sale }: { sale: Sale }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const minsLeft = minutesUntilClose(sale);
+  if (minsLeft == null || minsLeft > 120) return null;
+
+  let label: string;
+  if (minsLeft <= 1) label = 'Closing now';
+  else if (minsLeft < 60) label = `Ends in ${minsLeft} min`;
+  else {
+    const h = Math.floor(minsLeft / 60);
+    const m = minsLeft % 60;
+    label = m === 0 ? `Ends in ${h} hr` : `Ends in ${h}h ${m}m`;
+  }
+
+  return (
+    <View
+      style={{
+        marginTop: 12,
+        backgroundColor: '#FEF3C7',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <Ionicons name="time" size={18} color="#92400E" />
+      <Text
+        style={{
+          color: '#92400E',
+          fontWeight: '700',
+          fontSize: 13,
+          flex: 1,
+        }}
+      >
+        {label} — head over now if you're nearby.
+      </Text>
     </View>
   );
 }
