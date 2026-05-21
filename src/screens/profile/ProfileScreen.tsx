@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../hooks/useAuth';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useAppVersion } from '../../hooks/useAppVersion';
 import { supabase } from '../../lib/supabase';
 import { Profile, MainTabParamList } from '../../types';
 import { Avatar, Badge, Button, Card, Input } from '../../components/ui';
@@ -176,22 +177,9 @@ export default function ProfileScreen() {
           </Card>
         )}
 
-        <Card className="p-5">
-          <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
-            App
-          </Text>
-          <View className="flex-row items-center" style={{ gap: 12 }}>
-            <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-              <Ionicons name="information-circle-outline" size={20} color="#F97316" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-zinc-900">
-                Local Hauls
-              </Text>
-              <Text className="text-xs text-zinc-500">Version 1.0.0</Text>
-            </View>
-          </View>
-        </Card>
+        <AppInfoCard />
+
+        <DebugInfoCard />
 
         <View className="mt-2">
           <Button variant="outline" onPress={handleSignOut} textClassName="text-red-600"
@@ -201,5 +189,78 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function AppInfoCard() {
+  const { appVersion, buildNumber } = useAppVersion();
+  return (
+    <Card className="p-5">
+      <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
+        App
+      </Text>
+      <View className="flex-row items-center" style={{ gap: 12 }}>
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+          <Ionicons
+            name="information-circle-outline"
+            size={20}
+            color="#F97316"
+          />
+        </View>
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-zinc-900">
+            Local Hauls
+          </Text>
+          <Text className="text-xs text-zinc-500">
+            Version {appVersion}
+            {buildNumber ? ` (${buildNumber})` : ''}
+          </Text>
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+/**
+ * Build / runtime / OTA-update metadata. Helps confirm 'did the OTA
+ * actually land?' — the updateId changes every time `eas update` runs.
+ * Long-press to copy details for bug reports.
+ */
+function DebugInfoCard() {
+  const { runtimeVersion, channel, updateId, isEmbedded } = useAppVersion();
+  return (
+    <Card className="p-5">
+      <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
+        Build details
+      </Text>
+      <Row label="Runtime version" value={runtimeVersion} />
+      <Row label="Channel" value={channel} />
+      <Row
+        label="Update"
+        value={
+          isEmbedded
+            ? 'embedded (no OTA applied)'
+            : (updateId ?? 'embedded').slice(0, 8)
+        }
+      />
+    </Card>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View
+      className="flex-row items-center justify-between py-1"
+      style={{ gap: 12 }}
+    >
+      <Text className="text-xs text-zinc-500">{label}</Text>
+      <Text
+        className="text-xs font-mono text-zinc-700"
+        selectable
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
