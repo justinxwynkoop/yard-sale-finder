@@ -88,14 +88,14 @@ cp .env.example .env
 Open `.env` and paste the following (keys are included here since this repo is private — remove before making public):
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://dxahcamntwtuzftxbxgx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4YWhjYW1udHd0dXpmdHhieGd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjY2MjIsImV4cCI6MjA5NDE0MjYyMn0.OR9vqo0Cmt9uCn7Pt2hyHvYPh7H-GOnGe9x1MXeRg8w
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=placeholder
 ```
 
 **Google OAuth credentials** (for when OAuth is wired up):
-- Client ID: `657877324159-3alp78m482tauvihkmlhhfe4dq894ups.apps.googleusercontent.com`
-- Client Secret: `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`
+- Client ID: 
+- Client Secret: 
 - These are configured in [Supabase Auth Providers](https://supabase.com/dashboard/project/dxahcamntwtuzftxbxgx/auth/providers) under Google.
 
 > ⚠️ Remove all keys from this file before making the repo public.

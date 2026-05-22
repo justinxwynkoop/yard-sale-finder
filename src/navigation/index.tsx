@@ -14,6 +14,7 @@ import {
   MainTabParamList,
   MapStackParamList,
   SaleStackParamList,
+  ListingsStackParamList,
 } from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
@@ -28,12 +29,16 @@ import MySalesScreen from '../screens/sale/MySalesScreen';
 import CreateSaleScreen from '../screens/sale/CreateSaleScreen';
 import EditSaleScreen from '../screens/sale/EditSaleScreen';
 import CaptureSaleScreen from '../screens/sale/CaptureSaleScreen';
+import CreateListingScreen from '../screens/listings/CreateListingScreen';
+import EditListingScreen from '../screens/listings/EditListingScreen';
+import ListingsScreen from '../screens/listings/ListingsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
 const SaleStack = createNativeStackNavigator<SaleStackParamList>();
+const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 
 const BRAND = '#F97316';
 const INACTIVE = '#A1A1AA';
@@ -85,7 +90,25 @@ function SaleNavigator() {
           animation: 'slide_from_bottom',
         }}
       />
+      <SaleStack.Screen
+        name="CreateListing"
+        component={CreateListingScreen}
+        options={{ headerShown: false }}
+      />
+      <SaleStack.Screen
+        name="EditListing"
+        component={EditListingScreen}
+        options={{ title: 'Edit Listing', headerBackTitle: 'Back' }}
+      />
     </SaleStack.Navigator>
+  );
+}
+
+function ListingsNavigator() {
+  return (
+    <ListingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <ListingsStack.Screen name="ListingsHome" component={ListingsScreen} />
+    </ListingsStack.Navigator>
   );
 }
 
@@ -114,6 +137,8 @@ function MainTabs() {
             iconName = focused ? 'map' : 'map-outline';
           } else if (route.name === 'MySales') {
             iconName = focused ? 'pricetag' : 'pricetag-outline';
+          } else if (route.name === 'Listings') {
+            iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
@@ -130,6 +155,11 @@ function MainTabs() {
         name="MySales"
         component={SaleNavigator}
         options={{ tabBarLabel: 'My Sales' }}
+      />
+      <Tab.Screen
+        name="Listings"
+        component={ListingsNavigator}
+        options={{ tabBarLabel: 'Listings' }}
       />
       <Tab.Screen
         name="Profile"

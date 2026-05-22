@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh project *)",
+      "Bash(python -c \"import json,sys; items=json.load\\(sys.stdin\\)['items']; [print\\(i['status'], '-', i['title']\\) for i in items if i['status'] not in \\('Backlog', 'Review', 'Done'\\)]\")",
+      "Bash(npm run *)"
+    ]
+  }
+}
