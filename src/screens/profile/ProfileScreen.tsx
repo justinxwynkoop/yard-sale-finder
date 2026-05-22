@@ -15,7 +15,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../hooks/useAuth';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useAppVersion } from '../../hooks/useAppVersion';
-import * as Updates from 'expo-updates';
 import { supabase } from '../../lib/supabase';
 import { Profile, MainTabParamList } from '../../types';
 import { Avatar, Badge, Button, Card, Input } from '../../components/ui';
@@ -223,44 +222,12 @@ function AppInfoCard() {
 }
 
 /**
- * Build / runtime / OTA-update metadata + manual "check for update"
- * action. Helps confirm 'did the OTA actually land?' and surfaces
- * any silent failures from the auto-check.
+ * Build / runtime / OTA-update metadata. updateId changes every time
+ * an OTA applies — useful for confirming a tester is on the latest.
  */
 function DebugInfoCard() {
   const { runtimeVersion, channel, updateId, isEmbedded, createdAt } =
     useAppVersion();
-  const [status, setStatus] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  const checkForUpdate = async () => {
-    setChecking(true);
-    setStatus(null);
-    try {
-      if (!Updates.isEnabled) {
-        setStatus('expo-updates is disabled in this build (Updates.isEnabled = false). Native rebuild required.');
-        return;
-      }
-      setStatus('Checking…');
-      const result = await Updates.checkForUpdateAsync();
-      if (!result.isAvailable) {
-        setStatus('You\'re already on the latest update for this runtime.');
-        return;
-      }
-      setStatus('Update found, downloading…');
-      await Updates.fetchUpdateAsync();
-      setStatus('Downloaded. Reloading…');
-      // Tiny delay so the user can read the message before the reload.
-      setTimeout(() => {
-        Updates.reloadAsync().catch((e) => setStatus(`Reload failed: ${e.message}`));
-      }, 600);
-    } catch (e: any) {
-      setStatus(`Error: ${e.message ?? String(e)}`);
-    } finally {
-      setChecking(false);
-    }
-  };
-
   return (
     <Card className="p-5">
       <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
@@ -289,27 +256,6 @@ function DebugInfoCard() {
             : '—'
         }
       />
-
-      <View className="mt-3">
-        <Button
-          size="sm"
-          variant="outline"
-          onPress={checkForUpdate}
-          loading={checking}
-          leftIcon={<Ionicons name="refresh" size={16} color="#27272A" />}
-        >
-          Check for update now
-        </Button>
-        {status ? (
-          <Text
-            selectable
-            className="mt-2 text-xs text-zinc-600"
-            style={{ fontFamily: 'Courier' }}
-          >
-            {status}
-          </Text>
-        ) : null}
-      </View>
     </Card>
   );
 }
