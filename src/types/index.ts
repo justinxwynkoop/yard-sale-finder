@@ -56,6 +56,34 @@ export interface Favorite {
   created_at: string;
 }
 
+export type ListingStatus = 'available' | 'sold';
+
+export interface Listing {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  price: number;
+  pickup_input: string;
+  pickup_display: string;
+  pickup_lat: number;
+  pickup_lng: number;
+  status: ListingStatus;
+  created_at: string;
+  updated_at: string;
+  profile?: Profile;
+  media?: ListingMedia[];
+}
+
+export interface ListingMedia {
+  id: string;
+  listing_id: string;
+  url: string;
+  type: 'image' | 'video';
+  order: number;
+  created_at: string;
+}
+
 export type RootStackParamList = {
   // Boot state
   Loading: undefined;
@@ -73,7 +101,12 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Map: undefined;
   MySales: undefined;
+  Listings: undefined;
   Profile: undefined;
+};
+
+export type ListingsStackParamList = {
+  ListingsHome: undefined;
 };
 
 export type MapStackParamList = {
@@ -86,4 +119,6 @@ export type SaleStackParamList = {
   CreateSale: undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
+  CreateListing: undefined;
+  EditListing: { listingId: string };
 };
