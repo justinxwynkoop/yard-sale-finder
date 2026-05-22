@@ -108,6 +108,7 @@ export type MainTabParamList = {
 
 export type ListingsStackParamList = {
   ListingsHome: undefined;
+  ListingDetail: { listingId: string };
 };
 
 export type MapStackParamList = {

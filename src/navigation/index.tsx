@@ -32,6 +32,7 @@ import CaptureSaleScreen from '../screens/sale/CaptureSaleScreen';
 import CreateListingScreen from '../screens/listings/CreateListingScreen';
 import EditListingScreen from '../screens/listings/EditListingScreen';
 import ListingsScreen from '../screens/listings/ListingsScreen';
+import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -108,6 +109,7 @@ function ListingsNavigator() {
   return (
     <ListingsStack.Navigator screenOptions={{ headerShown: false }}>
       <ListingsStack.Screen name="ListingsHome" component={ListingsScreen} />
+      <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} />
     </ListingsStack.Navigator>
   );
 }
