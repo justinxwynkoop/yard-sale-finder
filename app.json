@@ -84,7 +84,9 @@
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/21cc3271-4b50-4f32-a4e4-6823f78ec3e7"
+      "url": "https://u.expo.dev/21cc3271-4b50-4f32-a4e4-6823f78ec3e7",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_ERROR_RECOVERY"
     },
     "owner": "jasonwynkoop1"
   }

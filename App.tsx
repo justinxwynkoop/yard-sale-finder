@@ -6,11 +6,18 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as Sentry from '@sentry/react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
 import Navigation from './src/navigation';
 import { handleAuthDeepLink } from './src/lib/authDeepLinks';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OnboardingProvider } from './src/hooks/useOnboarding';
+
+// Keep the native splash up until we've mounted at least once.
+// Under the new architecture the auto-hide behavior is unreliable,
+// so we dismiss it explicitly in App's first effect. Wrapped in
+// .catch() because hideAsync rejects if the splash is already gone.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Initialize Sentry if a DSN is configured. Set EXPO_PUBLIC_SENTRY_DSN
 // in your .env (or via EAS secrets) when you're ready to track crashes.
@@ -26,6 +33,13 @@ if (SENTRY_DSN) {
 }
 
 function App() {
+  // Dismiss the native splash once the JS tree has mounted.
+  // Without this the launch screen sits on top of the real UI forever
+  // (visible as a frozen logo while taps still go through underneath).
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
   // Listen for Supabase auth deep links (email confirmation + password reset).
   // useAuth + Navigation react to the resulting session / PASSWORD_RECOVERY
   // event automatically, so all this needs to do is hand the URL to Supabase.
