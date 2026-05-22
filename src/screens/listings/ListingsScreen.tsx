@@ -14,10 +14,11 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
-import { SaleStackParamList, ItemCategory, Listing } from '../../types';
+import { SaleStackParamList, ListingsStackParamList, ItemCategory, Listing } from '../../types';
 import { Chip, EmptyState, IconButton } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList>;
+type ListingsNav = NativeStackNavigationProp<ListingsStackParamList>;
 
 const CATEGORIES: { label: string; value: ItemCategory }[] = [
   { label: 'Furniture',   value: 'furniture'   },
@@ -178,10 +179,15 @@ export default function ListingsScreen() {
 // ── Listing card (2-column grid) ───────────────────────────────────────────
 
 function ListingCard({ listing }: { listing: Listing }) {
+  const navigation = useNavigation<ListingsNav>();
   const firstImage = listing.media?.find((m) => m.type === 'image');
 
   return (
-    <View className="flex-1 overflow-hidden rounded-2xl bg-white shadow-sm" style={{ maxWidth: '50%' }}>
+    <Pressable
+      className="flex-1 overflow-hidden rounded-2xl bg-white shadow-sm active:opacity-80"
+      style={{ maxWidth: '50%' }}
+      onPress={() => navigation.navigate('ListingDetail', { listingId: listing.id })}
+    >
       {/* Photo */}
       <View style={{ height: 140 }}>
         {firstImage ? (
@@ -217,7 +223,7 @@ function ListingCard({ listing }: { listing: Listing }) {
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
