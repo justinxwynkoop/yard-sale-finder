@@ -1,0 +1,7 @@
+# GitHub Pages config for the public-facing site under /docs.
+# We disable Jekyll's default markdown processing so the developer docs
+# living in this folder (auth-setup.md, branding.md, etc.) are not
+# exposed as HTML pages. Only the explicit .html files below get served.
+exclude:
+  - "*.md"
+  - "_config.yml"
