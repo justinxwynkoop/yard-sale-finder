@@ -68,7 +68,7 @@ Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for require
 
 ## Important Notes
 
-- Maps use `react-native-maps`; `@rnmapbox/maps` is installed but not actively used yet
+- Maps use `react-native-maps` (Google Maps on Android via the API key in `app.json` → `android.config.googleMaps.apiKey`; Apple Maps on iOS — no key needed)
 - CreateSaleScreen is a single-page form (Photos → Where → When → About → Categories → Pricing) with a sticky Post CTA
 - The `sale_media.order` field controls photo display sequence
 - The initial migration includes an auto-created profile trigger on signup and auto-updated `updated_at` trigger on sales
