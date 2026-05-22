@@ -64,6 +64,7 @@ export interface Listing {
   title: string;
   description: string | null;
   price: number;
+  categories: ItemCategory[];
   pickup_input: string;
   pickup_display: string;
   pickup_lat: number;
