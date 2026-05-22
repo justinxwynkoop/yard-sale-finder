@@ -15,6 +15,7 @@ import {
   MapStackParamList,
   SaleStackParamList,
   ListingsStackParamList,
+  ProfileStackParamList,
 } from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
@@ -34,12 +35,16 @@ import EditListingScreen from '../screens/listings/EditListingScreen';
 import ListingsScreen from '../screens/listings/ListingsScreen';
 import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import SavedSalesScreen from '../screens/profile/SavedSalesScreen';
+import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
 const SaleStack = createNativeStackNavigator<SaleStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 
 const BRAND = '#F97316';
 const INACTIVE = '#A1A1AA';
@@ -114,6 +119,41 @@ function ListingsNavigator() {
   );
 }
 
+function ProfileNavigator() {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerShadowVisible: false,
+        headerTintColor: '#18181B',
+        headerBackTitle: 'Back',
+      }}
+    >
+      <ProfileStack.Screen
+        name="ProfileHome"
+        component={ProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Edit Profile' }}
+      />
+      <ProfileStack.Screen
+        name="SavedSales"
+        component={SavedSalesScreen}
+        options={{ title: 'Saved Sales' }}
+      />
+      <ProfileStack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
+        options={{ title: 'Delete Account' }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
+
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function MainTabs() {
@@ -165,7 +205,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>

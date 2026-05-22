@@ -124,3 +124,12 @@ export type SaleStackParamList = {
   CreateListing: undefined;
   EditListing: { listingId: string };
 };
+
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  EditProfile: undefined;
+  SavedSales: undefined;
+  Notifications: undefined;
+  Appearance: undefined;
+  DeleteAccount: undefined;
+};
