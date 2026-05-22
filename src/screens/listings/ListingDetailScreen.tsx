@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { supabase } from '../../lib/supabase';
 import { Listing, ListingMedia, ListingsStackParamList } from '../../types';
+import { PhotoViewer } from '../../components/PhotoViewer';
 
 type Route = RouteProp<ListingsStackParamList, 'ListingDetail'>;
 
@@ -34,6 +35,8 @@ export default function ListingDetailScreen() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
   useEffect(() => {
     supabase
@@ -92,6 +95,19 @@ export default function ListingDetailScreen() {
   const media = listing.media ?? [];
   const hasMedia = media.length > 0;
 
+  // Only images go into the full-screen viewer (videos have native controls)
+  const viewerImages = media
+    .filter((m) => m.type === 'image')
+    .map((m) => ({ id: m.id, url: m.url }));
+
+  const openViewer = (mediaIndex: number) => {
+    const item = media[mediaIndex];
+    if (item?.type !== 'image') return;
+    const imgIdx = viewerImages.findIndex((img) => img.id === item.id);
+    setViewerStartIndex(imgIdx >= 0 ? imgIdx : 0);
+    setIsViewerOpen(true);
+  };
+
   return (
     <View className="flex-1 bg-white">
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
@@ -106,15 +122,17 @@ export default function ListingDetailScreen() {
               keyExtractor={(m) => m.id}
               onScroll={onScroll}
               scrollEventThrottle={16}
-              renderItem={({ item }) =>
+              renderItem={({ item, index }) =>
                 item.type === 'video' ? (
                   <VideoSlide uri={item.url} />
                 ) : (
-                  <Image
-                    source={{ uri: item.url }}
-                    style={{ width: SCREEN_WIDTH, height: MEDIA_HEIGHT }}
-                    resizeMode="cover"
-                  />
+                  <Pressable onPress={() => openViewer(index)}>
+                    <Image
+                      source={{ uri: item.url }}
+                      style={{ width: SCREEN_WIDTH, height: MEDIA_HEIGHT }}
+                      resizeMode="cover"
+                    />
+                  </Pressable>
                 )
               }
             />
@@ -151,6 +169,16 @@ export default function ListingDetailScreen() {
                   {activeIndex + 1}/{media.length}
                 </Text>
               </View>
+            )}
+
+            {/* Expand button — only shown when active slide is an image */}
+            {media[activeIndex]?.type === 'image' && (
+              <Pressable
+                onPress={() => openViewer(activeIndex)}
+                className="absolute bottom-12 right-4 h-8 w-8 items-center justify-center rounded-full bg-black/50 active:bg-black/70"
+              >
+                <Ionicons name="expand-outline" size={16} color="#fff" />
+              </Pressable>
             )}
           </View>
         ) : (
@@ -268,6 +296,14 @@ export default function ListingDetailScreen() {
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </Pressable>
       </View>
+
+      {/* Full-screen photo viewer */}
+      <PhotoViewer
+        visible={isViewerOpen}
+        images={viewerImages}
+        initialIndex={viewerStartIndex}
+        onClose={() => setIsViewerOpen(false)}
+      />
     </View>
   );
 }

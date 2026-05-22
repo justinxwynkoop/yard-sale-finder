@@ -118,49 +118,48 @@ export default function ListingsScreen() {
         )}
       </View>
 
-      {/* List */}
-      {loading && listings.length === 0 ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#F97316" />
-        </View>
-      ) : listings.length === 0 ? (
-        <EmptyState
-          icon={<Ionicons name="storefront-outline" size={36} color="#F97316" />}
-          title="No listings found"
-          description={
-            activeFilterCount > 0
-              ? 'Try adjusting or clearing your filters.'
-              : 'Be the first to list an item in your area.'
-          }
-          action={
-            activeFilterCount > 0 ? (
-              <Pressable onPress={clearFilters} className="rounded-xl bg-brand px-6 py-3">
-                <Text className="font-bold text-white">Clear filters</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={() => navigation.navigate('CreateListing')}
-                className="rounded-xl bg-brand px-6 py-3"
-              >
-                <Text className="font-bold text-white">Post an item</Text>
-              </Pressable>
-            )
-          }
-        />
-      ) : (
-        <FlatList
-          data={listings}
-          keyExtractor={(l) => l.id}
-          numColumns={2}
-          contentContainerStyle={{ padding: 12, gap: 10 }}
-          columnWrapperStyle={{ gap: 10 }}
-          onRefresh={refetch}
-          refreshing={loading}
-          renderItem={({ item }) => (
-            <ListingCard listing={item} />
-          )}
-        />
-      )}
+      {/* List — always a FlatList so pull-to-refresh works in every state */}
+      <FlatList
+        data={listings}
+        keyExtractor={(l) => l.id}
+        numColumns={2}
+        contentContainerStyle={{ padding: 12, gap: 10, flexGrow: 1 }}
+        columnWrapperStyle={{ gap: 10 }}
+        onRefresh={refetch}
+        refreshing={loading}
+        renderItem={({ item }) => <ListingCard listing={item} />}
+        ListEmptyComponent={
+          loading ? (
+            <View className="flex-1 items-center justify-center py-24">
+              <ActivityIndicator size="large" color="#F97316" />
+            </View>
+          ) : (
+            <EmptyState
+              icon={<Ionicons name="storefront-outline" size={36} color="#F97316" />}
+              title="No listings found"
+              description={
+                activeFilterCount > 0
+                  ? 'Try adjusting or clearing your filters.'
+                  : 'Be the first to list an item in your area.'
+              }
+              action={
+                activeFilterCount > 0 ? (
+                  <Pressable onPress={clearFilters} className="rounded-xl bg-brand px-6 py-3">
+                    <Text className="font-bold text-white">Clear filters</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => navigation.navigate('CreateListing')}
+                    className="rounded-xl bg-brand px-6 py-3"
+                  >
+                    <Text className="font-bold text-white">Post an item</Text>
+                  </Pressable>
+                )
+              }
+            />
+          )
+        }
+      />
 
       {/* Filter bottom sheet */}
       <FilterSheet

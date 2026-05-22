@@ -146,6 +146,7 @@ export default function EditListingScreen() {
   };
 
   const validate = (): string | null => {
+    if (media.length === 0) return 'Please add at least one photo.';
     if (!title.trim()) return 'Please add a title.';
     const p = parseFloat(price);
     if (!price.trim() || isNaN(p) || p < 0) return 'Please enter a valid price.';
@@ -215,7 +216,15 @@ export default function EditListingScreen() {
         >
           {/* Photos */}
           <View className="bg-white mt-3 px-4 py-4" style={{ gap: 12 }}>
-            <Text className="text-sm font-bold text-zinc-700">Photos</Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center" style={{ gap: 4 }}>
+                <Text className="text-sm font-bold text-zinc-700">Photos</Text>
+                <Text className="text-sm font-bold text-red-500">*</Text>
+              </View>
+              {media.length === 0 && (
+                <Text className="text-xs text-red-400">At least 1 required</Text>
+              )}
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row" style={{ gap: 10 }}>
                 {media.map((item, i) => (
