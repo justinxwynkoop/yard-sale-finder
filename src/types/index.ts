@@ -103,7 +103,13 @@ export type MainTabParamList = {
   Map: undefined;
   MySales: undefined;
   Listings: undefined;
+  Saved: undefined;
   Profile: undefined;
+};
+
+export type SavedStackParamList = {
+  SavedHome: undefined;
+  SaleDetail: { saleId: string };
 };
 
 export type ListingsStackParamList = {
@@ -128,6 +134,5 @@ export type SaleStackParamList = {
 export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
-  SavedSales: undefined;
   DeleteAccount: undefined;
 };

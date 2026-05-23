@@ -16,6 +16,7 @@ import {
   SaleStackParamList,
   ListingsStackParamList,
   ProfileStackParamList,
+  SavedStackParamList,
 } from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
@@ -36,8 +37,8 @@ import ListingsScreen from '../screens/listings/ListingsScreen';
 import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
-import SavedSalesScreen from '../screens/profile/SavedSalesScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
+import SavedHomeScreen from '../screens/saved/SavedHomeScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -45,6 +46,7 @@ const MapStack = createNativeStackNavigator<MapStackParamList>();
 const SaleStack = createNativeStackNavigator<SaleStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+const SavedStack = createNativeStackNavigator<SavedStackParamList>();
 
 const BRAND = '#F97316';
 const INACTIVE = '#A1A1AA';
@@ -141,16 +143,26 @@ function ProfileNavigator() {
         options={{ title: 'Edit Profile' }}
       />
       <ProfileStack.Screen
-        name="SavedSales"
-        component={SavedSalesScreen}
-        options={{ title: 'Saved Sales' }}
-      />
-      <ProfileStack.Screen
         name="DeleteAccount"
         component={DeleteAccountScreen}
         options={{ title: 'Delete Account' }}
       />
     </ProfileStack.Navigator>
+  );
+}
+
+function SavedNavigator() {
+  return (
+    <SavedStack.Navigator screenOptions={{ headerShown: false }}>
+      <SavedStack.Screen name="SavedHome" component={SavedHomeScreen} />
+      {/* SaleDetail is shared with MapStack -- React Navigation just
+          uses the route name. The screen's type annotation says it
+          lives in MapStack, but its params shape matches here too. */}
+      <SavedStack.Screen
+        name="SaleDetail"
+        component={SaleDetailScreen as any}
+      />
+    </SavedStack.Navigator>
   );
 }
 
@@ -181,6 +193,8 @@ function MainTabs() {
             iconName = focused ? 'pricetag' : 'pricetag-outline';
           } else if (route.name === 'Listings') {
             iconName = focused ? 'storefront' : 'storefront-outline';
+          } else if (route.name === 'Saved') {
+            iconName = focused ? 'heart' : 'heart-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
@@ -202,6 +216,11 @@ function MainTabs() {
         name="Listings"
         component={ListingsNavigator}
         options={{ tabBarLabel: 'Listings' }}
+      />
+      <Tab.Screen
+        name="Saved"
+        component={SavedNavigator}
+        options={{ tabBarLabel: 'Saved' }}
       />
       <Tab.Screen
         name="Profile"

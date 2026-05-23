@@ -203,10 +203,23 @@ export default function ProfileScreen() {
             detail={SUPPORT_EMAIL}
             onPress={handleEmailSupport}
           />
-          <VersionRow
-            label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
-            onUnlock={() => setDebugOpen(true)}
-          />
+          {/* Tap-7-times debug-info easter egg is gated behind __DEV__
+              so it doesn't ship in TestFlight or App Store builds. An
+              App Reviewer accidentally tapping the version row in a
+              production build now just gets nothing -- no hidden
+              surface to confuse them or flag in review notes. */}
+          {__DEV__ ? (
+            <VersionRow
+              label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
+              onUnlock={() => setDebugOpen(true)}
+            />
+          ) : (
+            <SettingsRow
+              icon="information-circle-outline"
+              label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
+              showChevron={false}
+            />
+          )}
         </SettingsGroup>
 
         {/* Account -- destructive actions live at the bottom per the
