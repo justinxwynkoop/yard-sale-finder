@@ -115,6 +115,8 @@ export type SavedStackParamList = {
 export type ListingsStackParamList = {
   ListingsHome: undefined;
   ListingDetail: { listingId: string };
+  CreateListing: undefined;
+  EditListing: { listingId: string };
 };
 
 export type MapStackParamList = {

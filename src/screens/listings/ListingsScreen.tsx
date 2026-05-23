@@ -14,11 +14,16 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
-import { SaleStackParamList, ListingsStackParamList, ItemCategory, Listing } from '../../types';
+import { ListingsStackParamList, ItemCategory, Listing } from '../../types';
 import { Chip, EmptyState, IconButton } from '../../components/ui';
 
-type Nav = NativeStackNavigationProp<SaleStackParamList>;
-type ListingsNav = NativeStackNavigationProp<ListingsStackParamList>;
+// ListingsScreen lives in ListingsStack -- the Nav type must match
+// the stack the screen is actually mounted in, otherwise
+// navigation.navigate('CreateListing') is a TypeScript-clean silent
+// no-op at runtime because the route doesn't resolve in the current
+// stack. CreateListing/EditListing are now registered on both stacks
+// (here AND on SaleStack), so this resolves locally.
+type Nav = NativeStackNavigationProp<ListingsStackParamList>;
 
 const CATEGORIES: { label: string; value: ItemCategory }[] = [
   { label: 'Furniture',   value: 'furniture'   },
@@ -178,7 +183,7 @@ export default function ListingsScreen() {
 // ── Listing card (2-column grid) ───────────────────────────────────────────
 
 function ListingCard({ listing }: { listing: Listing }) {
-  const navigation = useNavigation<ListingsNav>();
+  const navigation = useNavigation<Nav>();
   const firstImage = listing.media?.find((m) => m.type === 'image');
 
   return (

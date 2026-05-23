@@ -117,6 +117,19 @@ function ListingsNavigator() {
     <ListingsStack.Navigator screenOptions={{ headerShown: false }}>
       <ListingsStack.Screen name="ListingsHome" component={ListingsScreen} />
       <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} />
+      {/* Create/Edit are also registered in SaleStack so MySales can
+          push them directly. Duplicating the registration here lets
+          taps from the Listings tab open them within this stack --
+          keeping the user in Listings instead of yanking them across
+          tabs. Same screen components either way. */}
+      <ListingsStack.Screen
+        name="CreateListing"
+        component={CreateListingScreen as any}
+      />
+      <ListingsStack.Screen
+        name="EditListing"
+        component={EditListingScreen as any}
+      />
     </ListingsStack.Navigator>
   );
 }
