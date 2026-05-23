@@ -9,9 +9,29 @@ type State = {
   error: string | null;
 };
 
+// Module-level listener set so every active useProfile() instance can
+// refetch when any caller invalidates. Replaces the Supabase realtime
+// subscription, which kept failing with "cannot add postgres_changes
+// callbacks for realtime profile" even after enrolling the table in
+// the publication. A plain JS pub/sub is simpler and more reliable for
+// what we actually need: cross-instance refetch after a save.
+const listeners = new Set<() => void>();
+
+/**
+ * Tell every mounted useProfile() that something just changed and the
+ * row should be refetched. Call this from any screen that mutates the
+ * current user's profile (CompleteProfileScreen, EditProfileScreen),
+ * immediately after a successful upsert/update.
+ */
+export function invalidateProfile() {
+  listeners.forEach((fn) => fn());
+}
+
 /**
  * Loads the current user's profile row (one-to-one with auth.users).
- * Recomputes whenever the auth user changes (sign-in / sign-out / refresh).
+ * Recomputes whenever the auth user changes (sign-in / sign-out /
+ * refresh) and whenever invalidateProfile() is called from anywhere
+ * in the app.
  */
 export function useProfile() {
   const { user } = useAuth();
@@ -51,34 +71,15 @@ export function useProfile() {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Realtime: every useProfile() call gets its own state, so a save in
-  // one screen wouldn't otherwise propagate to a sibling consumer
-  // (notably the MainGate in src/navigation/index.tsx). Subscribing to
-  // postgres_changes on the user's own profile row keeps every
-  // instance in sync -- so after CompleteProfileScreen saves a
-  // display_name, the navigator's useProfile re-fetches and the gate
-  // swaps from CompleteProfile to MainTabs without a manual relaunch.
+  // Register this instance so invalidateProfile() calls from any
+  // screen reach the navigator's useProfile too -- that's what
+  // unblocks CompleteProfile -> MainTabs after a save.
   useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel(`profile-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        () => {
-          fetchProfile();
-        },
-      )
-      .subscribe();
+    listeners.add(fetchProfile);
     return () => {
-      supabase.removeChannel(channel);
+      listeners.delete(fetchProfile);
     };
-  }, [user, fetchProfile]);
+  }, [fetchProfile]);
 
   return { ...state, refetch: fetchProfile };
 }

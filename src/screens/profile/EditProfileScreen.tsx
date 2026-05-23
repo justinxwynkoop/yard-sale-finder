@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
-import { useProfile } from '../../hooks/useProfile';
+import { useProfile, invalidateProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
 import {
   uploadAvatar,
@@ -99,6 +99,7 @@ export default function EditProfileScreen() {
       }
 
       await refetch();
+      invalidateProfile();
       toast.success('Profile saved');
       navigation.goBack();
     } catch (e: any) {
