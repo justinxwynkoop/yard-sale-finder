@@ -1,20 +1,21 @@
 import React from 'react';
 import {
-  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   Linking,
-  Platform,
   Pressable,
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Avatar } from './Avatar';
 import { toast } from '../../lib/toast';
 
 const BRAND = '#F97316';
+const SURFACE = '#FAFAF9';
+const SIZE = 120;
+const BADGE = 40;
 
 export type AvatarEditorProps = {
   uri: string | null | undefined;
@@ -31,23 +32,19 @@ export type AvatarEditorProps = {
 type Action = 'camera' | 'library' | 'remove';
 
 /**
- * Tap-to-edit avatar for the Edit Profile screen. Single tap target
- * (the avatar itself) -- the camera badge is the visual affordance.
+ * Tap-to-edit avatar for the Edit Profile screen.
  *
- * Visual:
- *   - xl Avatar with the existing initials fallback.
- *   - White circular badge with a brand-colored camera in the lower
- *     right; subtle border + shadow so it stays visible against any
- *     avatar contents (including the brand-orange fallback, where the
- *     previous solid-orange badge disappeared).
- *   - Press feedback dims the whole thing slightly.
- *   - Upload-in-progress shows a dark dim + spinner overlay.
+ * Renders its own image / initials fallback with plain RN styles
+ * instead of going through the shared Avatar component + NativeWind --
+ * a previous version did and the brand-colored fallback circle was
+ * disappearing, almost certainly due to layout/class application
+ * interacting poorly with the explicit Pressable dimensions needed
+ * to anchor the camera badge.
  *
- * Behavior:
- *   - iOS: native ActionSheetIOS.
- *   - Android: Alert.alert dialog with the same options.
- *   - All picker / permission flows are wrapped in try/catch with toast
- *     errors so failures are visible.
+ * Picker / permission flows use plain Alert.alert on both platforms
+ * for reliability (ActionSheetIOS was eating callbacks in the preview
+ * build) and are wrapped in try/catch with toast.error so any failure
+ * surfaces visibly.
  */
 export function AvatarEditor({
   uri,
@@ -56,38 +53,23 @@ export function AvatarEditor({
   onChange,
 }: AvatarEditorProps) {
   const open = () => {
-    const options: Array<{ label: string; action: Action }> = [
-      { label: 'Take Photo', action: 'camera' },
-      { label: 'Choose from Library', action: 'library' },
+    const buttons: Array<{
+      text: string;
+      style?: 'destructive' | 'cancel';
+      onPress?: () => void;
+    }> = [
+      { text: 'Take Photo', onPress: () => void handle('camera') },
+      { text: 'Choose from Library', onPress: () => void handle('library') },
     ];
-    if (uri) options.push({ label: 'Remove Photo', action: 'remove' });
-
-    if (Platform.OS === 'ios') {
-      const labels = [...options.map((o) => o.label), 'Cancel'];
-      const cancelIdx = options.length;
-      const destructiveIdx = uri ? options.length - 1 : -1;
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: labels,
-          cancelButtonIndex: cancelIdx,
-          ...(destructiveIdx >= 0 ? { destructiveButtonIndex: destructiveIdx } : {}),
-        },
-        (i) => {
-          if (typeof i === 'number' && i >= 0 && i < options.length) {
-            void handle(options[i].action);
-          }
-        },
-      );
-    } else {
-      Alert.alert('Change photo', undefined, [
-        ...options.map((o) => ({
-          text: o.label,
-          style: o.action === 'remove' ? ('destructive' as const) : undefined,
-          onPress: () => void handle(o.action),
-        })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]);
+    if (uri) {
+      buttons.push({
+        text: 'Remove Photo',
+        style: 'destructive',
+        onPress: () => void handle('remove'),
+      });
     }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Change profile photo', undefined, buttons);
   };
 
   const handle = async (action: Action) => {
@@ -109,9 +91,8 @@ export function AvatarEditor({
           aspect: [1, 1],
           quality: 0.9,
         });
-        if (!result.canceled && result.assets?.[0]?.uri) {
-          onChange(result.assets[0].uri);
-        }
+        const picked = !result.canceled ? result.assets?.[0]?.uri : null;
+        if (picked) onChange(picked);
         return;
       }
 
@@ -127,9 +108,8 @@ export function AvatarEditor({
         aspect: [1, 1],
         quality: 0.9,
       });
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        onChange(result.assets[0].uri);
-      }
+      const picked = !result.canceled ? result.assets?.[0]?.uri : null;
+      if (picked) onChange(picked);
     } catch (e: any) {
       toast.error(
         'Could not change photo',
@@ -138,8 +118,8 @@ export function AvatarEditor({
     }
   };
 
-  const SIZE = 112; // matches Avatar size="xl"
-  const BADGE = 38;
+  const initial =
+    (name?.trim()?.[0] ?? '?').toUpperCase();
 
   return (
     <Pressable
@@ -150,33 +130,65 @@ export function AvatarEditor({
       accessibilityHint="Opens a menu to take a photo, pick from library, or remove the current photo"
       hitSlop={8}
       style={({ pressed }) => ({
-        opacity: pressed && !uploading ? 0.85 : 1,
         width: SIZE,
         height: SIZE,
+        opacity: pressed && !uploading ? 0.85 : 1,
       })}
     >
-      <Avatar uri={uri ?? undefined} name={name} size="xl" />
+      {/* Avatar surface: either the picked/saved image or a
+          brand-colored circle with the initial. Sized explicitly via
+          inline styles so it's never at the mercy of NativeWind
+          resolution timing. */}
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={{
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            backgroundColor: '#F4F4F5',
+          }}
+          contentFit="cover"
+          transition={150}
+        />
+      ) : (
+        <View
+          style={{
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            backgroundColor: BRAND,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 44, fontWeight: '700' }}>
+            {initial}
+          </Text>
+        </View>
+      )}
 
-      {/* Camera badge: white circle, brand camera. Contrasts against
-          any avatar content -- including the brand-orange initials
-          fallback, where the old solid-orange badge disappeared. */}
+      {/* Camera badge: white circle, brand camera. Surface-colored
+          ring punches it cleanly off the avatar so it stays visible
+          against any avatar content -- including the brand-orange
+          initials fallback, where a brand-orange badge disappeared. */}
       <View
         pointerEvents="none"
         style={{
           position: 'absolute',
-          bottom: -2,
-          right: -2,
+          bottom: 0,
+          right: 0,
           width: BADGE,
           height: BADGE,
           borderRadius: BADGE / 2,
           backgroundColor: '#FFFFFF',
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: '#E4E4E7',
+          borderWidth: 3,
+          borderColor: SURFACE,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.12,
+          shadowOpacity: 0.15,
           shadowRadius: 3,
           elevation: 3,
         }}
