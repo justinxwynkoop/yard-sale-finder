@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from './Avatar';
+import { toast } from '../../lib/toast';
 
 const BRAND = '#F97316';
 
@@ -30,15 +31,23 @@ export type AvatarEditorProps = {
 type Action = 'camera' | 'library' | 'remove';
 
 /**
- * Avatar with a tap-to-edit affordance for the Edit Profile screen.
- * Renders the current avatar (or initials fallback) with a small
- * brand-colored camera badge anchored bottom-right. Tapping opens a
- * native action sheet on iOS / Alert dialog on Android with options to
- * take a photo, pick from library, or remove the current avatar.
+ * Tap-to-edit avatar for the Edit Profile screen. Single tap target
+ * (the avatar itself) -- the camera badge is the visual affordance.
  *
- * Permission denials show an Alert with an "Open Settings" action
- * (deep-links to the app's settings page) so the user can recover
- * without restarting the app.
+ * Visual:
+ *   - xl Avatar with the existing initials fallback.
+ *   - White circular badge with a brand-colored camera in the lower
+ *     right; subtle border + shadow so it stays visible against any
+ *     avatar contents (including the brand-orange fallback, where the
+ *     previous solid-orange badge disappeared).
+ *   - Press feedback dims the whole thing slightly.
+ *   - Upload-in-progress shows a dark dim + spinner overlay.
+ *
+ * Behavior:
+ *   - iOS: native ActionSheetIOS.
+ *   - Android: Alert.alert dialog with the same options.
+ *   - All picker / permission flows are wrapped in try/catch with toast
+ *     errors so failures are visible.
  */
 export function AvatarEditor({
   uri,
@@ -54,126 +63,156 @@ export function AvatarEditor({
     if (uri) options.push({ label: 'Remove Photo', action: 'remove' });
 
     if (Platform.OS === 'ios') {
+      const labels = [...options.map((o) => o.label), 'Cancel'];
+      const cancelIdx = options.length;
+      const destructiveIdx = uri ? options.length - 1 : -1;
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: [...options.map((o) => o.label), 'Cancel'],
-          cancelButtonIndex: options.length,
-          destructiveButtonIndex: uri ? options.length - 1 : undefined,
+          options: labels,
+          cancelButtonIndex: cancelIdx,
+          ...(destructiveIdx >= 0 ? { destructiveButtonIndex: destructiveIdx } : {}),
         },
         (i) => {
-          if (i < options.length) handle(options[i].action);
+          if (typeof i === 'number' && i >= 0 && i < options.length) {
+            void handle(options[i].action);
+          }
         },
       );
     } else {
-      // Android: plain Alert with stacked buttons. ActionSheetIOS doesn't
-      // exist; using Alert avoids pulling in @expo/react-native-action-sheet
-      // for now.
       Alert.alert('Change photo', undefined, [
         ...options.map((o) => ({
           text: o.label,
           style: o.action === 'remove' ? ('destructive' as const) : undefined,
-          onPress: () => handle(o.action),
+          onPress: () => void handle(o.action),
         })),
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' as const },
       ]);
     }
   };
 
   const handle = async (action: Action) => {
-    if (action === 'remove') {
-      onChange(null);
-      return;
-    }
-    if (action === 'camera') {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        return showPermissionAlert('camera');
+    try {
+      if (action === 'remove') {
+        onChange(null);
+        return;
       }
-      const result = await ImagePicker.launchCameraAsync({
+
+      if (action === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          showPermissionAlert('camera');
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.9,
+        });
+        if (!result.canceled && result.assets?.[0]?.uri) {
+          onChange(result.assets[0].uri);
+        }
+        return;
+      }
+
+      // library
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showPermissionAlert('library');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.9,
       });
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets?.[0]?.uri) {
         onChange(result.assets[0].uri);
       }
-      return;
-    }
-    // library
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      return showPermissionAlert('library');
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    if (!result.canceled && result.assets[0]) {
-      onChange(result.assets[0].uri);
+    } catch (e: any) {
+      toast.error(
+        'Could not change photo',
+        e?.message ?? 'Something went wrong opening the picker.',
+      );
     }
   };
 
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Pressable
-        onPress={open}
-        disabled={uploading}
-        accessibilityRole="button"
-        accessibilityLabel={`${name ?? 'Profile'} avatar, tap to change`}
-        style={{ position: 'relative' }}
-      >
-        <Avatar uri={uri ?? undefined} name={name} size="xl" />
+  const SIZE = 112; // matches Avatar size="xl"
+  const BADGE = 38;
 
+  return (
+    <Pressable
+      onPress={open}
+      disabled={uploading}
+      accessibilityRole="button"
+      accessibilityLabel={`${name ?? 'Profile'} photo, tap to change`}
+      accessibilityHint="Opens a menu to take a photo, pick from library, or remove the current photo"
+      hitSlop={8}
+      style={({ pressed }) => ({
+        opacity: pressed && !uploading ? 0.85 : 1,
+        width: SIZE,
+        height: SIZE,
+      })}
+    >
+      <Avatar uri={uri ?? undefined} name={name} size="xl" />
+
+      {/* Camera badge: white circle, brand camera. Contrasts against
+          any avatar content -- including the brand-orange initials
+          fallback, where the old solid-orange badge disappeared. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          bottom: -2,
+          right: -2,
+          width: BADGE,
+          height: BADGE,
+          borderRadius: BADGE / 2,
+          backgroundColor: '#FFFFFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: '#E4E4E7',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.12,
+          shadowRadius: 3,
+          elevation: 3,
+        }}
+      >
+        <Ionicons name="camera" size={20} color={BRAND} />
+      </View>
+
+      {uploading ? (
         <View
+          pointerEvents="none"
           style={{
             position: 'absolute',
-            bottom: 0,
+            top: 0,
+            left: 0,
             right: 0,
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            backgroundColor: BRAND,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.40)',
+            borderRadius: SIZE / 2,
             alignItems: 'center',
             justifyContent: 'center',
-            borderWidth: 3,
-            borderColor: '#FAFAF9',
           }}
         >
-          <Ionicons name="camera" size={16} color="#FFFFFF" />
-        </View>
-
-        {uploading ? (
-          <View
+          <ActivityIndicator size="small" color="#FFFFFF" />
+          <Text
             style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: 'rgba(255,255,255,0.55)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 999,
+              marginTop: 6,
+              fontSize: 11,
+              fontWeight: '600',
+              color: '#FFFFFF',
             }}
           >
-            <ActivityIndicator size="small" color={BRAND} />
-          </View>
-        ) : null}
-      </Pressable>
-
-      <Pressable onPress={open} disabled={uploading} style={{ marginTop: 12 }}>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: '600',
-            color: BRAND,
-            opacity: uploading ? 0.5 : 1,
-          }}
-        >
-          Change photo
-        </Text>
-      </Pressable>
-    </View>
+            Uploading…
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
