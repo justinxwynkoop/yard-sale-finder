@@ -58,7 +58,7 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const handleHelp = () => {
+  const handleEmailSupport = () => {
     const subject = encodeURIComponent(`${appName || 'App'} support`);
     const body = encodeURIComponent(
       `\n\n---\nDevice: ${Platform.OS} ${Platform.Version}\nVersion: ${appVersion}${
@@ -67,6 +67,13 @@ export default function ProfileScreen() {
     );
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
+
+  const memberSince = profile?.created_at
+    ? new Date(profile.created_at).toLocaleString(undefined, {
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
 
   if (loading) {
     return (
@@ -173,7 +180,12 @@ export default function ProfileScreen() {
               {email}
             </Text>
           ) : null}
-          <View style={{ marginTop: 14 }}>
+          {memberSince ? (
+            <Text style={{ marginTop: 6, fontSize: 12, color: '#A1A1AA' }}>
+              Member since {memberSince}
+            </Text>
+          ) : null}
+          <View style={{ marginTop: 16 }}>
             <Button
               variant="outline"
               onPress={() => navigation.navigate('EditProfile')}
@@ -183,13 +195,24 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Account */}
-        <SettingsGroup title="Account">
+        {/* About */}
+        <SettingsGroup title="About">
           <SettingsRow
-            icon="person-circle-outline"
-            label="Edit Profile"
-            onPress={() => navigation.navigate('EditProfile')}
+            icon="mail-outline"
+            label="Email Support"
+            detail={SUPPORT_EMAIL}
+            onPress={handleEmailSupport}
           />
+          <VersionRow
+            label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
+            onUnlock={() => setDebugOpen(true)}
+          />
+        </SettingsGroup>
+
+        {/* Account -- destructive actions live at the bottom per the
+            common iOS Settings convention (Sign Out / Delete Account
+            isolated from the regular informational rows). */}
+        <SettingsGroup title="Account">
           <SettingsRow
             icon="log-out-outline"
             label="Sign Out"
@@ -204,32 +227,6 @@ export default function ProfileScreen() {
             onPress={() => navigation.navigate('DeleteAccount')}
           />
         </SettingsGroup>
-
-        {/* About */}
-        <SettingsGroup title="About">
-          <VersionRow
-            label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
-            onUnlock={() => setDebugOpen(true)}
-          />
-          <SettingsRow
-            icon="mail-outline"
-            label="Help & Feedback"
-            onPress={handleHelp}
-          />
-        </SettingsGroup>
-
-        {appName ? (
-          <Text
-            style={{
-              marginTop: 24,
-              fontSize: 12,
-              color: '#A1A1AA',
-              textAlign: 'center',
-            }}
-          >
-            {appName}
-          </Text>
-        ) : null}
       </ScrollView>
 
       <DebugInfoModal

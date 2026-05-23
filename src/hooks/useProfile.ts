@@ -51,6 +51,35 @@ export function useProfile() {
     fetchProfile();
   }, [fetchProfile]);
 
+  // Realtime: every useProfile() call gets its own state, so a save in
+  // one screen wouldn't otherwise propagate to a sibling consumer
+  // (notably the MainGate in src/navigation/index.tsx). Subscribing to
+  // postgres_changes on the user's own profile row keeps every
+  // instance in sync -- so after CompleteProfileScreen saves a
+  // display_name, the navigator's useProfile re-fetches and the gate
+  // swaps from CompleteProfile to MainTabs without a manual relaunch.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          fetchProfile();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchProfile]);
+
   return { ...state, refetch: fetchProfile };
 }
 
