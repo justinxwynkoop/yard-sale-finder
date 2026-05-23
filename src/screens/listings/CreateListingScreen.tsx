@@ -153,15 +153,38 @@ export default function CreateListingScreen() {
         .from('listing-media')
         .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) {
-        // Storage errors don't carry PostgrestError fields, so attach
-        // the path + serialized error so we can see exactly what the
-        // server rejected.
+        // Pull live server-validated session info into the error so
+        // the alert tells us whether the JWT is being seen, whether
+        // its sub matches user.id, what HTTP status the storage
+        // service returned, etc.
+        let serverUid: string | undefined;
+        let serverErr: string | undefined;
+        try {
+          const { data, error } = await supabase.auth.getUser();
+          serverUid = data.user?.id;
+          serverErr = error?.message;
+        } catch (e: any) {
+          serverErr = e?.message ?? String(e);
+        }
+        const ue: any = uploadError;
         const enriched: any = new Error(
-          `Storage upload rejected (path=${path}): ${
-            uploadError.message
-          } | ${safeStringify(uploadError)}`,
+          [
+            `Storage upload rejected`,
+            `path=${path}`,
+            `client user.id=${user!.id}`,
+            `server auth.getUser().id=${serverUid ?? '<none>'}`,
+            serverErr ? `getUser error=${serverErr}` : null,
+            `bucket=listing-media`,
+            `arrayBuffer bytes=${arrayBuffer.byteLength}`,
+            `status=${ue.status ?? ue.statusCode ?? '?'}`,
+            `name=${ue.name ?? '?'}`,
+            `msg=${ue.message}`,
+            `raw=${safeStringify(uploadError)}`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
         );
-        enriched.code = (uploadError as any).statusCode ?? (uploadError as any).status;
+        enriched.code = ue.statusCode ?? ue.status;
         throw enriched;
       }
 
