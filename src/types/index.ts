@@ -129,7 +129,5 @@ export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
   SavedSales: undefined;
-  Notifications: undefined;
-  Appearance: undefined;
   DeleteAccount: undefined;
 };

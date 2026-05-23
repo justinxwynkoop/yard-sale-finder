@@ -1,78 +1,194 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
+import { useProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
-import { Avatar, Button, Input } from '../../components/ui';
+import {
+  uploadAvatar,
+  deleteAvatar,
+} from '../../lib/avatarUpload';
+import { AvatarEditor, Input } from '../../components/ui';
 import { toast } from '../../lib/toast';
 
+const BRAND = '#F97316';
+
 /**
- * Standalone Edit Profile screen pushed from ProfileHome.
+ * Edit Profile screen. Lets the user change their display name and
+ * avatar. Save lives in the header right per Apple HIG / Material 3
+ * conventions and stays disabled until the form is dirty + valid.
+ * Cancel/back with unsaved changes prompts for confirmation.
  *
- * Currently exposes display name. Future: avatar upload, contact
- * email visibility toggle, etc. Kept narrow on purpose so the form
- * fits the iOS one-purpose-per-screen pattern.
+ * Avatar handling:
+ *   - Local preview shows immediately after pick.
+ *   - Upload + DB save happen together on tap Save.
+ *   - On replace, the previous avatar file is best-effort deleted so
+ *     stale objects don't accumulate in the avatars bucket.
  */
 export default function EditProfileScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const [originalName, setOriginalName] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
-  const [loading, setLoading] = useState(true);
+  const { profile, loading, refetch } = useProfile();
+
+  // Seed once the profile arrives.
+  const [originalName, setOriginalName] = useState<string>('');
+  const [displayName, setDisplayName] = useState<string>('');
+  const [originalAvatar, setOriginalAvatar] = useState<string | null>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [seeded, setSeeded] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
+    if (!seeded && profile) {
+      const name = profile.display_name ?? '';
+      setOriginalName(name);
+      setDisplayName(name);
+      setOriginalAvatar(profile.avatar_url ?? null);
+      setAvatarUri(profile.avatar_url ?? null);
+      setSeeded(true);
     }
-    supabase
-      .from('profiles')
-      .select('display_name, avatar_url')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        const name = data?.display_name ?? '';
-        setOriginalName(name);
-        setDisplayName(name);
-        setAvatarUrl(data?.avatar_url ?? undefined);
-        setLoading(false);
-      });
-  }, [user]);
+  }, [profile, seeded]);
 
-  const dirty = displayName.trim() !== originalName.trim();
+  const nameChanged = displayName.trim() !== originalName.trim();
+  const avatarChanged = avatarUri !== originalAvatar;
+  const dirty = nameChanged || avatarChanged;
   const valid = displayName.trim().length > 0;
+  const canSave = dirty && valid && !saving;
 
-  const save = async () => {
+  const handleSave = async () => {
     if (!user) {
       Alert.alert('Not signed in', 'Sign in again to save your profile.');
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ display_name: displayName.trim() })
-      .eq('id', user.id);
-    setSaving(false);
-    if (error) {
-      toast.error('Could not save', error.message);
-      return;
+    try {
+      let nextAvatarUrl: string | null = originalAvatar;
+
+      if (avatarChanged) {
+        if (avatarUri && avatarUri !== originalAvatar) {
+          // Picked a new local file -> upload, then plan to delete old.
+          nextAvatarUrl = await uploadAvatar(user.id, avatarUri);
+        } else if (avatarUri === null) {
+          // Explicit remove.
+          nextAvatarUrl = null;
+        }
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          display_name: displayName.trim(),
+          avatar_url: nextAvatarUrl,
+        })
+        .eq('id', user.id);
+      if (error) throw error;
+
+      // Old avatar cleanup is best-effort; don't block the success path.
+      if (avatarChanged && originalAvatar && originalAvatar !== nextAvatarUrl) {
+        deleteAvatar(originalAvatar);
+      }
+
+      await refetch();
+      toast.success('Profile saved');
+      navigation.goBack();
+    } catch (e: any) {
+      // On upload failure, revert the local preview so the user sees
+      // the actual saved state rather than a misleading new image.
+      setAvatarUri(originalAvatar);
+      toast.error('Could not save', e?.message ?? 'Please try again.');
+    } finally {
+      setSaving(false);
     }
-    toast.success('Profile saved');
-    navigation.goBack();
   };
 
-  if (loading) {
+  const handleCancel = () => {
+    if (!dirty) {
+      navigation.goBack();
+      return;
+    }
+    Alert.alert(
+      'Discard changes?',
+      'Your edits will be lost.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => navigation.goBack(),
+        },
+      ],
+    );
+  };
+
+  // Install Save in the header. useLayoutEffect so the button paints
+  // in the same frame as the screen, not a frame late.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable onPress={handleCancel} hitSlop={12}>
+          <Text style={{ fontSize: 17, color: BRAND }}>Cancel</Text>
+        </Pressable>
+      ),
+      headerRight: () =>
+        saving ? (
+          <ActivityIndicator size="small" color={BRAND} />
+        ) : (
+          <Pressable
+            onPress={handleSave}
+            disabled={!canSave}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSave }}
+          >
+            <Text
+              style={{
+                fontSize: 17,
+                fontWeight: '600',
+                color: canSave ? BRAND : '#A1A1AA',
+              }}
+            >
+              Save
+            </Text>
+          </Pressable>
+        ),
+    });
+    // We deliberately include all the inputs to handleSave/handleCancel
+    // so the closures captured by the header are current.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, canSave, saving, dirty, displayName, avatarUri]);
+
+  // Intercept hardware/swipe back to honor the dirty-state prompt.
+  useEffect(() => {
+    const sub = navigation.addListener('beforeRemove', (e: any) => {
+      if (!dirty || saving) return;
+      e.preventDefault();
+      Alert.alert(
+        'Discard changes?',
+        'Your edits will be lost.',
+        [
+          { text: 'Keep editing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ],
+      );
+    });
+    return sub;
+  }, [navigation, dirty, saving]);
+
+  if (loading && !seeded) {
     return (
       <View
         style={{
@@ -82,7 +198,7 @@ export default function EditProfileScreen() {
           backgroundColor: '#FFFFFF',
         }}
       >
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color={BRAND} />
       </View>
     );
   }
@@ -97,11 +213,13 @@ export default function EditProfileScreen() {
           contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ alignItems: 'center', marginVertical: 16 }}>
-            <Avatar uri={avatarUrl} name={displayName || user?.email} size="xl" />
-            <Text className="mt-3 text-sm text-zinc-500">
-              {user?.email ?? ''}
-            </Text>
+          <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 24 }}>
+            <AvatarEditor
+              uri={avatarUri}
+              name={displayName || profile?.email}
+              uploading={saving && avatarChanged}
+              onChange={setAvatarUri}
+            />
           </View>
 
           <Input
@@ -114,29 +232,47 @@ export default function EditProfileScreen() {
             autoCorrect={false}
           />
           <Text
-            className="mt-2 text-xs text-zinc-500"
-            style={{ paddingHorizontal: 4 }}
+            style={{
+              fontSize: 12,
+              color: '#71717A',
+              paddingHorizontal: 4,
+              marginTop: 6,
+            }}
           >
-            Shown on every sale and listing you post. You can change this any
-            time.
+            Shown on every sale and listing you post.
           </Text>
 
-          <View style={{ marginTop: 24, gap: 12 }}>
-            <Button
-              size="lg"
-              onPress={save}
-              loading={saving}
-              disabled={!dirty || !valid || saving}
+          <View style={{ marginTop: 28 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                color: '#A1A1AA',
+                paddingHorizontal: 4,
+                paddingBottom: 8,
+              }}
             >
-              Save changes
-            </Button>
-            <Button
-              variant="ghost"
-              onPress={() => navigation.goBack()}
-              disabled={saving}
+              Email
+            </Text>
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: '#F4F4F5',
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+              }}
             >
-              Cancel
-            </Button>
+              <Text style={{ fontSize: 16, color: '#18181B' }}>
+                {profile?.email ?? user?.email ?? ''}
+              </Text>
+              <Text style={{ fontSize: 12, color: '#A1A1AA', marginTop: 2 }}>
+                Can't be changed here.
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
