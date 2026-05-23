@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { Listing, ItemCategory } from '../types';
+import { useBlockedUsers } from './useBlockedUsers';
 
 export interface ListingFilters {
   category: ItemCategory | null;
@@ -20,6 +21,7 @@ export function useListings(filters: ListingFilters) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { blockedIds } = useBlockedUsers();
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -66,7 +68,23 @@ export function useListings(filters: ListingFilters) {
     return () => { supabase.removeChannel(channel); };
   }, [fetchListings]);
 
-  return { listings, loading, error, refetch: fetchListings };
+  // Hide listings from blocked users client-side. Cheaper than
+  // pushing the block list into the query, and immediately reflects
+  // a fresh block/unblock without re-fetching.
+  const visibleListings = useMemo(
+    () =>
+      blockedIds.size === 0
+        ? listings
+        : listings.filter((l) => !blockedIds.has(l.user_id)),
+    [listings, blockedIds],
+  );
+
+  return {
+    listings: visibleListings,
+    loading,
+    error,
+    refetch: fetchListings,
+  };
 }
 
 export function useMyListings(userId: string | undefined) {

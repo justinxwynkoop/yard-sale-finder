@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { Sale } from '../types';
+import { useBlockedUsers } from './useBlockedUsers';
 
 export function useSales(bounds?: {
   minLat: number;
@@ -11,6 +12,7 @@ export function useSales(bounds?: {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { blockedIds } = useBlockedUsers();
 
   const fetchSales = useCallback(async () => {
     setLoading(true);
@@ -61,7 +63,18 @@ export function useSales(bounds?: {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSales]);
 
-  return { sales, loading, error, refetch: fetchSales };
+  // Hide sales whose owner the current user has blocked. Computed
+  // here (not at fetch time) so unblocking immediately surfaces the
+  // hidden sales without needing a network round-trip.
+  const visibleSales = useMemo(
+    () =>
+      blockedIds.size === 0
+        ? sales
+        : sales.filter((s) => !blockedIds.has(s.user_id)),
+    [sales, blockedIds],
+  );
+
+  return { sales: visibleSales, loading, error, refetch: fetchSales };
 }
 
 export function useMySales(userId: string | undefined) {

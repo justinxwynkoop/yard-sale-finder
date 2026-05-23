@@ -222,10 +222,15 @@ export default function ProfileScreen() {
           )}
         </SettingsGroup>
 
-        {/* Account -- destructive actions live at the bottom per the
-            common iOS Settings convention (Sign Out / Delete Account
-            isolated from the regular informational rows). */}
+        {/* Account -- safety-and-trust rows first, then the
+            destructive actions (Sign Out / Delete Account) at the
+            bottom per the common iOS Settings convention. */}
         <SettingsGroup title="Account">
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Blocked Users"
+            onPress={() => navigation.navigate('BlockedUsers')}
+          />
           <SettingsRow
             icon="log-out-outline"
             label="Sign Out"

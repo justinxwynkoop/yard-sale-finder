@@ -38,6 +38,7 @@ import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
+import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
 import SavedHomeScreen from '../screens/saved/SavedHomeScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -154,6 +155,11 @@ function ProfileNavigator() {
         name="EditProfile"
         component={EditProfileScreen}
         options={{ title: 'Edit Profile' }}
+      />
+      <ProfileStack.Screen
+        name="BlockedUsers"
+        component={BlockedUsersScreen}
+        options={{ title: 'Blocked Users' }}
       />
       <ProfileStack.Screen
         name="DeleteAccount"

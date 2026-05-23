@@ -136,5 +136,23 @@ export type SaleStackParamList = {
 export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
+  BlockedUsers: undefined;
   DeleteAccount: undefined;
 };
+
+export type ReportTargetType = 'sale' | 'listing' | 'profile';
+export type ReportReason =
+  | 'inappropriate'
+  | 'spam_misleading'
+  | 'illegal'
+  | 'safety'
+  | 'off_topic'
+  | 'other';
+
+export interface BlockedUser {
+  blocker_id: string;
+  blocked_id: string;
+  created_at: string;
+  // Joined: the profile of the blocked user (display_name, avatar, etc.)
+  blocked?: Profile;
+}
