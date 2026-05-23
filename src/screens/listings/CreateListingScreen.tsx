@@ -152,7 +152,18 @@ export default function CreateListingScreen() {
       const { error: uploadError } = await supabase.storage
         .from('listing-media')
         .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Storage errors don't carry PostgrestError fields, so attach
+        // the path + serialized error so we can see exactly what the
+        // server rejected.
+        const enriched: any = new Error(
+          `Storage upload rejected (path=${path}): ${
+            uploadError.message
+          } | ${safeStringify(uploadError)}`,
+        );
+        enriched.code = (uploadError as any).statusCode ?? (uploadError as any).status;
+        throw enriched;
+      }
 
       const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
 
@@ -162,7 +173,26 @@ export default function CreateListingScreen() {
         type: 'image',
         order: i,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        const enriched: any = new Error(
+          `listing_media insert rejected: ${insertError.message}`,
+        );
+        enriched.code = insertError.code;
+        enriched.details = insertError.details;
+        enriched.hint = insertError.hint;
+        throw enriched;
+      }
+    }
+  };
+
+  // Compact JSON.stringify that won't throw on circular refs and
+  // trims long payloads so the alert is still readable on a phone.
+  const safeStringify = (obj: unknown) => {
+    try {
+      const s = JSON.stringify(obj);
+      return s.length > 400 ? s.slice(0, 400) + '…' : s;
+    } catch {
+      return String(obj);
     }
   };
 
