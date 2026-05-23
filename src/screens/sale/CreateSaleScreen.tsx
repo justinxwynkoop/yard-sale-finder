@@ -303,6 +303,31 @@ export default function CreateSaleScreen() {
     }
     setSubmitting(true);
     try {
+      // Make sure the JWT in the supabase client matches the
+      // useAuth() user. An expired/refresh-failed session would let
+      // the client send no auth header -> auth.uid() = NULL ->
+      // RLS rejects the insert with "new row violated row-level
+      // security policy". Surface that case with a clearer message
+      // instead of letting Postgres' generic RLS error escape.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUid = sessionData.session?.user?.id;
+      if (!sessionUid) {
+        Alert.alert(
+          'Session expired',
+          'Please sign out and back in, then try again.',
+        );
+        setSubmitting(false);
+        return;
+      }
+      if (sessionUid !== user.id) {
+        Alert.alert(
+          'Session mismatch',
+          'Your sign-in state looks stale. Sign out and back in, then try again.',
+        );
+        setSubmitting(false);
+        return;
+      }
+
       const { data: sale, error } = await supabase
         .from('sales')
         .insert({
@@ -349,7 +374,17 @@ export default function CreateSaleScreen() {
         { text: 'Done', style: 'cancel', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      // Surface full PostgREST error context (code + table) so RLS
+      // rejections aren't a mystery -- the bare e.message often
+      // strips the table name.
+      const parts = [
+        e?.message,
+        e?.code ? `Code: ${e.code}` : null,
+        e?.details ? `Details: ${e.details}` : null,
+        e?.hint ? `Hint: ${e.hint}` : null,
+      ].filter(Boolean);
+      console.error('Create sale failed:', e);
+      Alert.alert('Could not post sale', parts.join('\n') || 'Unknown error');
     } finally {
       setSubmitting(false);
     }
