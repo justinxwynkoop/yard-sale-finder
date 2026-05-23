@@ -303,26 +303,18 @@ export default function CreateSaleScreen() {
     }
     setSubmitting(true);
     try {
-      // Make sure the JWT in the supabase client matches the
-      // useAuth() user. An expired/refresh-failed session would let
-      // the client send no auth header -> auth.uid() = NULL ->
-      // RLS rejects the insert with "new row violated row-level
-      // security policy". Surface that case with a clearer message
-      // instead of letting Postgres' generic RLS error escape.
-      const { data: sessionData } = await supabase.auth.getSession();
-      const sessionUid = sessionData.session?.user?.id;
-      if (!sessionUid) {
+      // Force a token refresh so an expired/stale JWT can't lead to a
+      // silent auth.uid() = NULL on the server -- which manifests as
+      // a generic "new row violates row-level security policy" error
+      // with no other clue. getSession() alone returns the in-memory
+      // session even when the access token has already expired; only
+      // refreshSession() actually proves the token is still good.
+      const { data: refreshed, error: refreshError } =
+        await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
         Alert.alert(
           'Session expired',
           'Please sign out and back in, then try again.',
-        );
-        setSubmitting(false);
-        return;
-      }
-      if (sessionUid !== user.id) {
-        Alert.alert(
-          'Session mismatch',
-          'Your sign-in state looks stale. Sign out and back in, then try again.',
         );
         setSubmitting(false);
         return;

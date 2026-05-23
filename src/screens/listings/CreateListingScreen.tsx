@@ -181,6 +181,20 @@ export default function CreateListingScreen() {
     if (err) { Alert.alert('Almost there', err); return; }
     setSubmitting(true);
     try {
+      // Force a token refresh so an expired/stale JWT can't lead to a
+      // silent auth.uid() = NULL on the server, which manifests as a
+      // generic "new row violates row-level security policy" error.
+      const { data: refreshed, error: refreshError } =
+        await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        Alert.alert(
+          'Session expired',
+          'Please sign out and back in, then try again.',
+        );
+        setSubmitting(false);
+        return;
+      }
+
       const { data: listing, error } = await supabase
         .from('listings')
         .insert({
@@ -204,7 +218,17 @@ export default function CreateListingScreen() {
         { text: 'Done', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      const parts = [
+        e?.message,
+        e?.code ? `Code: ${e.code}` : null,
+        e?.details ? `Details: ${e.details}` : null,
+        e?.hint ? `Hint: ${e.hint}` : null,
+      ].filter(Boolean);
+      console.error('Create listing failed:', e);
+      Alert.alert(
+        'Could not post listing',
+        parts.join('\n') || 'Unknown error',
+      );
     } finally {
       setSubmitting(false);
     }
