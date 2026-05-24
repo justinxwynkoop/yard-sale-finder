@@ -85,6 +85,16 @@ export default function SavedHomeScreen() {
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [region, setRegion] = useState<Region | null>(null);
 
+  // Same direct-children constraint as MapHomeScreen -- markers have
+  // to be rendered inline inside <MapView>, not in a wrapper, or
+  // react-native-maps' new-arch mount crashes natively with
+  // NSInvalidArgumentException.
+  const { clusters, getExpansionZoom } = useMapClustering(
+    favorites,
+    region,
+    { radius: 60, maxZoom: 14, minPoints: 2 },
+  );
+
   // Re-fetch when the tab regains focus -- catches favorites the user
   // hearted on another tab without us needing a global event bus.
   useFocusEffect(
@@ -198,14 +208,47 @@ export default function SavedHomeScreen() {
           showsUserLocation
           showsMyLocationButton={false}
         >
-          <ClusteredSavedMarkers
-            sales={favorites}
-            region={region}
-            mapRef={mapRef}
-            onSalePress={(saleId) =>
-              navigation.navigate('SaleDetail', { saleId })
-            }
-          />
+          {clusters.map((c) =>
+            c.isCluster ? (
+              <Marker
+                key={c.key}
+                coordinate={{
+                  latitude: c.latitude,
+                  longitude: c.longitude,
+                }}
+                onPress={() => {
+                  const targetZoom = getExpansionZoom(c.clusterId);
+                  const delta = zoomToRegionDelta(targetZoom);
+                  mapRef.current?.animateToRegion(
+                    {
+                      latitude: c.latitude,
+                      longitude: c.longitude,
+                      latitudeDelta: delta,
+                      longitudeDelta: delta,
+                    },
+                    300,
+                  );
+                }}
+                tracksViewChanges={false}
+              >
+                <MapClusterPin count={c.count} />
+              </Marker>
+            ) : (
+              <Marker
+                key={c.key}
+                coordinate={{
+                  latitude: c.latitude,
+                  longitude: c.longitude,
+                }}
+                onPress={() =>
+                  navigation.navigate('SaleDetail', { saleId: c.point.id })
+                }
+                tracksViewChanges={false}
+              >
+                <MapPin status={c.point.status} />
+              </Marker>
+            ),
+          )}
         </MapView>
       </View>
 
@@ -495,64 +538,3 @@ const styles = StyleSheet.create({
   },
 });
 
-function ClusteredSavedMarkers({
-  sales,
-  region,
-  mapRef,
-  onSalePress,
-}: {
-  sales: { id: string; latitude: number; longitude: number; status: any }[];
-  region: Region | null;
-  mapRef: React.RefObject<MapView | null>;
-  onSalePress: (saleId: string) => void;
-}) {
-  // Smaller minPoints so even 2 nearby saved sales cluster -- the
-  // Saved tab tends to have fewer markers than Discover, so we want
-  // clustering to kick in earlier.
-  const { clusters, getExpansionZoom } = useMapClustering(sales, region, {
-    radius: 60,
-    maxZoom: 14,
-    minPoints: 2,
-  });
-
-  return (
-    <>
-      {clusters.map((c) => {
-        if (c.isCluster) {
-          return (
-            <Marker
-              key={c.key}
-              coordinate={{ latitude: c.latitude, longitude: c.longitude }}
-              onPress={() => {
-                const targetZoom = getExpansionZoom(c.clusterId);
-                const delta = zoomToRegionDelta(targetZoom);
-                mapRef.current?.animateToRegion(
-                  {
-                    latitude: c.latitude,
-                    longitude: c.longitude,
-                    latitudeDelta: delta,
-                    longitudeDelta: delta,
-                  },
-                  300,
-                );
-              }}
-              tracksViewChanges={false}
-            >
-              <MapClusterPin count={c.count} />
-            </Marker>
-          );
-        }
-        return (
-          <Marker
-            key={c.key}
-            coordinate={{ latitude: c.latitude, longitude: c.longitude }}
-            onPress={() => onSalePress(c.point.id)}
-            tracksViewChanges={false}
-          >
-            <MapPin status={c.point.status} />
-          </Marker>
-        );
-      })}
-    </>
-  );
-}

@@ -211,6 +211,21 @@ export default function MapHomeScreen() {
     [filteredSales],
   );
 
+  // Drive clustering off the filtered sales + current viewport. Output
+  // is a flat list of features, each either an individual point
+  // (render MapPin) or a cluster bubble (render MapClusterPin).
+  //
+  // Important: the resulting <Marker>s have to be rendered as DIRECT
+  // children of <MapView> -- react-native-maps' new-arch native side
+  // requires that. Wrapping them in a child component caused
+  // NSInvalidArgumentException: object cannot be nil during native
+  // mount.
+  const { clusters, getExpansionZoom } = useMapClustering(
+    filteredSales,
+    region,
+    { radius: 60, maxZoom: 14, minPoints: 2 },
+  );
+
   const goToUserLocation = useCallback(async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
@@ -260,14 +275,47 @@ export default function MapHomeScreen() {
           showsUserLocation
           showsMyLocationButton={false}
         >
-          <ClusteredSaleMarkers
-            sales={filteredSales}
-            region={region}
-            mapRef={mapRef}
-            onSalePress={(saleId) =>
-              navigation.navigate('SaleDetail', { saleId })
-            }
-          />
+          {clusters.map((c) =>
+            c.isCluster ? (
+              <Marker
+                key={c.key}
+                coordinate={{
+                  latitude: c.latitude,
+                  longitude: c.longitude,
+                }}
+                onPress={() => {
+                  const targetZoom = getExpansionZoom(c.clusterId);
+                  const delta = zoomToRegionDelta(targetZoom);
+                  mapRef.current?.animateToRegion(
+                    {
+                      latitude: c.latitude,
+                      longitude: c.longitude,
+                      latitudeDelta: delta,
+                      longitudeDelta: delta,
+                    },
+                    300,
+                  );
+                }}
+                tracksViewChanges={false}
+              >
+                <MapClusterPin count={c.count} />
+              </Marker>
+            ) : (
+              <Marker
+                key={c.key}
+                coordinate={{
+                  latitude: c.latitude,
+                  longitude: c.longitude,
+                }}
+                onPress={() =>
+                  navigation.navigate('SaleDetail', { saleId: c.point.id })
+                }
+                tracksViewChanges={false}
+              >
+                <MapPin status={c.point.status} />
+              </Marker>
+            ),
+          )}
         </MapView>
 
         {/* Floating my-location FAB. No refresh button: useSales
@@ -615,67 +663,3 @@ const styles = StyleSheet.create({
   },
 });
 
-// ── Clustered Markers ──────────────────────────────────────────────────────
-//
-// Pulled into a child component so React Native's diff doesn't re-render
-// every Marker when an unrelated MapHomeScreen state slice changes (sort
-// sheet, filter, etc.).
-
-function ClusteredSaleMarkers({
-  sales,
-  region,
-  mapRef,
-  onSalePress,
-}: {
-  sales: { id: string; latitude: number; longitude: number; status: any }[];
-  region: Region | null;
-  mapRef: React.RefObject<MapView | null>;
-  onSalePress: (saleId: string) => void;
-}) {
-  const { clusters, getExpansionZoom } = useMapClustering(sales, region, {
-    radius: 60,
-    maxZoom: 14,
-    minPoints: 2,
-  });
-
-  return (
-    <>
-      {clusters.map((c) => {
-        if (c.isCluster) {
-          return (
-            <Marker
-              key={c.key}
-              coordinate={{ latitude: c.latitude, longitude: c.longitude }}
-              onPress={() => {
-                const targetZoom = getExpansionZoom(c.clusterId);
-                const delta = zoomToRegionDelta(targetZoom);
-                mapRef.current?.animateToRegion(
-                  {
-                    latitude: c.latitude,
-                    longitude: c.longitude,
-                    latitudeDelta: delta,
-                    longitudeDelta: delta,
-                  },
-                  300,
-                );
-              }}
-              tracksViewChanges={false}
-            >
-              <MapClusterPin count={c.count} />
-            </Marker>
-          );
-        }
-        return (
-          <Marker
-            key={c.key}
-            coordinate={{ latitude: c.latitude, longitude: c.longitude }}
-            onPress={() => onSalePress(c.point.id)}
-            tracksViewChanges={false}
-          >
-            <MapPin status={c.point.status} />
-          </Marker>
-        );
-      })}
-    </>
-  );
-}
