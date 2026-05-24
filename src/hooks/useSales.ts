@@ -3,12 +3,23 @@ import { supabase } from '../lib/supabase';
 import { Sale } from '../types';
 import { useBlockedUsers } from './useBlockedUsers';
 
-export function useSales(bounds?: {
-  minLat: number;
-  maxLat: number;
-  minLng: number;
-  maxLng: number;
-}) {
+/**
+ * Loads every non-ended sale once and re-fetches on `postgres_changes`
+ * events.
+ *
+ * The hook used to accept a `bounds` rectangle and re-query whenever
+ * the map's viewport changed, but with the current data volume
+ * (<100 sales nationwide) that was strictly worse than fetching
+ * everything once: every pan / pinch generated a new region-change
+ * event, each event re-issued the SQL with a slightly different
+ * rectangle, and any sale that sat just outside the bounds-in-flight
+ * blinked off the map until the next request landed. The result was
+ * pins flickering in and out during zoom gestures.
+ *
+ * If we ever hit thousands of sales the right fix is server-side
+ * clustering or a bbox RPC, not a viewport-coupled fetch.
+ */
+export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,21 +34,11 @@ export function useSales(bounds?: {
       // profile row (e.g. Apple Sign In users who skipped
       // onboarding). The detail screen fetches the host profile
       // separately when it needs to display the host name.
-      let query = supabase
+      const { data, error: fetchError } = await supabase
         .from('sales')
         .select('*, media:sale_media(*)')
         .neq('status', 'ended')
         .order('created_at', { ascending: false });
-
-      if (bounds) {
-        query = query
-          .gte('latitude', bounds.minLat)
-          .lte('latitude', bounds.maxLat)
-          .gte('longitude', bounds.minLng)
-          .lte('longitude', bounds.maxLng);
-      }
-
-      const { data, error: fetchError } = await query;
       if (fetchError) throw fetchError;
       setSales(data ?? []);
     } catch (e: any) {
@@ -45,7 +46,7 @@ export function useSales(bounds?: {
     } finally {
       setLoading(false);
     }
-  }, [bounds?.minLat, bounds?.maxLat, bounds?.minLng, bounds?.maxLng]);
+  }, []);
 
   useEffect(() => {
     fetchSales();

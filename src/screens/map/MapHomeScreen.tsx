@@ -56,26 +56,18 @@ export default function MapHomeScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
-  const [mapBounds, setMapBounds] = useState<
-    | {
-        minLat: number;
-        maxLat: number;
-        minLng: number;
-        maxLng: number;
-      }
-    | undefined
-  >(undefined);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   // List-mode sort. Persisted across viewMode toggles within a session.
   const [sortBy, setSortBy] = useState<SortBy>('distance');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
 
-  // In list mode we want ALL active sales (not bounded). In map mode the
-  // bounds filter is useful so we don't pull the world.
-  const { sales, loading, refetch } = useSales(
-    viewMode === 'map' ? mapBounds : undefined,
-  );
+  // Fetch every non-ended sale once. The previous viewport-bounded
+  // version caused pins to blink on / off during zoom gestures because
+  // each region change kicked off a fresh query and any sale outside
+  // the in-flight rectangle vanished until the next response landed.
+  // See useSales' doc comment for the longer story.
+  const { sales, loading, refetch } = useSales();
   const userLocation = useUserLocation();
   // Restore the map to wherever it was last time the app was closed.
   // Avoids the "starts in Kansas, then awkwardly pans to me" flash.
@@ -228,12 +220,6 @@ export default function MapHomeScreen() {
 
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
-      setMapBounds({
-        minLat: region.latitude - region.latitudeDelta / 2,
-        maxLat: region.latitude + region.latitudeDelta / 2,
-        minLng: region.longitude - region.longitudeDelta / 2,
-        maxLng: region.longitude + region.longitudeDelta / 2,
-      });
       // Persist where the user is looking so re-opening the app drops
       // them right back here instead of US-center or wherever iOS
       // thinks they are. Debounced inside useLastMapRegion.
