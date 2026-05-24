@@ -392,65 +392,64 @@ export default function ConversationScreen() {
           }
         />
 
-        {/* Input row: button is absolutely positioned INSIDE the
-            input wrapper so it can never get pushed off-screen by
-            a misbehaving multiline TextInput. Same trick WhatsApp /
-            iMessage / Telegram use. */}
+        {/* Plain horizontal row. No `gap`, no function-style, no
+            absolute positioning, no fancy iMessage tricks -- just
+            a flex:1 input with a real sibling send pill. After
+            three rounds of "the button is missing" with cleverer
+            layouts, the cleverness was the problem. */}
         <View
           style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#FFFFFF',
             paddingHorizontal: 12,
             paddingVertical: 8,
-            backgroundColor: '#FFFFFF',
             borderTopWidth: 1,
             borderTopColor: '#F4F4F5',
           }}
         >
-          <View style={{ position: 'relative', justifyContent: 'center' }}>
-            <TextInput
-              ref={inputRef}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Message…"
-              placeholderTextColor="#A1A1AA"
-              multiline
-              maxLength={2000}
-              style={{
-                maxHeight: 120,
-                minHeight: 40,
-                paddingLeft: 14,
-                // Reserve space on the right for the absolutely
-                // positioned send button (40px button + 4px gap).
-                paddingRight: 50,
-                paddingVertical: 10,
-                backgroundColor: '#F4F4F5',
-                borderRadius: 20,
-                fontSize: 15.5,
-                color: '#18181B',
-              }}
-            />
-            <Pressable
-              onPress={handleSend}
-              disabled={!draft.trim()}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              accessibilityState={{ disabled: !draft.trim() }}
-              style={({ pressed }) => ({
-                position: 'absolute',
-                right: 4,
-                bottom: 4,
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: draft.trim() ? '#F97316' : '#D4D4D8',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-            </Pressable>
-          </View>
+          <TextInput
+            ref={inputRef}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Message…"
+            placeholderTextColor="#A1A1AA"
+            multiline
+            maxLength={2000}
+            style={{
+              flex: 1,
+              marginRight: 8,
+              minHeight: 40,
+              maxHeight: 120,
+              paddingHorizontal: 14,
+              paddingTop: 10,
+              paddingBottom: 10,
+              backgroundColor: '#F4F4F5',
+              borderRadius: 20,
+              fontSize: 15.5,
+              color: '#18181B',
+            }}
+          />
+          <Pressable
+            onPress={handleSend}
+            disabled={!draft.trim()}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            style={{
+              minWidth: 64,
+              height: 40,
+              paddingHorizontal: 16,
+              borderRadius: 20,
+              backgroundColor: draft.trim() ? '#F97316' : '#D4D4D8',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>
+              Send
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
