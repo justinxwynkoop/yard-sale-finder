@@ -1,6 +1,10 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  LinkingOptions,
+  getFocusedRouteNameFromRoute,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
@@ -53,6 +57,30 @@ const SavedStack = createNativeStackNavigator<SavedStackParamList>();
 
 const BRAND = '#F97316';
 const INACTIVE = '#A1A1AA';
+
+// Default tab bar style. Defined once so the per-tab `screenOptions`
+// can return EXACTLY this object when not hiding the bar -- toggling
+// to / from `undefined` causes a visible bounce as RN swaps the
+// custom height for its smaller default.
+const DEFAULT_TAB_BAR_STYLE = {
+  borderTopColor: '#F4F4F5',
+  height: 64,
+  paddingTop: 6,
+  paddingBottom: 10,
+} as const;
+
+// Stack routes that should hide the tab bar while focused (full-screen
+// experiences -- conversations, capture, etc.). Keep in one place so
+// the dynamic option below stays cheap.
+const FULL_SCREEN_ROUTES = new Set(['Conversation', 'Capture']);
+
+function hideTabBarOnFullScreen(route: any) {
+  const focused = getFocusedRouteNameFromRoute(route) ?? '';
+  if (FULL_SCREEN_ROUTES.has(focused)) {
+    return { display: 'none' as const };
+  }
+  return DEFAULT_TAB_BAR_STYLE;
+}
 
 function MapNavigator() {
   return (
@@ -246,12 +274,11 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: BRAND,
         tabBarInactiveTintColor: INACTIVE,
-        tabBarStyle: {
-          borderTopColor: '#F4F4F5',
-          height: 64,
-          paddingTop: 6,
-          paddingBottom: 10,
-        },
+        // Per-tab tabBarStyle: hide the bar when the focused nested
+        // route is full-screen (e.g. Conversation), otherwise return
+        // the same default object so React Navigation never sees a
+        // structural style change and the tab bar doesn't bounce.
+        tabBarStyle: hideTabBarOnFullScreen(route),
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',

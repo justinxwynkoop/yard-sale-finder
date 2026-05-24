@@ -229,19 +229,17 @@ export default function ConversationScreen() {
   // few message bubbles behind the keyboard.
   const headerHeight = useHeaderHeight();
 
-  // Title bar shows the other participant's name. Also hide the
-  // bottom tab bar so the keyboard + input live edge-to-edge instead
-  // of being squeezed between the header and the tabs.
+  // Title bar shows the other participant's name. The tab bar is
+  // hidden by the Tab.Navigator's screenOptions (see
+  // src/navigation/index.tsx) when the focused stack route is
+  // 'Conversation' -- doing it here via setOptions caused a visible
+  // tab-bar bounce on unmount because the height/padding from our
+  // default style get dropped to React Navigation's smaller default
+  // before snapping back.
   useLayoutEffect(() => {
     navigation.setOptions({
       title: otherProfile?.display_name ?? 'Conversation',
     });
-    const parent = navigation.getParent?.();
-    parent?.setOptions({ tabBarStyle: { display: 'none' } });
-    return () => {
-      // Restore default tabBarStyle when leaving the conversation.
-      parent?.setOptions({ tabBarStyle: undefined });
-    };
   }, [navigation, otherProfile]);
 
   // Reverse for inverted FlatList: newest at index 0. We also tag

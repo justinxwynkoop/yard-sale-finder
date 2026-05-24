@@ -101,27 +101,32 @@ function ConversationRow({
   const other = conversation.other_profile;
   const preview = conversation.last_message_preview ?? 'Tap to view';
   const targetTitle = conversation.target_title ?? '(deleted)';
+  // Plain object style + explicit margins instead of `gap`. iOS RN
+  // has dropped `gap` on row layouts with mixed Text+Image+icon
+  // children before, collapsing them into a vertical stack -- which
+  // is exactly what was happening here. Same fix we used on the
+  // ConversationScreen subject row.
   return (
     <Pressable
       onPress={onPress}
       android_ripple={{ color: '#F4F4F5' }}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? '#FAFAFA' : '#FFFFFF',
+      style={{
+        backgroundColor: '#FFFFFF',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        gap: 12,
-      })}
+      }}
     >
-      <Avatar uri={other?.avatar_url} name={other?.display_name} size="md" />
+      <View style={{ marginRight: 12 }}>
+        <Avatar uri={other?.avatar_url} name={other?.display_name} size="md" />
+      </View>
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, marginRight: 12 }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
           }}
         >
           <Text
@@ -130,6 +135,7 @@ function ConversationRow({
               fontSize: 15,
               fontWeight: '600',
               color: '#18181B',
+              marginRight: 6,
             }}
             numberOfLines={1}
           >
@@ -150,7 +156,7 @@ function ConversationRow({
           style={{
             fontSize: 12,
             color: '#71717A',
-            marginTop: 1,
+            marginTop: 2,
           }}
           numberOfLines={1}
         >
