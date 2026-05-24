@@ -28,8 +28,13 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import {
+  useMapClustering,
+  zoomToRegionDelta,
+} from '../../hooks/useMapClustering';
 import { SavedStackParamList } from '../../types';
 import { MapPin } from '../../components/MapPin';
+import { MapClusterPin } from '../../components/MapClusterPin';
 import SaleListCard from '../../components/SaleListCard';
 import { EmptyState } from '../../components/ui';
 import { haversineMeters } from '../../utils/distance';
@@ -78,6 +83,7 @@ export default function SavedHomeScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [sortBy, setSortBy] = useState<SortBy>('distance');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [region, setRegion] = useState<Region | null>(null);
 
   // Re-fetch when the tab regains focus -- catches favorites the user
   // hearted on another tab without us needing a global event bus.
@@ -188,24 +194,18 @@ export default function SavedHomeScreen() {
           ref={mapRef}
           style={styles.map}
           initialRegion={DEFAULT_REGION}
+          onRegionChangeComplete={setRegion}
           showsUserLocation
           showsMyLocationButton={false}
         >
-          {favorites.map((sale) => (
-            <Marker
-              key={sale.id}
-              coordinate={{
-                latitude: sale.latitude,
-                longitude: sale.longitude,
-              }}
-              onPress={() =>
-                navigation.navigate('SaleDetail', { saleId: sale.id })
-              }
-              tracksViewChanges={false}
-            >
-              <MapPin status={sale.status} />
-            </Marker>
-          ))}
+          <ClusteredSavedMarkers
+            sales={favorites}
+            region={region}
+            mapRef={mapRef}
+            onSalePress={(saleId) =>
+              navigation.navigate('SaleDetail', { saleId })
+            }
+          />
         </MapView>
       </View>
 
@@ -494,3 +494,65 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 });
+
+function ClusteredSavedMarkers({
+  sales,
+  region,
+  mapRef,
+  onSalePress,
+}: {
+  sales: { id: string; latitude: number; longitude: number; status: any }[];
+  region: Region | null;
+  mapRef: React.RefObject<MapView | null>;
+  onSalePress: (saleId: string) => void;
+}) {
+  // Smaller minPoints so even 2 nearby saved sales cluster -- the
+  // Saved tab tends to have fewer markers than Discover, so we want
+  // clustering to kick in earlier.
+  const { clusters, getExpansionZoom } = useMapClustering(sales, region, {
+    radius: 60,
+    maxZoom: 14,
+    minPoints: 2,
+  });
+
+  return (
+    <>
+      {clusters.map((c) => {
+        if (c.isCluster) {
+          return (
+            <Marker
+              key={c.key}
+              coordinate={{ latitude: c.latitude, longitude: c.longitude }}
+              onPress={() => {
+                const targetZoom = getExpansionZoom(c.clusterId);
+                const delta = zoomToRegionDelta(targetZoom);
+                mapRef.current?.animateToRegion(
+                  {
+                    latitude: c.latitude,
+                    longitude: c.longitude,
+                    latitudeDelta: delta,
+                    longitudeDelta: delta,
+                  },
+                  300,
+                );
+              }}
+              tracksViewChanges={false}
+            >
+              <MapClusterPin count={c.count} />
+            </Marker>
+          );
+        }
+        return (
+          <Marker
+            key={c.key}
+            coordinate={{ latitude: c.latitude, longitude: c.longitude }}
+            onPress={() => onSalePress(c.point.id)}
+            tracksViewChanges={false}
+          >
+            <MapPin status={c.point.status} />
+          </Marker>
+        );
+      })}
+    </>
+  );
+}
