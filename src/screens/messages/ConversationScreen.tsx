@@ -44,11 +44,19 @@ export default function ConversationScreen() {
   const [draft, setDraft] = useState('');
   const inputRef = useRef<TextInput>(null);
 
-  // Title bar shows the other participant's name.
+  // Title bar shows the other participant's name. Also hide the
+  // bottom tab bar so the keyboard + input live edge-to-edge instead
+  // of being squeezed between the header and the tabs.
   useLayoutEffect(() => {
     navigation.setOptions({
       title: otherProfile?.display_name ?? 'Conversation',
     });
+    const parent = navigation.getParent?.();
+    parent?.setOptions({ tabBarStyle: { display: 'none' } });
+    return () => {
+      // Restore default tabBarStyle when leaving the conversation.
+      parent?.setOptions({ tabBarStyle: undefined });
+    };
   }, [navigation, otherProfile]);
 
   // Reverse for inverted FlatList: newest at index 0.
@@ -122,7 +130,11 @@ export default function ConversationScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Subject row: lets the user re-open the sale / listing this
-            conversation is about. Tap to navigate. */}
+            conversation is about. Tap to navigate. Uses explicit
+            marginRight instead of `gap` -- a few RN versions on iOS
+            have ignored gap when the parent uses flexDirection:'row'
+            with mixed Text + icon children, collapsing the row into
+            a column. */}
         {conversation ? (
           <Pressable
             onPress={() => {
@@ -131,24 +143,22 @@ export default function ConversationScreen() {
                   saleId: conversation.target_id,
                 });
               } else {
-                // Cross-stack navigation. The ListingDetail lives on
-                // ListingsStack; navigate up the tree.
                 navigation.navigate('Listings', {
                   screen: 'ListingDetail',
                   params: { listingId: conversation.target_id },
                 });
               }
             }}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? '#F4F4F5' : '#FFFFFF',
+            android_ripple={{ color: '#F4F4F5' }}
+            style={{
+              backgroundColor: '#FFFFFF',
               paddingHorizontal: 16,
-              paddingVertical: 10,
+              paddingVertical: 12,
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 10,
               borderBottomWidth: 1,
               borderBottomColor: '#F4F4F5',
-            })}
+            }}
           >
             <Ionicons
               name={
@@ -158,14 +168,22 @@ export default function ConversationScreen() {
               }
               size={16}
               color="#71717A"
+              style={{ marginRight: 10 }}
             />
             <Text
               style={{ flex: 1, fontSize: 13, color: '#71717A' }}
               numberOfLines={1}
             >
-              About this {conversation.target_type}
+              {conversation.target_title
+                ? `About: ${conversation.target_title}`
+                : `About this ${conversation.target_type}`}
             </Text>
-            <Ionicons name="chevron-forward" size={16} color="#A1A1AA" />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color="#A1A1AA"
+              style={{ marginLeft: 8 }}
+            />
           </Pressable>
         ) : null}
 
@@ -201,13 +219,12 @@ export default function ConversationScreen() {
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'flex-end',
+            alignItems: 'center',
             paddingHorizontal: 12,
             paddingVertical: 8,
             backgroundColor: '#FFFFFF',
             borderTopWidth: 1,
             borderTopColor: '#F4F4F5',
-            gap: 8,
           }}
         >
           <TextInput
@@ -228,6 +245,7 @@ export default function ConversationScreen() {
               borderRadius: 18,
               fontSize: 15,
               color: '#18181B',
+              marginRight: 8,
             }}
           />
           <Pressable
