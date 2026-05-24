@@ -30,9 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# Local override env files only. The committed `.env` carries the
+# public Supabase publishable values so a fresh clone runs out of the
+# box. Anything machine-specific or actually-secret goes in
+# .env.local / .env.<profile>.local, which stay ignored.
 .env*.local
-.env
+# .env is intentionally NOT ignored -- see comments at the top of .env.
 
 # Google OAuth secrets
 client_secret_*.json
