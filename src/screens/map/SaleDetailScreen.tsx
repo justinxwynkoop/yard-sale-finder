@@ -25,6 +25,7 @@ import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
+import { useStartConversation } from '../../hooks/useConversation';
 import {
   Avatar,
   Badge,
@@ -55,8 +56,27 @@ export default function SaleDetailScreen() {
   const { isFavorited, toggle: toggleFavorite } = useFavorites();
   const { user } = useAuth();
   const { block } = useBlockedUsers();
+  const { start: startConversation } = useStartConversation();
+  const [startingConversation, setStartingConversation] = useState(false);
 
   const isOwnSale = sale?.user_id === user?.id;
+
+  const handleMessageSeller = async () => {
+    if (!sale) return;
+    setStartingConversation(true);
+    const { id, error: convErr } = await startConversation('sale', sale.id);
+    setStartingConversation(false);
+    if (convErr) {
+      Alert.alert(
+        'Could not start conversation',
+        convErr.message ?? 'Please try again.',
+      );
+      return;
+    }
+    if (id) {
+      (navigation as any).navigate('Conversation', { conversationId: id });
+    }
+  };
 
   const handleMoreMenu = () => {
     if (!sale) return;
@@ -424,8 +444,14 @@ export default function SaleDetailScreen() {
         onSubmitted={() => navigation.goBack()}
       />
 
-      {/* Sticky CTA */}
-      <View className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3">
+      {/* Sticky CTA — directions is the primary action; messaging
+          the seller is a secondary outlined button. Both are hidden
+          on the user's own sale (can't message yourself, and you
+          don't need directions to your own yard). */}
+      <View
+        className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3"
+        style={{ gap: 8 }}
+      >
         <Button
           size="lg"
           onPress={openDirections}
@@ -433,6 +459,19 @@ export default function SaleDetailScreen() {
         >
           Get directions
         </Button>
+        {!isOwnSale && (
+          <Button
+            size="lg"
+            variant="outline"
+            onPress={handleMessageSeller}
+            loading={startingConversation}
+            leftIcon={
+              <Ionicons name="chatbubble-outline" size={18} color="#18181B" />
+            }
+          >
+            Message seller
+          </Button>
+        )}
       </View>
     </View>
   );

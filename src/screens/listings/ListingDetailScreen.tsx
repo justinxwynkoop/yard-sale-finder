@@ -24,6 +24,8 @@ import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
+import { useStartConversation } from '../../hooks/useConversation';
+import { Button } from '../../components/ui';
 
 type Route = RouteProp<ListingsStackParamList, 'ListingDetail'>;
 
@@ -44,8 +46,27 @@ export default function ListingDetailScreen() {
   const [reportOpen, setReportOpen] = useState(false);
   const { user } = useAuth();
   const { block } = useBlockedUsers();
+  const { start: startConversation } = useStartConversation();
+  const [startingConversation, setStartingConversation] = useState(false);
 
   const isOwnListing = listing?.user_id === user?.id;
+
+  const handleMessageSeller = async () => {
+    if (!listing) return;
+    setStartingConversation(true);
+    const { id, error: convErr } = await startConversation('listing', listing.id);
+    setStartingConversation(false);
+    if (convErr) {
+      Alert.alert(
+        'Could not start conversation',
+        convErr.message ?? 'Please try again.',
+      );
+      return;
+    }
+    if (id) {
+      (navigation as any).navigate('Conversation', { conversationId: id });
+    }
+  };
 
   const handleMoreMenu = () => {
     if (!listing) return;
@@ -385,6 +406,24 @@ export default function ListingDetailScreen() {
         ownerName={listing.title}
         onSubmitted={() => navigation.goBack()}
       />
+
+      {/* Sticky Message-seller CTA. Hidden on the user's own listing. */}
+      {!isOwnListing && (
+        <View
+          className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3"
+        >
+          <Button
+            size="lg"
+            onPress={handleMessageSeller}
+            loading={startingConversation}
+            leftIcon={
+              <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+            }
+          >
+            Message seller
+          </Button>
+        </View>
+      )}
     </View>
   );
 }

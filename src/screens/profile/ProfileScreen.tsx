@@ -18,6 +18,7 @@ import Constants from 'expo-constants';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { useAppVersion } from '../../hooks/useAppVersion';
+import { useInbox } from '../../hooks/useInbox';
 import { ProfileStackParamList } from '../../types';
 import {
   Avatar,
@@ -47,6 +48,7 @@ export default function ProfileScreen() {
   const { signOut } = useAuth();
   const { profile, loading, error, refetch } = useProfile();
   const { appVersion, buildNumber } = useAppVersion();
+  const { unreadCount } = useInbox();
   const [debugOpen, setDebugOpen] = useState(false);
 
   const appName = Constants.expoConfig?.name ?? '';
@@ -194,6 +196,21 @@ export default function ProfileScreen() {
             </Button>
           </View>
         </View>
+
+        {/* Messages — top-level shortcut that cross-navigates into
+            the Map tab's Inbox screen. Same as tapping the chat icon
+            in the Discover top bar. Unread count drives a brand-
+            colored detail string instead of the boring "0". */}
+        <SettingsGroup title="Inbox">
+          <SettingsRow
+            icon="chatbubble-ellipses-outline"
+            label="Messages"
+            detail={unreadCount > 0 ? `${unreadCount} unread` : undefined}
+            onPress={() =>
+              (navigation as any).navigate('Map', { screen: 'Inbox' })
+            }
+          />
+        </SettingsGroup>
 
         {/* About */}
         <SettingsGroup title="About">

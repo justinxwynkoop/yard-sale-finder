@@ -117,11 +117,20 @@ export type ListingsStackParamList = {
   ListingDetail: { listingId: string };
   CreateListing: undefined;
   EditListing: { listingId: string };
+  // Same as MapStack -- Inbox and Conversation can be pushed from
+  // anywhere the Message button shows up.
+  Inbox: undefined;
+  Conversation: { conversationId: string };
 };
 
 export type MapStackParamList = {
   MapHome: { focusLat?: number; focusLng?: number } | undefined;
   SaleDetail: { saleId: string };
+  // Messaging surfaces -- accessible via the envelope icon in the
+  // Discover top bar and via Profile -> Messages. Registered on the
+  // Map stack since that's the primary entry point.
+  Inbox: undefined;
+  Conversation: { conversationId: string };
 };
 
 export type SaleStackParamList = {
@@ -131,6 +140,9 @@ export type SaleStackParamList = {
   Capture: { max?: number } | undefined;
   CreateListing: undefined;
   EditListing: { listingId: string };
+  // SaleDetail can also be reached from the Inbox in MySales -- not
+  // strictly required for v1, but the screen is harmless to register
+  // here in case we add deep links from "your sale was messaged".
 };
 
 export type ProfileStackParamList = {
@@ -155,4 +167,34 @@ export interface BlockedUser {
   created_at: string;
   // Joined: the profile of the blocked user (display_name, avatar, etc.)
   blocked?: Profile;
+}
+
+export type ConversationTargetType = 'sale' | 'listing';
+
+export interface Conversation {
+  id: string;
+  target_type: ConversationTargetType;
+  target_id: string;
+  seller_id: string;
+  buyer_id: string;
+  created_at: string;
+  last_message_at: string;
+  buyer_last_read_at: string | null;
+  seller_last_read_at: string | null;
+  // Joined helpers (populated by useInbox via select hints):
+  other_profile?: Profile;
+  // Shallow target preview -- title + first image. Resolved by
+  // useInbox with separate lookups since target_type is polymorphic.
+  target_title?: string;
+  target_image_url?: string;
+  last_message_preview?: string;
+  has_unread?: boolean;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
 }

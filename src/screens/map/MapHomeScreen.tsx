@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
+import { useInbox } from '../../hooks/useInbox';
 import { MapStackParamList } from '../../types';
 import FilterBar from '../../components/FilterBar';
 import { MapPin } from '../../components/MapPin';
@@ -75,6 +76,9 @@ export default function MapHomeScreen() {
   // Avoids the "starts in Kansas, then awkwardly pans to me" flash.
   const { region: lastRegion, save: saveLastRegion, ready: regionReady } =
     useLastMapRegion();
+  // Drives the unread dot on the inbox icon. The hook subscribes to
+  // postgres_changes on messages, so the badge updates live.
+  const { unreadCount } = useInbox();
 
   const focusLat = route.params?.focusLat;
   const focusLng = route.params?.focusLng;
@@ -375,6 +379,47 @@ export default function MapHomeScreen() {
             </Text>
           </View>
           {loading && <ActivityIndicator color="#F97316" />}
+
+          {/* Inbox icon — pushes the Messages screen onto MapStack.
+              Red dot when the user has at least one unread message. */}
+          <Pressable
+            onPress={() => navigation.navigate('Inbox')}
+            hitSlop={8}
+            style={{
+              width: 36,
+              height: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: 4,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unreadCount > 0
+                ? `Messages, ${unreadCount} unread`
+                : 'Messages'
+            }
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={22}
+              color="#18181B"
+            />
+            {unreadCount > 0 ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 6,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: '#F97316',
+                  borderWidth: 1.5,
+                  borderColor: '#FFFFFF',
+                }}
+              />
+            ) : null}
+          </Pressable>
 
           {/* Map/List toggle */}
           <View style={styles.toggleWrap}>

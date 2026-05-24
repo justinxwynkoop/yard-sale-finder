@@ -40,6 +40,8 @@ import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
 import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
 import SavedHomeScreen from '../screens/saved/SavedHomeScreen';
+import InboxScreen from '../screens/messages/InboxScreen';
+import ConversationScreen from '../screens/messages/ConversationScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -60,6 +62,31 @@ function MapNavigator() {
         name="SaleDetail"
         component={SaleDetailScreen}
         options={{ headerShown: false }}
+      />
+      <MapStack.Screen
+        name="Inbox"
+        component={InboxScreen}
+        options={{
+          headerShown: true,
+          title: 'Messages',
+          headerStyle: { backgroundColor: '#fff' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          headerTintColor: '#18181B',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <MapStack.Screen
+        name="Conversation"
+        component={ConversationScreen}
+        options={{
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          headerTintColor: '#18181B',
+          headerBackTitle: 'Back',
+        }}
       />
     </MapStack.Navigator>
   );
@@ -130,6 +157,31 @@ function ListingsNavigator() {
       <ListingsStack.Screen
         name="EditListing"
         component={EditListingScreen as any}
+      />
+      <ListingsStack.Screen
+        name="Inbox"
+        component={InboxScreen}
+        options={{
+          headerShown: true,
+          title: 'Messages',
+          headerStyle: { backgroundColor: '#fff' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          headerTintColor: '#18181B',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <ListingsStack.Screen
+        name="Conversation"
+        component={ConversationScreen}
+        options={{
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          headerTintColor: '#18181B',
+          headerBackTitle: 'Back',
+        }}
       />
     </ListingsStack.Navigator>
   );
