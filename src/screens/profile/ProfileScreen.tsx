@@ -207,7 +207,7 @@ export default function ProfileScreen() {
             label="Messages"
             detail={unreadCount > 0 ? `${unreadCount} unread` : undefined}
             onPress={() =>
-              (navigation as any).navigate('Map', { screen: 'Inbox' })
+              (navigation as any).navigate('Messages', { screen: 'Inbox' })
             }
           />
         </SettingsGroup>

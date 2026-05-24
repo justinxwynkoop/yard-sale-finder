@@ -77,6 +77,19 @@ export default function ListingsScreen() {
             </Text>
           </View>
           <View className="flex-row items-center" style={{ gap: 8 }}>
+            {/* Saved sales: pushed within this stack so the back
+                button returns to the Listings home rather than
+                yanking the user across tabs. The heart icon is the
+                v1 home for "your favorited sales" -- previously its
+                own bottom tab, now nested inside Listings. */}
+            <Pressable
+              onPress={() => navigation.navigate('SavedHome')}
+              accessibilityRole="button"
+              accessibilityLabel="Saved sales"
+              className="h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white active:bg-zinc-50"
+            >
+              <Ionicons name="heart-outline" size={20} color="#18181B" />
+            </Pressable>
             {/* Filter button */}
             <Pressable
               onPress={() => setFilterSheetOpen(true)}

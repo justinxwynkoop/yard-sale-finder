@@ -18,9 +18,9 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useConversation } from '../../hooks/useConversation';
 import { useAuth } from '../../hooks/useAuth';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
-import { MapStackParamList, Message } from '../../types';
+import { MessagesStackParamList, Message } from '../../types';
 
-type Route = RouteProp<MapStackParamList, 'Conversation'>;
+type Route = RouteProp<MessagesStackParamList, 'Conversation'>;
 
 /**
  * iMessage-style bubble. No inline avatars; sender is conveyed by

@@ -74,7 +74,10 @@ export default function SaleDetailScreen() {
       return;
     }
     if (id) {
-      (navigation as any).navigate('Conversation', { conversationId: id });
+      (navigation as any).navigate('Messages', {
+        screen: 'Conversation',
+        params: { conversationId: id },
+      });
     }
   };
 

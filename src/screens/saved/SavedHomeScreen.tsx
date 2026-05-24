@@ -28,14 +28,14 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useUserLocation } from '../../hooks/useUserLocation';
-import { SavedStackParamList } from '../../types';
+import { ListingsStackParamList } from '../../types';
 import { MapPin } from '../../components/MapPin';
 import SaleListCard from '../../components/SaleListCard';
 import { EmptyState } from '../../components/ui';
 import { haversineMeters } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
 
-type Nav = NativeStackNavigationProp<SavedStackParamList, 'SavedHome'>;
+type Nav = NativeStackNavigationProp<ListingsStackParamList, 'SavedHome'>;
 type ViewMode = 'map' | 'list';
 type SortBy = 'distance' | 'newest' | 'open';
 

@@ -383,7 +383,9 @@ export default function MapHomeScreen() {
           {/* Inbox icon — pushes the Messages screen onto MapStack.
               Red dot when the user has at least one unread message. */}
           <Pressable
-            onPress={() => navigation.navigate('Inbox')}
+            onPress={() =>
+              (navigation as any).navigate('Messages', { screen: 'Inbox' })
+            }
             hitSlop={8}
             style={{
               width: 36,

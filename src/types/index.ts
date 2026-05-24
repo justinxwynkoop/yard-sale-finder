@@ -103,13 +103,16 @@ export type MainTabParamList = {
   Map: undefined;
   MySales: undefined;
   Listings: undefined;
-  Saved: undefined;
+  // Slot previously occupied by "Saved" -- saved sales now live as a
+  // pushed route inside the Listings stack (accessed via a heart icon
+  // in the ListingsScreen header).
+  Messages: undefined;
   Profile: undefined;
 };
 
-export type SavedStackParamList = {
-  SavedHome: undefined;
-  SaleDetail: { saleId: string };
+export type MessagesStackParamList = {
+  Inbox: undefined;
+  Conversation: { conversationId: string };
 };
 
 export type ListingsStackParamList = {
@@ -117,20 +120,17 @@ export type ListingsStackParamList = {
   ListingDetail: { listingId: string };
   CreateListing: undefined;
   EditListing: { listingId: string };
-  // Same as MapStack -- Inbox and Conversation can be pushed from
-  // anywhere the Message button shows up.
-  Inbox: undefined;
-  Conversation: { conversationId: string };
+  // Saved (favorited) sales live here too -- accessed via the heart
+  // icon in the Listings header. SaleDetail registered on this stack
+  // so taps on a saved-sale card push within Listings rather than
+  // yanking the user across to the Map tab.
+  SavedHome: undefined;
+  SaleDetail: { saleId: string };
 };
 
 export type MapStackParamList = {
   MapHome: { focusLat?: number; focusLng?: number } | undefined;
   SaleDetail: { saleId: string };
-  // Messaging surfaces -- accessible via the envelope icon in the
-  // Discover top bar and via Profile -> Messages. Registered on the
-  // Map stack since that's the primary entry point.
-  Inbox: undefined;
-  Conversation: { conversationId: string };
 };
 
 export type SaleStackParamList = {

@@ -20,7 +20,7 @@ import {
   SaleStackParamList,
   ListingsStackParamList,
   ProfileStackParamList,
-  SavedStackParamList,
+  MessagesStackParamList,
 } from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
@@ -53,7 +53,7 @@ const MapStack = createNativeStackNavigator<MapStackParamList>();
 const SaleStack = createNativeStackNavigator<SaleStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
-const SavedStack = createNativeStackNavigator<SavedStackParamList>();
+const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 
 const BRAND = '#F97316';
 const INACTIVE = '#A1A1AA';
@@ -90,31 +90,6 @@ function MapNavigator() {
         name="SaleDetail"
         component={SaleDetailScreen}
         options={{ headerShown: false }}
-      />
-      <MapStack.Screen
-        name="Inbox"
-        component={InboxScreen}
-        options={{
-          headerShown: true,
-          title: 'Messages',
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: false,
-          headerTintColor: '#18181B',
-          headerBackTitle: 'Back',
-        }}
-      />
-      <MapStack.Screen
-        name="Conversation"
-        component={ConversationScreen}
-        options={{
-          headerShown: true,
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: false,
-          headerTintColor: '#18181B',
-          headerBackTitle: 'Back',
-        }}
       />
     </MapStack.Navigator>
   );
@@ -173,7 +148,7 @@ function ListingsNavigator() {
     <ListingsStack.Navigator screenOptions={{ headerShown: false }}>
       <ListingsStack.Screen name="ListingsHome" component={ListingsScreen} />
       <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} />
-      {/* Create/Edit are also registered in SaleStack so MySales can
+      {/* Create / Edit are also registered in SaleStack so MySales can
           push them directly. Duplicating the registration here lets
           taps from the Listings tab open them within this stack --
           keeping the user in Listings instead of yanking them across
@@ -186,12 +161,16 @@ function ListingsNavigator() {
         name="EditListing"
         component={EditListingScreen as any}
       />
+      {/* Saved sales: previously a dedicated bottom tab. Now lives
+          here as a pushed route, reached via the heart icon in the
+          Listings header. SaleDetail registered alongside it so
+          tapping a saved-sale card stays in the Listings tab. */}
       <ListingsStack.Screen
-        name="Inbox"
-        component={InboxScreen}
+        name="SavedHome"
+        component={SavedHomeScreen}
         options={{
           headerShown: true,
-          title: 'Messages',
+          title: 'Saved Sales',
           headerStyle: { backgroundColor: '#fff' },
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerShadowVisible: false,
@@ -200,18 +179,32 @@ function ListingsNavigator() {
         }}
       />
       <ListingsStack.Screen
-        name="Conversation"
-        component={ConversationScreen}
-        options={{
-          headerShown: true,
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: false,
-          headerTintColor: '#18181B',
-          headerBackTitle: 'Back',
-        }}
+        name="SaleDetail"
+        component={SaleDetailScreen as any}
+        options={{ headerShown: false }}
       />
     </ListingsStack.Navigator>
+  );
+}
+
+function MessagesNavigator() {
+  return (
+    <MessagesStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerShadowVisible: false,
+        headerTintColor: '#18181B',
+        headerBackTitle: 'Back',
+      }}
+    >
+      <MessagesStack.Screen
+        name="Inbox"
+        component={InboxScreen}
+        options={{ title: 'Messages' }}
+      />
+      <MessagesStack.Screen name="Conversation" component={ConversationScreen} />
+    </MessagesStack.Navigator>
   );
 }
 
@@ -250,21 +243,6 @@ function ProfileNavigator() {
   );
 }
 
-function SavedNavigator() {
-  return (
-    <SavedStack.Navigator screenOptions={{ headerShown: false }}>
-      <SavedStack.Screen name="SavedHome" component={SavedHomeScreen} />
-      {/* SaleDetail is shared with MapStack -- React Navigation just
-          uses the route name. The screen's type annotation says it
-          lives in MapStack, but its params shape matches here too. */}
-      <SavedStack.Screen
-        name="SaleDetail"
-        component={SaleDetailScreen as any}
-      />
-    </SavedStack.Navigator>
-  );
-}
-
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function MainTabs() {
@@ -291,8 +269,8 @@ function MainTabs() {
             iconName = focused ? 'pricetag' : 'pricetag-outline';
           } else if (route.name === 'Listings') {
             iconName = focused ? 'storefront' : 'storefront-outline';
-          } else if (route.name === 'Saved') {
-            iconName = focused ? 'heart' : 'heart-outline';
+          } else if (route.name === 'Messages') {
+            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
@@ -316,9 +294,9 @@ function MainTabs() {
         options={{ tabBarLabel: 'Listings' }}
       />
       <Tab.Screen
-        name="Saved"
-        component={SavedNavigator}
-        options={{ tabBarLabel: 'Saved' }}
+        name="Messages"
+        component={MessagesNavigator}
+        options={{ tabBarLabel: 'Messages' }}
       />
       <Tab.Screen
         name="Profile"
