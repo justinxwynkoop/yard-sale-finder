@@ -28,13 +28,8 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useUserLocation } from '../../hooks/useUserLocation';
-import {
-  useMapClustering,
-  zoomToRegionDelta,
-} from '../../hooks/useMapClustering';
 import { SavedStackParamList } from '../../types';
 import { MapPin } from '../../components/MapPin';
-import { MapClusterPin } from '../../components/MapClusterPin';
 import SaleListCard from '../../components/SaleListCard';
 import { EmptyState } from '../../components/ui';
 import { haversineMeters } from '../../utils/distance';
@@ -83,17 +78,6 @@ export default function SavedHomeScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [sortBy, setSortBy] = useState<SortBy>('distance');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
-  const [region, setRegion] = useState<Region | null>(null);
-
-  // Same direct-children constraint as MapHomeScreen -- markers have
-  // to be rendered inline inside <MapView>, not in a wrapper, or
-  // react-native-maps' new-arch mount crashes natively with
-  // NSInvalidArgumentException.
-  const { clusters, getExpansionZoom } = useMapClustering(
-    favorites,
-    region,
-    { radius: 60, maxZoom: 14, minPoints: 2 },
-  );
 
   // Re-fetch when the tab regains focus -- catches favorites the user
   // hearted on another tab without us needing a global event bus.
@@ -204,51 +188,24 @@ export default function SavedHomeScreen() {
           ref={mapRef}
           style={styles.map}
           initialRegion={DEFAULT_REGION}
-          onRegionChangeComplete={setRegion}
           showsUserLocation
           showsMyLocationButton={false}
         >
-          {clusters.map((c) =>
-            c.isCluster ? (
-              <Marker
-                key={c.key}
-                coordinate={{
-                  latitude: c.latitude,
-                  longitude: c.longitude,
-                }}
-                onPress={() => {
-                  const targetZoom = getExpansionZoom(c.clusterId);
-                  const delta = zoomToRegionDelta(targetZoom);
-                  mapRef.current?.animateToRegion(
-                    {
-                      latitude: c.latitude,
-                      longitude: c.longitude,
-                      latitudeDelta: delta,
-                      longitudeDelta: delta,
-                    },
-                    300,
-                  );
-                }}
-                tracksViewChanges={false}
-              >
-                <MapClusterPin count={c.count} />
-              </Marker>
-            ) : (
-              <Marker
-                key={c.key}
-                coordinate={{
-                  latitude: c.latitude,
-                  longitude: c.longitude,
-                }}
-                onPress={() =>
-                  navigation.navigate('SaleDetail', { saleId: c.point.id })
-                }
-                tracksViewChanges={false}
-              >
-                <MapPin status={c.point.status} />
-              </Marker>
-            ),
-          )}
+          {favorites.map((sale) => (
+            <Marker
+              key={sale.id}
+              coordinate={{
+                latitude: sale.latitude,
+                longitude: sale.longitude,
+              }}
+              onPress={() =>
+                navigation.navigate('SaleDetail', { saleId: sale.id })
+              }
+              tracksViewChanges={false}
+            >
+              <MapPin status={sale.status} />
+            </Marker>
+          ))}
         </MapView>
       </View>
 

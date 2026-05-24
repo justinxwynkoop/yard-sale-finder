@@ -23,14 +23,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
-import {
-  useMapClustering,
-  zoomToRegionDelta,
-} from '../../hooks/useMapClustering';
 import { MapStackParamList } from '../../types';
 import FilterBar from '../../components/FilterBar';
 import { MapPin } from '../../components/MapPin';
-import { MapClusterPin } from '../../components/MapClusterPin';
 import SaleListCard from '../../components/SaleListCard';
 import { IconButton, EmptyState } from '../../components/ui';
 import { haversineMeters } from '../../utils/distance';
@@ -68,7 +63,6 @@ export default function MapHomeScreen() {
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   // Live region — feeds the clustering hook so cluster bubbles
   // re-bucket as the user zooms / pans.
-  const [region, setRegion] = useState<Region | null>(null);
 
   // Fetch every non-ended sale once. The previous viewport-bounded
   // version caused pins to blink on / off during zoom gestures because
@@ -211,21 +205,6 @@ export default function MapHomeScreen() {
     [filteredSales],
   );
 
-  // Drive clustering off the filtered sales + current viewport. Output
-  // is a flat list of features, each either an individual point
-  // (render MapPin) or a cluster bubble (render MapClusterPin).
-  //
-  // Important: the resulting <Marker>s have to be rendered as DIRECT
-  // children of <MapView> -- react-native-maps' new-arch native side
-  // requires that. Wrapping them in a child component caused
-  // NSInvalidArgumentException: object cannot be nil during native
-  // mount.
-  const { clusters, getExpansionZoom } = useMapClustering(
-    filteredSales,
-    region,
-    { radius: 60, maxZoom: 14, minPoints: 2 },
-  );
-
   const goToUserLocation = useCallback(async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
@@ -243,8 +222,6 @@ export default function MapHomeScreen() {
 
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
-      // Drive the clustering hook with the new viewport.
-      setRegion(region);
       // Persist where the user is looking so re-opening the app drops
       // them right back here instead of US-center or wherever iOS
       // thinks they are. Debounced inside useLastMapRegion.
@@ -275,47 +252,21 @@ export default function MapHomeScreen() {
           showsUserLocation
           showsMyLocationButton={false}
         >
-          {clusters.map((c) =>
-            c.isCluster ? (
-              <Marker
-                key={c.key}
-                coordinate={{
-                  latitude: c.latitude,
-                  longitude: c.longitude,
-                }}
-                onPress={() => {
-                  const targetZoom = getExpansionZoom(c.clusterId);
-                  const delta = zoomToRegionDelta(targetZoom);
-                  mapRef.current?.animateToRegion(
-                    {
-                      latitude: c.latitude,
-                      longitude: c.longitude,
-                      latitudeDelta: delta,
-                      longitudeDelta: delta,
-                    },
-                    300,
-                  );
-                }}
-                tracksViewChanges={false}
-              >
-                <MapClusterPin count={c.count} />
-              </Marker>
-            ) : (
-              <Marker
-                key={c.key}
-                coordinate={{
-                  latitude: c.latitude,
-                  longitude: c.longitude,
-                }}
-                onPress={() =>
-                  navigation.navigate('SaleDetail', { saleId: c.point.id })
-                }
-                tracksViewChanges={false}
-              >
-                <MapPin status={c.point.status} />
-              </Marker>
-            ),
-          )}
+          {filteredSales.map((sale) => (
+            <Marker
+              key={sale.id}
+              coordinate={{
+                latitude: sale.latitude,
+                longitude: sale.longitude,
+              }}
+              onPress={() =>
+                navigation.navigate('SaleDetail', { saleId: sale.id })
+              }
+              tracksViewChanges={false}
+            >
+              <MapPin status={sale.status} />
+            </Marker>
+          ))}
         </MapView>
 
         {/* Floating my-location FAB. No refresh button: useSales
