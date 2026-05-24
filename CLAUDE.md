@@ -8,13 +8,20 @@ Local Hauls (repo name `yard-sale-finder`) is a mobile-first community marketpla
 
 ## Development Commands
 
+**See `docs/PIPELINES.md` for the full runbook.** TL;DR:
+
 ```bash
-npm install                    # Install dependencies
-npx expo start --clear         # Start dev server (scan QR with Expo Go)
-npx expo start --android       # Start on Android
-npx expo start --ios           # Start on iOS
-npx expo start --web           # Start on web
+npm install                    # First-time setup
+npm run doctor                 # Confirm env vars, EAS auth, Supabase link
+npm run dev                    # Metro hot-reload for the dev client (default loop)
+npm run dev:tunnel             # Same, but routed via a tunnel if Wi-Fi is finicky
+npm run ota                    # Publish current code as an OTA update (auto-message from last commit)
+npm run ship:beta              # Production build + auto-submit to TestFlight (~30 min)
 ```
+
+The app *cannot* run in Expo Go — too many native modules. The two
+test paths are Metro (`npm run dev`) and TestFlight builds. The OTA
+path layers on top of a dev client built with `npm run build:dev:ios`.
 
 ### Database migrations (Supabase CLI)
 
@@ -24,13 +31,25 @@ npm run db:push                # Apply pending migrations to the remote DB
 npm run db:new -- short_name   # Create a new migration file
 npm run db:pull                # Pull dashboard-only changes into a migration
 npm run db:status              # See applied vs pending migrations
+npm run db:seed                # Copy test-data SQL to clipboard, open SQL editor
 ```
 
 Migrations live in `supabase/migrations/*.sql` and are tracked via
 `supabase_migrations.schema_migrations` on the remote DB. Edit the
-generated SQL file by hand, then `db:push`.
+generated SQL file by hand, then `db:push`. One-off scripts (e.g.
+seed data) live in `supabase/scripts/` and are NOT auto-applied.
 
-No test runner or linter is configured yet.
+### Env vars
+
+`EXPO_PUBLIC_*` env vars come from two committed sources:
+
+- **`.env`** at the repo root → Metro / `npm run dev` reads these.
+- **`eas.json`** `env` block per build profile → EAS Build / Update
+  reads these.
+
+Both currently carry the same public Supabase publishable values. If
+you add a new EXPO_PUBLIC_ var, add it to BOTH files. `npm run doctor`
+sanity-checks the second one.
 
 ## Architecture
 
