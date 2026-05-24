@@ -23,6 +23,183 @@ import { MapStackParamList, Message } from '../../types';
 type Route = RouteProp<MapStackParamList, 'Conversation'>;
 
 /**
+ * iMessage-style bubble. No inline avatars; sender is conveyed by
+ * left/right alignment + brand-orange vs. white bubbles. The "tail"
+ * (the bottom-corner kink that points toward the sender) is only
+ * rendered on the LAST bubble in a consecutive same-sender run, so
+ * a burst of three rapid messages reads as a single visual unit.
+ */
+function MessageBubble({
+  message,
+  isMine,
+  isTail,
+  isGrouped,
+}: {
+  message: Message;
+  isMine: boolean;
+  isTail: boolean;
+  isGrouped: boolean;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: isMine ? 'flex-end' : 'flex-start',
+        marginTop: isGrouped ? 2 : 8,
+      }}
+    >
+      <View
+        style={{
+          maxWidth: '78%',
+          paddingHorizontal: 13,
+          paddingVertical: 8,
+          borderRadius: 20,
+          backgroundColor: isMine ? '#F97316' : '#FFFFFF',
+          borderBottomRightRadius: isMine && isTail ? 6 : 20,
+          borderBottomLeftRadius: !isMine && isTail ? 6 : 20,
+          borderWidth: isMine ? 0 : 1,
+          borderColor: '#F4F4F5',
+        }}
+      >
+        <Text
+          selectable
+          style={{
+            fontSize: 15.5,
+            color: isMine ? '#FFFFFF' : '#18181B',
+            lineHeight: 20,
+          }}
+        >
+          {message.body}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Context card at the top of every conversation. Shows the underlying
+ * sale or listing the conversation is about: cover photo, title, and
+ * the most-relevant secondary line (price for listings, dates for
+ * sales). Tappable to jump to the full detail screen.
+ */
+function ContextCard({
+  target,
+  targetType,
+  onPress,
+}: {
+  target: ReturnType<typeof useConversation>['target'];
+  targetType: 'sale' | 'listing';
+  onPress: () => void;
+}) {
+  const title = target?.title ?? '(no longer available)';
+  let metaLine = '';
+  if (target?.kind === 'listing') {
+    metaLine =
+      target.status === 'sold'
+        ? `Sold · $${target.price.toLocaleString()}`
+        : `$${target.price.toLocaleString()}`;
+  } else if (target?.kind === 'sale') {
+    metaLine = `${formatSaleDate(target.start_date, target.end_date)} · ${formatSaleTime(
+      target.start_time,
+      target.end_time,
+    )}`;
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      android_ripple={{ color: '#F4F4F5' }}
+      style={{
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F4F4F5',
+      }}
+    >
+      {target?.image_url ? (
+        <Image
+          source={{ uri: target.image_url }}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 8,
+            backgroundColor: '#F4F4F5',
+            marginRight: 12,
+          }}
+          contentFit="cover"
+          transition={120}
+        />
+      ) : (
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 8,
+            backgroundColor: '#FFEDD5',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 12,
+          }}
+        >
+          <Ionicons
+            name={targetType === 'sale' ? 'pricetag-outline' : 'cube-outline'}
+            size={20}
+            color="#F97316"
+          />
+        </View>
+      )}
+
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: '700',
+            color: '#A1A1AA',
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+          }}
+        >
+          {targetType === 'sale' ? 'Yard sale' : 'Listing'}
+        </Text>
+        <Text
+          style={{
+            fontSize: 15,
+            fontWeight: '600',
+            color: '#18181B',
+            marginTop: 1,
+          }}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {metaLine ? (
+          <Text
+            style={{
+              fontSize: 13,
+              color: '#71717A',
+              marginTop: 1,
+            }}
+            numberOfLines={1}
+          >
+            {metaLine}
+          </Text>
+        ) : null}
+      </View>
+
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color="#A1A1AA"
+        style={{ marginLeft: 8 }}
+      />
+    </Pressable>
+  );
+}
+
+/**
  * One-on-one conversation thread. Inverted FlatList so the newest
  * message is anchored to the bottom and new messages slide in
  * naturally. Optimistic send (the bubble shows up immediately, then
@@ -217,10 +394,12 @@ export default function ConversationScreen() {
           }
         />
 
+        {/* Input row: button is absolutely positioned INSIDE the
+            input wrapper so it can never get pushed off-screen by
+            a misbehaving multiline TextInput. Same trick WhatsApp /
+            iMessage / Telegram use. */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
             paddingHorizontal: 12,
             paddingVertical: 8,
             backgroundColor: '#FFFFFF',
@@ -228,12 +407,7 @@ export default function ConversationScreen() {
             borderTopColor: '#F4F4F5',
           }}
         >
-          {/* Wrap the TextInput in a flex:1 View. The View takes the
-              remaining row width; the input fills the View. Without
-              this wrapper, a multiline TextInput with flex:1 was
-              expanding horizontally past its column and pushing the
-              send button off-screen. */}
-          <View style={{ flex: 1, marginRight: 8 }}>
+          <View style={{ position: 'relative', justifyContent: 'center' }}>
             <TextInput
               ref={inputRef}
               value={draft}
@@ -244,217 +418,44 @@ export default function ConversationScreen() {
               maxLength={2000}
               style={{
                 maxHeight: 120,
-                minHeight: 38,
-                paddingHorizontal: 14,
-                paddingVertical: 9,
+                minHeight: 40,
+                paddingLeft: 14,
+                // Reserve space on the right for the absolutely
+                // positioned send button (40px button + 4px gap).
+                paddingRight: 50,
+                paddingVertical: 10,
                 backgroundColor: '#F4F4F5',
-                borderRadius: 18,
-                fontSize: 15,
+                borderRadius: 20,
+                fontSize: 15.5,
                 color: '#18181B',
               }}
             />
+            <Pressable
+              onPress={handleSend}
+              disabled={!draft.trim()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              accessibilityState={{ disabled: !draft.trim() }}
+              style={({ pressed }) => ({
+                position: 'absolute',
+                right: 4,
+                bottom: 4,
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: draft.trim() ? '#F97316' : '#D4D4D8',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={handleSend}
-            disabled={!draft.trim()}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Send message"
-            accessibilityState={{ disabled: !draft.trim() }}
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: draft.trim() ? '#F97316' : '#E4E4E7',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
-          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-/**
- * iMessage-style bubble. No inline avatars; sender is conveyed by
- * left/right alignment + brand-orange vs. white bubbles. The "tail"
- * (the bottom-corner kink that points toward the sender) is only
- * rendered on the LAST bubble in a consecutive same-sender run, so
- * a burst of three rapid messages reads as a single visual unit.
- */
-function MessageBubble({
-  message,
-  isMine,
-  isTail,
-  isGrouped,
-}: {
-  message: Message;
-  isMine: boolean;
-  isTail: boolean;
-  isGrouped: boolean;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        justifyContent: isMine ? 'flex-end' : 'flex-start',
-        marginTop: isGrouped ? 2 : 8,
-      }}
-    >
-      <View
-        style={{
-          maxWidth: '78%',
-          paddingHorizontal: 13,
-          paddingVertical: 8,
-          borderRadius: 20,
-          backgroundColor: isMine ? '#F97316' : '#FFFFFF',
-          // Tail effect: flatten the corner closest to the sender's
-          // side on the last bubble of a run.
-          borderBottomRightRadius: isMine && isTail ? 6 : 20,
-          borderBottomLeftRadius: !isMine && isTail ? 6 : 20,
-          borderWidth: isMine ? 0 : 1,
-          borderColor: '#F4F4F5',
-        }}
-      >
-        <Text
-          selectable
-          style={{
-            fontSize: 15.5,
-            color: isMine ? '#FFFFFF' : '#18181B',
-            lineHeight: 20,
-          }}
-        >
-          {message.body}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-/**
- * Context card at the top of every conversation. Shows the underlying
- * sale or listing the conversation is about: cover photo, title, and
- * the most-relevant secondary line (price for listings, dates for
- * sales). Tappable to jump to the full detail screen.
- */
-function ContextCard({
-  target,
-  targetType,
-  onPress,
-}: {
-  target: ReturnType<typeof useConversation>['target'];
-  targetType: 'sale' | 'listing';
-  onPress: () => void;
-}) {
-  const title = target?.title ?? '(no longer available)';
-  let metaLine = '';
-  if (target?.kind === 'listing') {
-    metaLine =
-      target.status === 'sold'
-        ? `Sold · $${target.price.toLocaleString()}`
-        : `$${target.price.toLocaleString()}`;
-  } else if (target?.kind === 'sale') {
-    metaLine = `${formatSaleDate(target.start_date, target.end_date)} · ${formatSaleTime(
-      target.start_time,
-      target.end_time,
-    )}`;
-  }
-
-  return (
-    <Pressable
-      onPress={onPress}
-      android_ripple={{ color: '#F4F4F5' }}
-      style={{
-        backgroundColor: '#FFFFFF',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F4F4F5',
-      }}
-    >
-      {/* Thumbnail */}
-      {target?.image_url ? (
-        <Image
-          source={{ uri: target.image_url }}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 8,
-            backgroundColor: '#F4F4F5',
-            marginRight: 12,
-          }}
-          contentFit="cover"
-          transition={120}
-        />
-      ) : (
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 8,
-            backgroundColor: '#FFEDD5',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 12,
-          }}
-        >
-          <Ionicons
-            name={targetType === 'sale' ? 'pricetag-outline' : 'cube-outline'}
-            size={20}
-            color="#F97316"
-          />
-        </View>
-      )}
-
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: '700',
-            color: '#A1A1AA',
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-          }}
-        >
-          {targetType === 'sale' ? 'Yard sale' : 'Listing'}
-        </Text>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: '600',
-            color: '#18181B',
-            marginTop: 1,
-          }}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {metaLine ? (
-          <Text
-            style={{
-              fontSize: 13,
-              color: '#71717A',
-              marginTop: 1,
-            }}
-            numberOfLines={1}
-          >
-            {metaLine}
-          </Text>
-        ) : null}
-      </View>
-
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color="#A1A1AA"
-        style={{ marginLeft: 8 }}
-      />
-    </Pressable>
-  );
-}
