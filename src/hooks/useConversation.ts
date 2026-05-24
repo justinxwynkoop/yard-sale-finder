@@ -1,7 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Conversation, Message, Profile } from '../types';
+import { Conversation, Listing, Message, Profile, Sale } from '../types';
 import { useAuth } from './useAuth';
+
+/**
+ * The polymorphic "thing being discussed". Conversation.target_type
+ * decides which shape lives in here. Only the fields we actually
+ * render in the header are loaded.
+ */
+export type ConversationTarget =
+  | {
+      kind: 'sale';
+      title: string;
+      start_date: string;
+      end_date: string;
+      start_time: string;
+      end_time: string;
+      address: string;
+      image_url?: string;
+    }
+  | {
+      kind: 'listing';
+      title: string;
+      price: number;
+      status: 'available' | 'sold';
+      pickup_display?: string;
+      image_url?: string;
+    };
 
 /**
  * Loads a single conversation + its message history, subscribes to
@@ -16,6 +41,7 @@ export function useConversation(conversationId: string | undefined) {
   const { user } = useAuth();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
+  const [target, setTarget] = useState<ConversationTarget | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -62,6 +88,61 @@ export function useConversation(conversationId: string | undefined) {
       .eq('id', otherId)
       .maybeSingle();
     setOtherProfile((other as Profile) ?? null);
+
+    // Hydrate the target (sale or listing) so the conversation
+    // header can show a rich context card: image, title, dates/price.
+    const c = conv as Conversation;
+    if (c.target_type === 'sale') {
+      const { data } = await supabase
+        .from('sales')
+        .select(
+          'title, start_date, end_date, start_time, end_time, address, media:sale_media(url, order)',
+        )
+        .eq('id', c.target_id)
+        .maybeSingle();
+      if (data) {
+        const s = data as any as Sale;
+        const sortedMedia = (s.media ?? []).slice().sort(
+          (a, b) => (a.order ?? 0) - (b.order ?? 0),
+        );
+        setTarget({
+          kind: 'sale',
+          title: s.title,
+          start_date: s.start_date,
+          end_date: s.end_date,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          address: s.address,
+          image_url: sortedMedia[0]?.url,
+        });
+      } else {
+        setTarget(null);
+      }
+    } else if (c.target_type === 'listing') {
+      const { data } = await supabase
+        .from('listings')
+        .select(
+          'title, price, status, pickup_display, media:listing_media(url, order)',
+        )
+        .eq('id', c.target_id)
+        .maybeSingle();
+      if (data) {
+        const l = data as any as Listing;
+        const sortedMedia = (l.media ?? []).slice().sort(
+          (a, b) => (a.order ?? 0) - (b.order ?? 0),
+        );
+        setTarget({
+          kind: 'listing',
+          title: l.title,
+          price: l.price,
+          status: l.status,
+          pickup_display: l.pickup_display,
+          image_url: sortedMedia[0]?.url,
+        });
+      } else {
+        setTarget(null);
+      }
+    }
 
     const { data: msgs } = await supabase
       .from('messages')
@@ -158,6 +239,7 @@ export function useConversation(conversationId: string | undefined) {
   return {
     conversation,
     otherProfile,
+    target,
     messages,
     loading,
     error,
