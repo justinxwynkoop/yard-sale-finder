@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Conversation } from '../types';
 import { useAuth } from './useAuth';
@@ -19,6 +19,13 @@ export function useInbox() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  // useInbox is mounted in multiple places (Discover header, Profile,
+  // InboxScreen) -- each needs its own Realtime channel because
+  // Supabase Realtime rejects a second subscribe() with the same
+  // topic. A random suffix per hook instance keeps them isolated.
+  const channelIdRef = useRef(
+    `inbox-${Math.random().toString(36).slice(2, 10)}`,
+  );
 
   const fetch = useCallback(async () => {
     if (!user) {
@@ -154,7 +161,7 @@ export function useInbox() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`inbox-${user.id}`)
+      .channel(channelIdRef.current)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },

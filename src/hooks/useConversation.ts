@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Conversation, Message, Profile } from '../types';
 import { useAuth } from './useAuth';
@@ -20,6 +20,12 @@ export function useConversation(conversationId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Same channel-collision avoidance as useInbox -- Strict Mode's
+  // double-mount in development would otherwise try to subscribe two
+  // channels with identical topics and Realtime rejects the second.
+  const channelIdRef = useRef(
+    `conv-${Math.random().toString(36).slice(2, 10)}`,
+  );
 
   const fetchAll = useCallback(async () => {
     if (!conversationId || !user) {
@@ -84,7 +90,7 @@ export function useConversation(conversationId: string | undefined) {
   useEffect(() => {
     if (!conversationId) return;
     const channel = supabase
-      .channel(`conversation-${conversationId}`)
+      .channel(channelIdRef.current)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
