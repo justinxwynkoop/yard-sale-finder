@@ -16,8 +16,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import RNMaps, { Marker, Region } from 'react-native-maps';
-import MapView from 'react-native-map-clustering';
+// Vanilla react-native-maps (no clustering wrapper). See MapHomeScreen
+// for the rationale -- react-native-map-clustering crashed natively
+// under newArchEnabled at wide zoom levels.
+import MapView, { Marker, Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import {
   useFocusEffect,
@@ -67,7 +69,7 @@ const DEFAULT_REGION: Region = {
 export default function SavedHomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<RNMaps>(null);
+  const mapRef = useRef<MapView>(null);
   const fittedOnce = useRef(false);
 
   const { favorites, loading, refetch } = useFavorites();
@@ -188,10 +190,6 @@ export default function SavedHomeScreen() {
           initialRegion={DEFAULT_REGION}
           showsUserLocation
           showsMyLocationButton={false}
-          clusterColor="#F97316"
-          clusterTextColor="#fff"
-          radius={40}
-          minPoints={3}
         >
           {favorites.map((sale) => (
             <Marker

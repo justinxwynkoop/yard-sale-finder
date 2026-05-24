@@ -10,8 +10,12 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import RNMaps, { Marker, Region } from 'react-native-maps';
-import MapView from 'react-native-map-clustering';
+// Note: we previously wrapped MapView with react-native-map-clustering,
+// but it crashed natively at wide zoom levels under the new arch
+// (newArchEnabled = true in app.json). Falling back to vanilla
+// react-native-maps. We can re-introduce clustering via a more
+// stable library once marker density warrants it.
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -50,10 +54,7 @@ export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  // react-native-map-clustering wraps react-native-maps' MapView and
-  // forwards its instance — type the ref as RNMaps to expose
-  // animateToRegion + friends.
-  const mapRef = useRef<RNMaps>(null);
+  const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
   const [mapBounds, setMapBounds] = useState<
     | {
@@ -262,13 +263,6 @@ export default function MapHomeScreen() {
           onRegionChangeComplete={onRegionChangeComplete}
           showsUserLocation
           showsMyLocationButton={false}
-          // Clustering: group nearby pins into a single bubble until the
-          // user zooms in. radius=40 (default 50) tightens groups; tapping
-          // a cluster zooms in to expand it.
-          clusterColor="#F97316"
-          clusterTextColor="#fff"
-          radius={40}
-          minPoints={3}
         >
           {filteredSales.map((sale) => (
             <Marker
