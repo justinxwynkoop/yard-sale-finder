@@ -54,7 +54,7 @@ function MessageBubble({
           paddingHorizontal: 13,
           paddingVertical: 8,
           borderRadius: 20,
-          backgroundColor: isMine ? '#F97316' : '#FFFFFF',
+          backgroundColor: isMine ? '#2D5F3E' : '#FFFFFF',
           borderBottomRightRadius: isMine && isTail ? 6 : 20,
           borderBottomLeftRadius: !isMine && isTail ? 6 : 20,
           borderWidth: isMine ? 0 : 1,
@@ -147,7 +147,7 @@ function ContextCard({
           <Ionicons
             name={targetType === 'sale' ? 'pricetag-outline' : 'cube-outline'}
             size={20}
-            color="#F97316"
+            color="#2D5F3E"
           />
         </View>
       )}
@@ -294,7 +294,7 @@ export default function ConversationScreen() {
           backgroundColor: '#FAFAF9',
         }}
       >
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -441,7 +441,7 @@ export default function ConversationScreen() {
               height: 40,
               paddingHorizontal: 16,
               borderRadius: 20,
-              backgroundColor: draft.trim() ? '#F97316' : '#D4D4D8',
+              backgroundColor: draft.trim() ? '#2D5F3E' : '#D4D4D8',
               alignItems: 'center',
               justifyContent: 'center',
             }}

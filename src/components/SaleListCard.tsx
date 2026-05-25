@@ -58,7 +58,7 @@ function SaleListCardInner({
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-brand-50">
-                <Ionicons name="image-outline" size={28} color="#F97316" />
+                <Ionicons name="image-outline" size={28} color="#2D5F3E" />
               </View>
             )}
           </View>
@@ -95,7 +95,7 @@ function SaleListCardInner({
               )}
             </View>
             <View className="mt-1 flex-row items-center">
-              <Ionicons name="time-outline" size={13} color="#F97316" />
+              <Ionicons name="time-outline" size={13} color="#2D5F3E" />
               <Text
                 className="ml-1 flex-1 text-xs font-medium text-brand-600"
                 numberOfLines={1}

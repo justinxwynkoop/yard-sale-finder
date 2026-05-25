@@ -171,7 +171,7 @@ export default function SaleDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -348,7 +348,7 @@ export default function SaleDetailScreen() {
           <Card className="mt-4 p-4">
             <View className="flex-row items-center">
               <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                <Ionicons name="calendar-outline" size={20} color="#F97316" />
+                <Ionicons name="calendar-outline" size={20} color="#2D5F3E" />
               </View>
               <View className="flex-1">
                 <Text className="text-xs uppercase tracking-wide text-zinc-400">
@@ -365,7 +365,7 @@ export default function SaleDetailScreen() {
             <View className="my-3 h-px bg-zinc-100" />
             <View className="flex-row items-center">
               <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                <Ionicons name="location-outline" size={20} color="#F97316" />
+                <Ionicons name="location-outline" size={20} color="#2D5F3E" />
               </View>
               <View className="flex-1">
                 <Text className="text-xs uppercase tracking-wide text-zinc-400">

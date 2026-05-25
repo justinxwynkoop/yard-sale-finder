@@ -29,7 +29,7 @@ import {
 
 type Nav = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
-const BRAND = '#F97316';
+const BRAND = '#2D5F3E';
 const SUPPORT_EMAIL =
   process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@trove.app';
 

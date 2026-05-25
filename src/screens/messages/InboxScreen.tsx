@@ -35,7 +35,7 @@ export default function InboxScreen() {
           backgroundColor: '#FAFAF9',
         }}
       >
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -47,7 +47,7 @@ export default function InboxScreen() {
         edges={['bottom']}
       >
         <EmptyState
-          icon={<Ionicons name="chatbubbles-outline" size={32} color="#F97316" />}
+          icon={<Ionicons name="chatbubbles-outline" size={32} color="#2D5F3E" />}
           title="No messages yet"
           description={
             'When you message a seller about a sale or listing, your ' +
@@ -147,7 +147,7 @@ function ConversationRow({
                 width: 9,
                 height: 9,
                 borderRadius: 5,
-                backgroundColor: '#F97316',
+                backgroundColor: '#2D5F3E',
               }}
             />
           ) : null}
@@ -198,7 +198,7 @@ function ConversationRow({
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="image-outline" size={20} color="#F97316" />
+          <Ionicons name="image-outline" size={20} color="#2D5F3E" />
         </View>
       )}
     </Pressable>

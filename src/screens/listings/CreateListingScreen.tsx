@@ -432,7 +432,7 @@ export default function CreateListingScreen() {
               className="flex-row items-center"
               style={{ gap: 6 }}
             >
-              <Ionicons name="locate-outline" size={16} color="#F97316" />
+              <Ionicons name="locate-outline" size={16} color="#2D5F3E" />
               <Text className="text-sm font-medium text-brand-600">Use my location</Text>
             </Pressable>
 
@@ -453,7 +453,7 @@ export default function CreateListingScreen() {
                 {pinCoords && (
                   <Marker
                     coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }}
-                    pinColor="#F97316"
+                    pinColor="#2D5F3E"
                   />
                 )}
               </MapView>

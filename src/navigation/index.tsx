@@ -55,7 +55,7 @@ const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 
-const BRAND = '#F97316';
+const BRAND = '#2D5F3E';
 const INACTIVE = '#A1A1AA';
 
 // Default tab bar style. Defined once so the per-tab `screenOptions`
@@ -328,7 +328,7 @@ function MainGate() {
           backgroundColor: '#fff',
         }}
       >
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -358,7 +358,7 @@ function LoadingScreen() {
         backgroundColor: '#fff',
       }}
     >
-      <ActivityIndicator size="large" color="#F97316" />
+      <ActivityIndicator size="large" color="#2D5F3E" />
     </View>
   );
 }

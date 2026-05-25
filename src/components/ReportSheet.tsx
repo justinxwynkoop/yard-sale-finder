@@ -167,7 +167,7 @@ export function ReportSheet({
                         : 'radio-button-off'
                     }
                     size={20}
-                    color={active ? '#F97316' : '#A1A1AA'}
+                    color={active ? '#2D5F3E' : '#A1A1AA'}
                   />
                 </Pressable>
               );
@@ -199,7 +199,7 @@ export function ReportSheet({
               <Switch
                 value={alsoBlock}
                 onValueChange={setAlsoBlock}
-                trackColor={{ true: '#F97316', false: '#E4E4E7' }}
+                trackColor={{ true: '#2D5F3E', false: '#E4E4E7' }}
                 thumbColor="#fff"
               />
             </View>
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   optionActive: {
     backgroundColor: '#FFEDD5',
-    borderColor: '#F97316',
+    borderColor: '#2D5F3E',
   },
   optionLabel: {
     fontSize: 15,

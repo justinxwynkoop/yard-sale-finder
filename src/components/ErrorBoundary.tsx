@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     marginTop: 24,
-    backgroundColor: '#F97316',
+    backgroundColor: '#2D5F3E',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

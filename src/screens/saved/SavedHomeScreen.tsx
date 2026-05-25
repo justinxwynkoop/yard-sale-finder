@@ -154,7 +154,7 @@ export default function SavedHomeScreen() {
   if (loading && favorites.length === 0) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -164,7 +164,7 @@ export default function SavedHomeScreen() {
     return (
       <View style={styles.center}>
         <EmptyState
-          icon={<Ionicons name="heart-outline" size={32} color="#F97316" />}
+          icon={<Ionicons name="heart-outline" size={32} color="#2D5F3E" />}
           title="No saved sales yet"
           description={
             'Tap the heart on any sale to save it for later. ' +
@@ -248,8 +248,8 @@ export default function SavedHomeScreen() {
             <RefreshControl
               refreshing={loading}
               onRefresh={refetch}
-              tintColor="#F97316"
-              colors={['#F97316']}
+              tintColor="#2D5F3E"
+              colors={['#2D5F3E']}
             />
           }
           renderItem={({ item }) => (
@@ -269,7 +269,7 @@ export default function SavedHomeScreen() {
       <View style={[styles.topBarWrap, { top: insets.top }]}>
         <View style={styles.topBarCard}>
           <View style={styles.topBarIcon}>
-            <Ionicons name="heart" size={20} color="#F97316" />
+            <Ionicons name="heart" size={20} color="#2D5F3E" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.topBarTitle}>Saved sales</Text>
@@ -282,7 +282,7 @@ export default function SavedHomeScreen() {
             </Text>
           </View>
           {loading && favorites.length > 0 ? (
-            <ActivityIndicator color="#F97316" />
+            <ActivityIndicator color="#2D5F3E" />
           ) : null}
 
           {/* Map/List toggle */}
@@ -297,7 +297,7 @@ export default function SavedHomeScreen() {
               <Ionicons
                 name="map"
                 size={16}
-                color={viewMode === 'map' ? '#F97316' : '#71717A'}
+                color={viewMode === 'map' ? '#2D5F3E' : '#71717A'}
               />
             </Pressable>
             <Pressable
@@ -310,7 +310,7 @@ export default function SavedHomeScreen() {
               <Ionicons
                 name="list"
                 size={16}
-                color={viewMode === 'list' ? '#F97316' : '#71717A'}
+                color={viewMode === 'list' ? '#2D5F3E' : '#71717A'}
               />
             </Pressable>
           </View>
@@ -351,7 +351,7 @@ export default function SavedHomeScreen() {
                   {opt.label}
                 </Text>
                 {active && (
-                  <Ionicons name="checkmark" size={20} color="#F97316" />
+                  <Ionicons name="checkmark" size={20} color="#2D5F3E" />
                 )}
               </Pressable>
             );
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F4F4F5',
   },
   sheetRowText: { fontSize: 16, color: '#27272A' },
-  sheetRowTextActive: { color: '#F97316', fontWeight: '700' },
+  sheetRowTextActive: { color: '#2D5F3E', fontWeight: '700' },
   topBarWrap: {
     position: 'absolute',
     left: 0,

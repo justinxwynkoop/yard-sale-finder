@@ -49,7 +49,7 @@ export default function BlockedUsersScreen() {
           backgroundColor: '#FAFAF9',
         }}
       >
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -59,7 +59,7 @@ export default function BlockedUsersScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9' }} edges={['bottom']}>
         <EmptyState
           icon={
-            <Ionicons name="shield-checkmark-outline" size={32} color="#F97316" />
+            <Ionicons name="shield-checkmark-outline" size={32} color="#2D5F3E" />
           }
           title="No blocked users"
           description={

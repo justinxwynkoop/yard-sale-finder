@@ -21,7 +21,7 @@ import {
 import { AvatarEditor, Input } from '../../components/ui';
 import { toast } from '../../lib/toast';
 
-const BRAND = '#F97316';
+const BRAND = '#2D5F3E';
 
 /**
  * Edit Profile screen. Lets the user change their display name and

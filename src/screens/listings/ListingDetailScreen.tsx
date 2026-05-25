@@ -151,7 +151,7 @@ export default function ListingDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -227,7 +227,7 @@ export default function ListingDetailScreen() {
                       width: i === activeIndex ? 18 : 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: i === activeIndex ? '#F97316' : 'rgba(255,255,255,0.7)',
+                      backgroundColor: i === activeIndex ? '#2D5F3E' : 'rgba(255,255,255,0.7)',
                     }}
                   />
                 ))}
@@ -345,7 +345,7 @@ export default function ListingDetailScreen() {
             onPress={openDirections}
           >
             <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-100">
-              <Ionicons name="location" size={20} color="#F97316" />
+              <Ionicons name="location" size={20} color="#2D5F3E" />
             </View>
             <View className="flex-1">
               <Text className="text-sm font-semibold text-zinc-900" numberOfLines={2}>

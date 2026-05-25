@@ -557,7 +557,7 @@ export default function CreateSaleScreen() {
                         width: 36,
                         height: 36,
                         borderRadius: 18,
-                        backgroundColor: '#F97316',
+                        backgroundColor: '#2D5F3E',
                         borderWidth: 3,
                         borderColor: '#fff',
                         alignItems: 'center',
@@ -800,7 +800,7 @@ function ActionTile({
       className="flex-1 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 py-6 active:bg-zinc-100"
     >
       <View className="mb-2 h-10 w-10 items-center justify-center rounded-full bg-brand-50">
-        <Ionicons name={icon} size={20} color="#F97316" />
+        <Ionicons name={icon} size={20} color="#2D5F3E" />
       </View>
       <Text className="text-sm font-semibold text-zinc-900">{label}</Text>
     </Pressable>

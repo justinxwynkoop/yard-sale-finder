@@ -149,11 +149,11 @@ export default function ListingsScreen() {
         ListEmptyComponent={
           loading ? (
             <View className="flex-1 items-center justify-center py-24">
-              <ActivityIndicator size="large" color="#F97316" />
+              <ActivityIndicator size="large" color="#2D5F3E" />
             </View>
           ) : (
             <EmptyState
-              icon={<Ionicons name="storefront-outline" size={36} color="#F97316" />}
+              icon={<Ionicons name="storefront-outline" size={36} color="#2D5F3E" />}
               title="No listings found"
               description={
                 activeFilterCount > 0
