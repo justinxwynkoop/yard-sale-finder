@@ -58,7 +58,6 @@
     "production": {
       "ios": {
         "appleId": "jasonwynkoop1@yahoo.com",
-        "ascAppId": "6771190709",
         "appleTeamId": "8PHR5L3F6L"
       },
       "android": {
