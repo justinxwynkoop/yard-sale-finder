@@ -31,7 +31,7 @@ type Nav = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
 const BRAND = '#F97316';
 const SUPPORT_EMAIL =
-  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@localhauls.app';
+  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@trove.app';
 
 /**
  * Identity + settings hub. Two sections only -- Account and About --

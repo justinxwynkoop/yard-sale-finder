@@ -1,6 +1,6 @@
 # Development flow
 
-This is the day-to-day playbook for making changes to Local Hauls and
+This is the day-to-day playbook for making changes to Trove and
 getting them to your phone, your testers' phones, and eventually
 the App Store / Play Store.
 

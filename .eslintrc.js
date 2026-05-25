@@ -1,4 +1,4 @@
-// ESLint config for Local Hauls. Built on top of Expo's preset which
+// ESLint config for Trove. Built on top of Expo's preset which
 // already covers React, React Native, and TypeScript rules sanely.
 // Adds Prettier integration so format-related rules don't fight us.
 

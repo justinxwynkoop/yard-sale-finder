@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Local Hauls",
-    "slug": "yard-sale-finder",
+    "name": "Trove",
+    "slug": "trove",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "yardsalefinder",
+    "scheme": "trove",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.jwynkoop.yardsalefinder",
+      "bundleIdentifier": "com.jwynkoop.trove",
       "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFEDD5"
       },
-      "package": "com.jwynkoop.yardsalefinder",
+      "package": "com.jwynkoop.trove",
       "versionCode": 1,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
@@ -61,7 +61,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Local Hauls to access your camera."
+          "cameraPermission": "Allow Trove to access your camera."
         }
       ],
       "expo-web-browser",

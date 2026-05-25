@@ -363,12 +363,12 @@ function LoadingScreen() {
   );
 }
 
-// Deep-link config: maps incoming URLs (yardsalefinder://sale/<id>,
-// https://locahauls.app/sale/<id>) to the right screen + params. Used
+// Deep-link config: maps incoming URLs (trove://sale/<id>,
+// https://trove.app/sale/<id>) to the right screen + params. Used
 // by the Share button on SaleDetail to generate URLs friends can tap
 // to jump straight to that sale in-app.
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [Linking.createURL('/'), 'https://localhauls.app'],
+  prefixes: [Linking.createURL('/'), 'https://trove.app'],
   config: {
     screens: {
       Main: {

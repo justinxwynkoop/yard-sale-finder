@@ -31,8 +31,8 @@ need for every dev to do their own first build.
 ## 2. Clone & install
 
 ```bash
-git clone https://github.com/justinxwynkoop/yard-sale-finder.git
-cd yard-sale-finder
+git clone https://github.com/justinxwynkoop/trove.git
+cd trove
 npm install
 ```
 
@@ -68,14 +68,14 @@ add a new native module or change `app.json` plugin config.
 ### Path A — Install YOUR existing dev build (5 min, no Apple Dev needed)
 
 1. Have them create a free **Expo account** at https://expo.dev.
-2. Add them to your Expo project on https://expo.dev/accounts/jasonwynkoop1/projects/yard-sale-finder
+2. Add them to your Expo project on https://expo.dev/accounts/jasonwynkoop1/projects/trove
    under **Members** → **Invite**.
 3. They open the **EAS Builds** dashboard for the project, find the latest
    `development` profile build for their platform, and tap the install URL
    on their phone (Safari on iOS).
 4. iOS: they'll need to **trust the developer profile** under
    *Settings → General → VPN & Device Management*.
-5. The **Local Hauls (dev)** icon appears on their home screen.
+5. The **Trove (dev)** icon appears on their home screen.
 
 ### Path B — Build their own (15 min + Apple Dev account for iOS)
 
@@ -113,7 +113,7 @@ npx expo start --dev-client
 
 They'll see a QR code in the terminal. On their phone:
 
-- Open the **Local Hauls (dev)** app
+- Open the **Trove (dev)** app
 - It auto-detects Metro on the same Wi-Fi network and shows a "Recently
   in development" entry — tap to connect
 - Or tap "Scan QR code" and scan the one from Metro

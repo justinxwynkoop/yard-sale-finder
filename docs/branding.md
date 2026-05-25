@@ -2,7 +2,7 @@
 
 The Expo template assets (`assets/icon.png`, `assets/adaptive-icon.png`,
 `assets/splash-icon.png`, `assets/favicon.png`) are still in place as
-placeholders. Replace them with real Local Hauls assets before going
+placeholders. Replace them with real Trove assets before going
 public to the App Store.
 
 ## Brand spec
@@ -44,7 +44,7 @@ All as **PNG**, no transparency unless noted:
 ## Designer-friendly alternative
 
 If you want a real designer to take a pass:
-- Brief: "Local Hauls, yard sale discovery app. Brand orange `#F97316`, friendly, weekend-morning vibe. Need iOS + Android app icon + splash, all sizes."
+- Brief: "Trove, yard sale discovery app. Brand orange `#F97316`, friendly, weekend-morning vibe. Need iOS + Android app icon + splash, all sizes."
 - Budget: $50–$300 on https://99designs.com or Fiverr for a competent indie designer.
 - Deliverables: same four PNGs above plus a vector master so future variants are cheap.
 

@@ -13,8 +13,8 @@ In your Supabase dashboard:
    deep-link handler in `App.tsx`.
 
 The reset-password and email-confirmation links both redirect to
-`yardsalefinder://reset-password` and `yardsalefinder://auth-callback`. The
-scheme is set in `app.json` (`expo.scheme = "yardsalefinder"`).
+`trove://reset-password` and `trove://auth-callback`. The
+scheme is set in `app.json` (`expo.scheme = "trove"`).
 
 ## Apple Sign In
 
@@ -23,7 +23,7 @@ build or local Xcode build) because the native module isn't in Expo Go.
 
 ### Apple Developer steps
 1. Apple Developer → **Certificates, Identifiers & Profiles → Identifiers**.
-2. Find your App ID (`com.yourname.yardsalefinder`) and enable
+2. Find your App ID (`com.yourname.trove`) and enable
    **"Sign In with Apple"** capability. Save.
 3. (Only required for the OAuth-via-Supabase web fallback, not native): create
    a **Services ID** with the same Sign-In-with-Apple config + return URL set
@@ -31,7 +31,7 @@ build or local Xcode build) because the native module isn't in Expo Go.
 
 ### Supabase dashboard
 1. **Authentication → Providers → Apple** → enable.
-2. **Bundle ID**: `com.yourname.yardsalefinder` (must match the app).
+2. **Bundle ID**: `com.yourname.trove` (must match the app).
 3. If you also set up the Services ID above for web/desktop fallback, paste
    the Services ID and the JWT signing key. Not needed for the native iOS flow.
 

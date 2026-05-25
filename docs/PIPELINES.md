@@ -1,4 +1,4 @@
-# Local Hauls — Build & Ship Pipelines
+# Trove — Build & Ship Pipelines
 
 A short operational runbook so you stop guessing which command to run.
 If anything here drifts from reality, fix this file first, then the code.
@@ -39,7 +39,7 @@ Three sources, in order of who-trumps-whom:
 3. **EAS environment variables (`eas env:create`).** Per environment
    (development / preview / production). Stored on EAS servers.
 
-For *Local Hauls* we deliberately put the public Supabase keys in
+For *Trove* we deliberately put the public Supabase keys in
 **both** `.env` (for Metro) and `eas.json` (for EAS Build / Update),
 so there's no resolution-ambiguity. The keys are publishable on
 purpose — RLS, not key secrecy, is what protects data.
@@ -87,7 +87,7 @@ That publishes a JS bundle to the `production` channel on u.expo.dev,
 tagged with your last commit message.
 
 On your phone, in the dev client launcher: tap
-**yard-sale-finder → production** branch. The new bundle downloads
+**trove → production** branch. The new bundle downloads
 on launch.
 
 **Constraint:** the dev client must have all the native modules the
