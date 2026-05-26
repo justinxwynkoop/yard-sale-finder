@@ -10,8 +10,12 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import RNMaps, { Marker, Region } from 'react-native-maps';
-import MapView from 'react-native-map-clustering';
+// Note: we previously wrapped MapView with react-native-map-clustering,
+// but it crashed natively at wide zoom levels under the new arch
+// (newArchEnabled = true in app.json). Falling back to vanilla
+// react-native-maps. We can re-introduce clustering via a more
+// stable library once marker density warrants it.
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
+import { useInbox } from '../../hooks/useInbox';
 import { MapStackParamList } from '../../types';
 import FilterBar from '../../components/FilterBar';
 import { MapPin } from '../../components/MapPin';
@@ -50,36 +55,30 @@ export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  // react-native-map-clustering wraps react-native-maps' MapView and
-  // forwards its instance — type the ref as RNMaps to expose
-  // animateToRegion + friends.
-  const mapRef = useRef<RNMaps>(null);
+  const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
-  const [mapBounds, setMapBounds] = useState<
-    | {
-        minLat: number;
-        maxLat: number;
-        minLng: number;
-        maxLng: number;
-      }
-    | undefined
-  >(undefined);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   // List-mode sort. Persisted across viewMode toggles within a session.
   const [sortBy, setSortBy] = useState<SortBy>('distance');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  // Live region — feeds the clustering hook so cluster bubbles
+  // re-bucket as the user zooms / pans.
 
-  // In list mode we want ALL active sales (not bounded). In map mode the
-  // bounds filter is useful so we don't pull the world.
-  const { sales, loading, refetch } = useSales(
-    viewMode === 'map' ? mapBounds : undefined,
-  );
+  // Fetch every non-ended sale once. The previous viewport-bounded
+  // version caused pins to blink on / off during zoom gestures because
+  // each region change kicked off a fresh query and any sale outside
+  // the in-flight rectangle vanished until the next response landed.
+  // See useSales' doc comment for the longer story.
+  const { sales, loading, refetch } = useSales();
   const userLocation = useUserLocation();
   // Restore the map to wherever it was last time the app was closed.
   // Avoids the "starts in Kansas, then awkwardly pans to me" flash.
   const { region: lastRegion, save: saveLastRegion, ready: regionReady } =
     useLastMapRegion();
+  // Drives the unread dot on the inbox icon. The hook subscribes to
+  // postgres_changes on messages, so the badge updates live.
+  const { unreadCount } = useInbox();
 
   const focusLat = route.params?.focusLat;
   const focusLng = route.params?.focusLng;
@@ -227,12 +226,6 @@ export default function MapHomeScreen() {
 
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
-      setMapBounds({
-        minLat: region.latitude - region.latitudeDelta / 2,
-        maxLat: region.latitude + region.latitudeDelta / 2,
-        minLng: region.longitude - region.longitudeDelta / 2,
-        maxLng: region.longitude + region.longitudeDelta / 2,
-      });
       // Persist where the user is looking so re-opening the app drops
       // them right back here instead of US-center or wherever iOS
       // thinks they are. Debounced inside useLastMapRegion.
@@ -262,13 +255,6 @@ export default function MapHomeScreen() {
           onRegionChangeComplete={onRegionChangeComplete}
           showsUserLocation
           showsMyLocationButton={false}
-          // Clustering: group nearby pins into a single bubble until the
-          // user zooms in. radius=40 (default 50) tightens groups; tapping
-          // a cluster zooms in to expand it.
-          clusterColor="#F97316"
-          clusterTextColor="#fff"
-          radius={40}
-          minPoints={3}
         >
           {filteredSales.map((sale) => (
             <Marker
@@ -336,7 +322,7 @@ export default function MapHomeScreen() {
 
         {filteredSales.length === 0 && !loading ? (
           <EmptyState
-            icon={<Ionicons name="pricetag-outline" size={32} color="#F97316" />}
+            icon={<Ionicons name="pricetag-outline" size={32} color="#2D5F3E" />}
             title="No sales found"
             description={
               categoryFilter
@@ -354,8 +340,8 @@ export default function MapHomeScreen() {
               <RefreshControl
                 refreshing={loading}
                 onRefresh={refetch}
-                tintColor="#F97316"
-                colors={['#F97316']}
+                tintColor="#2D5F3E"
+                colors={['#2D5F3E']}
               />
             }
             renderItem={({ item }) => (
@@ -376,7 +362,7 @@ export default function MapHomeScreen() {
       <View style={[styles.topBarWrap, { top: insets.top }]}>
         <View style={styles.topBarCard}>
           <View style={styles.topBarIcon}>
-            <Ionicons name="map" size={20} color="#F97316" />
+            <Ionicons name="map" size={20} color="#2D5F3E" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.topBarTitle}>Discover sales</Text>
@@ -392,7 +378,50 @@ export default function MapHomeScreen() {
                 : 'Pan the map to find sales'}
             </Text>
           </View>
-          {loading && <ActivityIndicator color="#F97316" />}
+          {loading && <ActivityIndicator color="#2D5F3E" />}
+
+          {/* Inbox icon — pushes the Messages screen onto MapStack.
+              Red dot when the user has at least one unread message. */}
+          <Pressable
+            onPress={() =>
+              (navigation as any).navigate('Messages', { screen: 'Inbox' })
+            }
+            hitSlop={8}
+            style={{
+              width: 36,
+              height: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: 4,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unreadCount > 0
+                ? `Messages, ${unreadCount} unread`
+                : 'Messages'
+            }
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={22}
+              color="#18181B"
+            />
+            {unreadCount > 0 ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 6,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: '#2D5F3E',
+                  borderWidth: 1.5,
+                  borderColor: '#FFFFFF',
+                }}
+              />
+            ) : null}
+          </Pressable>
 
           {/* Map/List toggle */}
           <View style={styles.toggleWrap}>
@@ -406,7 +435,7 @@ export default function MapHomeScreen() {
               <Ionicons
                 name="map"
                 size={16}
-                color={viewMode === 'map' ? '#F97316' : '#71717A'}
+                color={viewMode === 'map' ? '#2D5F3E' : '#71717A'}
               />
             </Pressable>
             <Pressable
@@ -419,7 +448,7 @@ export default function MapHomeScreen() {
               <Ionicons
                 name="list"
                 size={16}
-                color={viewMode === 'list' ? '#F97316' : '#71717A'}
+                color={viewMode === 'list' ? '#2D5F3E' : '#71717A'}
               />
             </Pressable>
           </View>
@@ -463,7 +492,7 @@ export default function MapHomeScreen() {
                   {opt.label}
                 </Text>
                 {active && (
-                  <Ionicons name="checkmark" size={20} color="#F97316" />
+                  <Ionicons name="checkmark" size={20} color="#2D5F3E" />
                 )}
               </Pressable>
             );
@@ -566,7 +595,7 @@ const styles = StyleSheet.create({
     color: '#27272A',
   },
   sheetRowTextActive: {
-    color: '#F97316',
+    color: '#2D5F3E',
     fontWeight: '700',
   },
   topBarWrap: {
@@ -631,3 +660,4 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 });
+

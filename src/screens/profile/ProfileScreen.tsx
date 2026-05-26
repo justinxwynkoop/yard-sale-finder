@@ -1,71 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  Alert,
   ActivityIndicator,
-  ScrollView,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
   Pressable,
+  ScrollView,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { useAuth } from '../../hooks/useAuth';
-import { useFavorites } from '../../hooks/useFavorites';
+import { useProfile } from '../../hooks/useProfile';
 import { useAppVersion } from '../../hooks/useAppVersion';
-import { supabase } from '../../lib/supabase';
-import { Profile, MainTabParamList } from '../../types';
-import { Avatar, Badge, Button, Card, Input } from '../../components/ui';
-import { toast } from '../../lib/toast';
-import { formatSaleDate } from '../../utils/format';
+import { useInbox } from '../../hooks/useInbox';
+import { ProfileStackParamList } from '../../types';
+import {
+  Avatar,
+  Button,
+  SettingsGroup,
+  SettingsRow,
+} from '../../components/ui';
 
-type Nav = NativeStackNavigationProp<MainTabParamList, 'Profile'>;
+type Nav = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
+const BRAND = '#2D5F3E';
+const SUPPORT_EMAIL =
+  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@trove.app';
+
+/**
+ * Identity + settings hub. Two sections only -- Account and About --
+ * per the 2026-05-22 Profile redesign spec. App name is sourced from
+ * Expo config (never hardcoded). Build details are gated behind a
+ * tap-version-7-times easter egg so the main surface stays clean.
+ *
+ * Account deletion remains a destructive row in the Account group
+ * because Apple App Store Guideline 5.1.1(v) requires in-app
+ * account deletion for any app that creates accounts.
+ */
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
   const navigation = useNavigation<Nav>();
-  const { favorites } = useFavorites();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [displayName, setDisplayName] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { signOut } = useAuth();
+  const { profile, loading, error, refetch } = useProfile();
+  const { appVersion, buildNumber } = useAppVersion();
+  const { unreadCount } = useInbox();
+  const [debugOpen, setDebugOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
-        setProfile(data);
-        setDisplayName(data?.display_name ?? '');
-        setLoading(false);
-      });
-  }, [user]);
-
-  const save = async () => {
-    if (!user) {
-      Alert.alert('Not signed in', 'Sign in to save your profile.');
-      return;
-    }
-    setSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ display_name: displayName.trim() || null })
-      .eq('id', user.id);
-    setSaving(false);
-    if (error) {
-      toast.error('Could not save', error.message);
-    } else {
-      toast.success('Profile saved');
-    }
-  };
+  const appName = Constants.expoConfig?.name ?? '';
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -74,204 +60,358 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleEmailSupport = () => {
+    const subject = encodeURIComponent(`${appName || 'App'} support`);
+    const body = encodeURIComponent(
+      `\n\n---\nDevice: ${Platform.OS} ${Platform.Version}\nVersion: ${appVersion}${
+        buildNumber ? ` (${buildNumber})` : ''
+      }\n`,
+    );
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
+  };
+
+  const memberSince = profile?.created_at
+    ? new Date(profile.created_at).toLocaleString(undefined, {
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
+
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F97316" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#FFFFFF',
+        }}
+      >
+        <ActivityIndicator size="large" color={BRAND} />
       </View>
     );
   }
 
-  return (
-    <SafeAreaView className="flex-1 bg-surface">
-      <View className="bg-white px-5 py-4">
-        <Text className="text-2xl font-extrabold text-zinc-900">Profile</Text>
-      </View>
+  if (error || !profile) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <Ionicons name="cloud-offline-outline" size={36} color="#A1A1AA" />
+          <Text
+            style={{
+              marginTop: 12,
+              fontSize: 17,
+              fontWeight: '600',
+              color: '#18181B',
+            }}
+          >
+            Profile not ready yet
+          </Text>
+          <Text
+            style={{
+              marginTop: 6,
+              fontSize: 14,
+              color: '#71717A',
+              textAlign: 'center',
+            }}
+          >
+            {error ?? 'Give it a moment, then tap retry.'}
+          </Text>
+          <View style={{ marginTop: 16 }}>
+            <Button variant="outline" onPress={refetch}>
+              Retry
+            </Button>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-        <Card className="items-center px-6 py-8">
-          <Avatar uri={profile?.avatar_url} name={displayName} size="xl" />
-          <Text className="mt-4 text-lg font-bold text-zinc-900">
+  const displayName = profile.display_name ?? '';
+  const email = profile.email ?? '';
+
+  return (
+    <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 48,
+        }}
+      >
+        <View style={{ paddingHorizontal: 4, paddingTop: 4, paddingBottom: 8 }}>
+          <Text
+            style={{ fontSize: 28, fontWeight: '800', color: '#18181B' }}
+          >
+            Profile
+          </Text>
+        </View>
+
+        {/* Identity hero */}
+        <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+          <Pressable
+            onPress={() => navigation.navigate('EditProfile')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`${displayName || 'Profile'} avatar, opens Edit Profile`}
+          >
+            <Avatar uri={profile.avatar_url} name={displayName} size="xl" />
+          </Pressable>
+          <Text
+            style={{
+              marginTop: 14,
+              fontSize: 20,
+              fontWeight: '700',
+              color: '#18181B',
+            }}
+            numberOfLines={1}
+          >
             {displayName || 'Add your name'}
           </Text>
-          <Text className="mt-1 text-sm text-zinc-500">
-            {profile?.email ?? (user ? user.email : 'Not signed in')}
-          </Text>
-          {!user && (
-            <View className="mt-3">
-              <Badge tone="winding">Dev bypass — no user</Badge>
-            </View>
-          )}
-        </Card>
-
-        <Card className="p-5">
-          <Input
-            label="Display name"
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="Your name"
-            maxLength={50}
-            containerClassName="mb-4"
-          />
-          <Button onPress={save} loading={saving} size="md">
-            Save changes
-          </Button>
-        </Card>
-
-        {/* Saved sales */}
-        {favorites.length > 0 && (
-          <Card className="p-5">
-            <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Saved sales ({favorites.length})
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10 }}
+          {email ? (
+            <Text
+              style={{ marginTop: 2, fontSize: 14, color: '#71717A' }}
+              numberOfLines={1}
             >
-              {favorites.map((s) => {
-                const cover = s.media?.find((m) => m.type === 'image');
-                return (
-                  <Pressable
-                    key={s.id}
-                    onPress={() =>
-                      (navigation as any).navigate('Map', {
-                        screen: 'SaleDetail',
-                        params: { saleId: s.id },
-                      })
-                    }
-                    style={{ width: 140 }}
-                  >
-                    <View
-                      style={{
-                        width: 140,
-                        height: 100,
-                        borderRadius: 12,
-                        overflow: 'hidden',
-                        backgroundColor: '#FFEDD5',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {cover ? (
-                        <Image
-                          source={{ uri: cover.url }}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="cover"
-                          transition={150}
-                        />
-                      ) : (
-                        <Ionicons name="image-outline" size={28} color="#F97316" />
-                      )}
-                    </View>
-                    <Text className="mt-1.5 text-sm font-semibold text-zinc-900" numberOfLines={1}>
-                      {s.title}
-                    </Text>
-                    <Text className="text-xs text-zinc-500" numberOfLines={1}>
-                      {formatSaleDate(s.start_date, s.end_date)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Card>
-        )}
-
-        <AppInfoCard />
-
-        <DebugInfoCard />
-
-        <View className="mt-2">
-          <Button variant="outline" onPress={handleSignOut} textClassName="text-red-600"
-            leftIcon={<Ionicons name="log-out-outline" size={18} color="#DC2626" />}>
-            Sign out
-          </Button>
+              {email}
+            </Text>
+          ) : null}
+          {memberSince ? (
+            <Text style={{ marginTop: 6, fontSize: 12, color: '#A1A1AA' }}>
+              Member since {memberSince}
+            </Text>
+          ) : null}
+          <View style={{ marginTop: 16 }}>
+            <Button
+              variant="outline"
+              onPress={() => navigation.navigate('EditProfile')}
+            >
+              Edit Profile
+            </Button>
+          </View>
         </View>
+
+        {/* Messages — top-level shortcut that cross-navigates into
+            the Map tab's Inbox screen. Same as tapping the chat icon
+            in the Discover top bar. Unread count drives a brand-
+            colored detail string instead of the boring "0". */}
+        <SettingsGroup title="Inbox">
+          <SettingsRow
+            icon="chatbubble-ellipses-outline"
+            label="Messages"
+            detail={unreadCount > 0 ? `${unreadCount} unread` : undefined}
+            onPress={() =>
+              (navigation as any).navigate('Messages', { screen: 'Inbox' })
+            }
+          />
+        </SettingsGroup>
+
+        {/* About */}
+        <SettingsGroup title="About">
+          <SettingsRow
+            icon="mail-outline"
+            label="Email Support"
+            detail={SUPPORT_EMAIL}
+            onPress={handleEmailSupport}
+          />
+          {/* Tap-7-times debug-info easter egg is gated behind __DEV__
+              so it doesn't ship in TestFlight or App Store builds. An
+              App Reviewer accidentally tapping the version row in a
+              production build now just gets nothing -- no hidden
+              surface to confuse them or flag in review notes. */}
+          {__DEV__ ? (
+            <VersionRow
+              label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
+              onUnlock={() => setDebugOpen(true)}
+            />
+          ) : (
+            <SettingsRow
+              icon="information-circle-outline"
+              label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
+              showChevron={false}
+            />
+          )}
+        </SettingsGroup>
+
+        {/* Account -- safety-and-trust rows first, then the
+            destructive actions (Sign Out / Delete Account) at the
+            bottom per the common iOS Settings convention. */}
+        <SettingsGroup title="Account">
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Blocked Users"
+            onPress={() => navigation.navigate('BlockedUsers')}
+          />
+          <SettingsRow
+            icon="log-out-outline"
+            label="Sign Out"
+            destructive
+            showChevron={false}
+            onPress={handleSignOut}
+          />
+          <SettingsRow
+            icon="trash-outline"
+            label="Delete Account"
+            destructive
+            onPress={() => navigation.navigate('DeleteAccount')}
+          />
+        </SettingsGroup>
       </ScrollView>
+
+      <DebugInfoModal
+        visible={debugOpen}
+        onClose={() => setDebugOpen(false)}
+      />
     </SafeAreaView>
   );
 }
 
-function AppInfoCard() {
-  const { appVersion, buildNumber } = useAppVersion();
+/**
+ * Version row that opens the debug modal after 7 taps within 3
+ * seconds. Resets the counter on any pause longer than that, so
+ * casual mistaps don't open it.
+ */
+function VersionRow({
+  label,
+  onUnlock,
+}: {
+  label: string;
+  onUnlock: () => void;
+}) {
+  const taps = useRef(0);
+  const lastTap = useRef(0);
+
+  const handle = () => {
+    const now = Date.now();
+    if (now - lastTap.current > 3000) {
+      taps.current = 0;
+    }
+    lastTap.current = now;
+    taps.current += 1;
+    if (taps.current >= 7) {
+      taps.current = 0;
+      onUnlock();
+    }
+  };
+
   return (
-    <Card className="p-5">
-      <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
-        App
-      </Text>
-      <View className="flex-row items-center" style={{ gap: 12 }}>
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-          <Ionicons
-            name="information-circle-outline"
-            size={20}
-            color="#F97316"
-          />
-        </View>
-        <View className="flex-1">
-          <Text className="text-sm font-semibold text-zinc-900">
-            Local Hauls
-          </Text>
-          <Text className="text-xs text-zinc-500">
-            Version {appVersion}
-            {buildNumber ? ` (${buildNumber})` : ''}
-          </Text>
-        </View>
-      </View>
-    </Card>
+    <SettingsRow
+      icon="information-circle-outline"
+      label={label}
+      showChevron={false}
+      onPress={handle}
+    />
   );
 }
 
-/**
- * Build / runtime / OTA-update metadata. Helps confirm 'did the OTA
- * actually land?' — the updateId changes every time `eas update` runs.
- * Long-press to copy details for bug reports.
- */
-function DebugInfoCard() {
+function DebugInfoModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
   const { runtimeVersion, channel, updateId, isEmbedded, createdAt } =
     useAppVersion();
+
   return (
-    <Card className="p-5">
-      <Text className="mb-3 text-xs font-bold uppercase tracking-wider text-zinc-400">
-        Build details
-      </Text>
-      <Row label="Runtime version" value={runtimeVersion} />
-      <Row label="Channel" value={channel} />
-      <Row
-        label="Update"
-        value={
-          isEmbedded
-            ? 'embedded (no OTA applied)'
-            : (updateId ?? 'embedded').slice(0, 8)
-        }
-      />
-      <Row
-        label="Pushed"
-        value={
-          createdAt
-            ? createdAt.toLocaleString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })
-            : '—'
-        }
-      />
-    </Card>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        onPress={onClose}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.35)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
+        <Pressable
+          onPress={() => {}}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 16,
+            padding: 20,
+            width: '100%',
+            maxWidth: 360,
+            gap: 8,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '700',
+              color: '#18181B',
+              marginBottom: 8,
+            }}
+          >
+            Build details
+          </Text>
+          <DebugRow label="Runtime" value={runtimeVersion} />
+          <DebugRow label="Channel" value={channel} />
+          <DebugRow
+            label="Update"
+            value={
+              isEmbedded
+                ? 'embedded (no OTA applied)'
+                : (updateId ?? 'embedded').slice(0, 8)
+            }
+          />
+          <DebugRow
+            label="Pushed"
+            value={
+              createdAt
+                ? createdAt.toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })
+                : '—'
+            }
+          />
+          <View style={{ marginTop: 12 }}>
+            <Button variant="outline" onPress={onClose}>
+              Close
+            </Button>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function DebugRow({ label, value }: { label: string; value: string }) {
   return (
     <View
-      className="flex-row items-center justify-between py-1"
-      style={{ gap: 12 }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+      }}
     >
-      <Text className="text-xs text-zinc-500">{label}</Text>
+      <Text style={{ fontSize: 13, color: '#71717A' }}>{label}</Text>
       <Text
-        className="text-xs font-mono text-zinc-700"
         selectable
         numberOfLines={1}
+        style={{
+          fontSize: 13,
+          color: '#27272A',
+          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+          flexShrink: 1,
+        }}
       >
         {value}
       </Text>

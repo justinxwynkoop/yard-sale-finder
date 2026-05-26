@@ -203,7 +203,14 @@ export default function EditSaleScreen() {
           contentType: 'image/jpeg',
           upsert: true,
         });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        const enriched: any = new Error(
+          `Storage upload rejected (path=${path}): ${uploadError.message}`,
+        );
+        enriched.code =
+          (uploadError as any).statusCode ?? (uploadError as any).status;
+        throw enriched;
+      }
 
       const {
         data: { publicUrl },
@@ -215,7 +222,15 @@ export default function EditSaleScreen() {
         type: 'image',
         order: nextOrder++,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        const enriched: any = new Error(
+          `sale_media insert rejected: ${insertError.message}`,
+        );
+        enriched.code = insertError.code;
+        enriched.details = insertError.details;
+        enriched.hint = insertError.hint;
+        throw enriched;
+      }
     }
   };
 
@@ -295,7 +310,7 @@ export default function EditSaleScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }

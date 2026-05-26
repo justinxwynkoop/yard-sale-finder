@@ -75,7 +75,7 @@ export default function OnboardingScreen() {
         {SLIDES.map((s) => (
           <View key={s.title} style={[styles.slide, { width: SCREEN_W }]}>
             <View style={styles.iconBubble}>
-              <Ionicons name={s.icon} size={56} color="#F97316" />
+              <Ionicons name={s.icon} size={56} color="#2D5F3E" />
             </View>
             <Text style={styles.title}>{s.title}</Text>
             <Text style={styles.body}>{s.body}</Text>
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginHorizontal: 4,
   },
-  dotActive: { width: 24, backgroundColor: '#F97316' },
+  dotActive: { width: 24, backgroundColor: '#2D5F3E' },
   dotInactive: { width: 8, backgroundColor: '#E4E4E7' },
   cta: { paddingHorizontal: 24, paddingBottom: 32, paddingTop: 8 },
 });

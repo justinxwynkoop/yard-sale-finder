@@ -12,6 +12,7 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
@@ -20,6 +21,11 @@ import { Video, ResizeMode } from 'expo-av';
 import { supabase } from '../../lib/supabase';
 import { Listing, ListingMedia, ListingsStackParamList } from '../../types';
 import { PhotoViewer } from '../../components/PhotoViewer';
+import { ReportSheet } from '../../components/ReportSheet';
+import { useAuth } from '../../hooks/useAuth';
+import { useBlockedUsers } from '../../hooks/useBlockedUsers';
+import { useStartConversation } from '../../hooks/useConversation';
+import { Button } from '../../components/ui';
 
 type Route = RouteProp<ListingsStackParamList, 'ListingDetail'>;
 
@@ -37,6 +43,76 @@ export default function ListingDetailScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
+  const { user } = useAuth();
+  const { block } = useBlockedUsers();
+  const { start: startConversation } = useStartConversation();
+  const [startingConversation, setStartingConversation] = useState(false);
+
+  const isOwnListing = listing?.user_id === user?.id;
+
+  const handleMessageSeller = async () => {
+    if (!listing) return;
+    setStartingConversation(true);
+    const { id, error: convErr } = await startConversation('listing', listing.id);
+    setStartingConversation(false);
+    if (convErr) {
+      Alert.alert(
+        'Could not start conversation',
+        convErr.message ?? 'Please try again.',
+      );
+      return;
+    }
+    if (id) {
+      (navigation as any).navigate('Messages', {
+        screen: 'Conversation',
+        params: { conversationId: id },
+      });
+    }
+  };
+
+  const handleMoreMenu = () => {
+    if (!listing) return;
+    Alert.alert(
+      listing.title,
+      undefined,
+      [
+        {
+          text: 'Report listing',
+          style: 'destructive',
+          onPress: () => setReportOpen(true),
+        },
+        {
+          text: 'Block user',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Block user?',
+              `You won't see any sales or listings from ${
+                listing.profile?.display_name ?? 'this user'
+              } in the app.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Block',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const { error } = await block(listing.user_id);
+                    if (error) {
+                      Alert.alert('Could not block', error.message);
+                      return;
+                    }
+                    navigation.goBack();
+                  },
+                },
+              ],
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  };
 
   useEffect(() => {
     supabase
@@ -75,7 +151,7 @@ export default function ListingDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -151,7 +227,7 @@ export default function ListingDetailScreen() {
                       width: i === activeIndex ? 18 : 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: i === activeIndex ? '#F97316' : 'rgba(255,255,255,0.7)',
+                      backgroundColor: i === activeIndex ? '#2D5F3E' : 'rgba(255,255,255,0.7)',
                     }}
                   />
                 ))}
@@ -269,7 +345,7 @@ export default function ListingDetailScreen() {
             onPress={openDirections}
           >
             <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-100">
-              <Ionicons name="location" size={20} color="#F97316" />
+              <Ionicons name="location" size={20} color="#2D5F3E" />
             </View>
             <View className="flex-1">
               <Text className="text-sm font-semibold text-zinc-900" numberOfLines={2}>
@@ -297,6 +373,25 @@ export default function ListingDetailScreen() {
         </Pressable>
       </View>
 
+      {/* Sticky overflow menu (Report / Block). Hidden on the user's
+          own listing — reporting yourself is meaningless and the
+          blocked_users CHECK constraint rejects self-blocks. */}
+      {!isOwnListing && (
+        <View
+          className="absolute right-4"
+          style={{ top: insets.top + 8 }}
+        >
+          <Pressable
+            onPress={handleMoreMenu}
+            className="h-10 w-10 items-center justify-center rounded-full bg-black/40 active:bg-black/60"
+            accessibilityRole="button"
+            accessibilityLabel="More options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+          </Pressable>
+        </View>
+      )}
+
       {/* Full-screen photo viewer */}
       <PhotoViewer
         visible={isViewerOpen}
@@ -304,6 +399,34 @@ export default function ListingDetailScreen() {
         initialIndex={viewerStartIndex}
         onClose={() => setIsViewerOpen(false)}
       />
+
+      <ReportSheet
+        visible={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="listing"
+        targetId={listing.id}
+        ownerUserId={listing.user_id}
+        ownerName={listing.title}
+        onSubmitted={() => navigation.goBack()}
+      />
+
+      {/* Sticky Message-seller CTA. Hidden on the user's own listing. */}
+      {!isOwnListing && (
+        <View
+          className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3"
+        >
+          <Button
+            size="lg"
+            onPress={handleMessageSeller}
+            loading={startingConversation}
+            leftIcon={
+              <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+            }
+          >
+            Message seller
+          </Button>
+        </View>
+      )}
     </View>
   );
 }

@@ -14,11 +14,16 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
-import { SaleStackParamList, ListingsStackParamList, ItemCategory, Listing } from '../../types';
+import { ListingsStackParamList, ItemCategory, Listing } from '../../types';
 import { Chip, EmptyState, IconButton } from '../../components/ui';
 
-type Nav = NativeStackNavigationProp<SaleStackParamList>;
-type ListingsNav = NativeStackNavigationProp<ListingsStackParamList>;
+// ListingsScreen lives in ListingsStack -- the Nav type must match
+// the stack the screen is actually mounted in, otherwise
+// navigation.navigate('CreateListing') is a TypeScript-clean silent
+// no-op at runtime because the route doesn't resolve in the current
+// stack. CreateListing/EditListing are now registered on both stacks
+// (here AND on SaleStack), so this resolves locally.
+type Nav = NativeStackNavigationProp<ListingsStackParamList>;
 
 const CATEGORIES: { label: string; value: ItemCategory }[] = [
   { label: 'Furniture',   value: 'furniture'   },
@@ -72,6 +77,19 @@ export default function ListingsScreen() {
             </Text>
           </View>
           <View className="flex-row items-center" style={{ gap: 8 }}>
+            {/* Saved sales: pushed within this stack so the back
+                button returns to the Listings home rather than
+                yanking the user across tabs. The heart icon is the
+                v1 home for "your favorited sales" -- previously its
+                own bottom tab, now nested inside Listings. */}
+            <Pressable
+              onPress={() => navigation.navigate('SavedHome')}
+              accessibilityRole="button"
+              accessibilityLabel="Saved sales"
+              className="h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white active:bg-zinc-50"
+            >
+              <Ionicons name="heart-outline" size={20} color="#18181B" />
+            </Pressable>
             {/* Filter button */}
             <Pressable
               onPress={() => setFilterSheetOpen(true)}
@@ -131,11 +149,11 @@ export default function ListingsScreen() {
         ListEmptyComponent={
           loading ? (
             <View className="flex-1 items-center justify-center py-24">
-              <ActivityIndicator size="large" color="#F97316" />
+              <ActivityIndicator size="large" color="#2D5F3E" />
             </View>
           ) : (
             <EmptyState
-              icon={<Ionicons name="storefront-outline" size={36} color="#F97316" />}
+              icon={<Ionicons name="storefront-outline" size={36} color="#2D5F3E" />}
               title="No listings found"
               description={
                 activeFilterCount > 0
@@ -178,7 +196,7 @@ export default function ListingsScreen() {
 // ── Listing card (2-column grid) ───────────────────────────────────────────
 
 function ListingCard({ listing }: { listing: Listing }) {
-  const navigation = useNavigation<ListingsNav>();
+  const navigation = useNavigation<Nav>();
   const firstImage = listing.media?.find((m) => m.type === 'image');
 
   return (

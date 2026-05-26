@@ -69,7 +69,7 @@ export default function ForgotPasswordScreen() {
         >
           <View className="mb-8 mt-4 items-center">
             <View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-brand-50">
-              <Ionicons name="lock-open-outline" size={28} color="#F97316" />
+              <Ionicons name="lock-open-outline" size={28} color="#2D5F3E" />
             </View>
             <Text className="text-center text-2xl font-extrabold text-zinc-900">
               {sent ? 'Check your email' : 'Reset your password'}

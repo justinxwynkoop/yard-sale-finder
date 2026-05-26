@@ -23,3 +23,6 @@ export { DateTimeField } from './DateTimeField';
 export type { DateTimeFieldProps } from './DateTimeField';
 export { DateRangePresets } from './DateRangePresets';
 export type { DateRangePresetsProps } from './DateRangePresets';
+export { SettingsRow, SettingsGroup } from './SettingsList';
+export { AvatarEditor } from './AvatarEditor';
+export type { AvatarEditorProps } from './AvatarEditor';

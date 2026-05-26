@@ -1,8 +1,8 @@
-# Local Hauls
+# Trove
 
 A mobile app that connects yard sale hosts with nearby buyers through a live map experience. Think of it as the "Waze of yard sales" — community-powered, map-driven, and built for spontaneous discovery.
 
-> The git repo + bundle ID are still `yard-sale-finder` / `com.jwynkoop.yardsalefinder` for historical reasons. Only the user-facing app name is **Local Hauls**.
+> The git repo + bundle ID are still `trove` / `com.jwynkoop.trove` for historical reasons. Only the user-facing app name is **Trove**.
 
 ---
 
@@ -67,8 +67,8 @@ You do **not** need Xcode or Android Studio to run the app during development.
 ### 1. Clone the Repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/yard-sale-finder.git
-cd yard-sale-finder
+git clone https://github.com/YOUR_USERNAME/trove.git
+cd trove
 ```
 
 ### 2. Install Dependencies
@@ -102,7 +102,7 @@ EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=placeholder
 
 ### 4. Set Up the Database
 
-1. Go to [Supabase](https://supabase.com) and get access to the `yard-sale-finder` project
+1. Go to [Supabase](https://supabase.com) and get access to the `trove` project
 2. Open the [SQL Editor](https://supabase.com/dashboard/project/dxahcamntwtuzftxbxgx/sql)
 3. Paste the contents of `supabase/schema.sql` and run it
 
@@ -126,7 +126,7 @@ Your phone and computer must be on the **same WiFi network**.
 ## Project Structure
 
 ```
-yard-sale-finder/
+trove/
 ├── src/
 │   ├── screens/
 │   │   ├── auth/          # Login screen (Google, Apple, Facebook)

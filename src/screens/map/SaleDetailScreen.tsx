@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Share,
+  Alert,
 } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
 import { Image } from 'expo-image';
@@ -22,6 +23,9 @@ import {
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useAuth } from '../../hooks/useAuth';
+import { useBlockedUsers } from '../../hooks/useBlockedUsers';
+import { useStartConversation } from '../../hooks/useConversation';
 import {
   Avatar,
   Badge,
@@ -32,6 +36,7 @@ import {
   StatusBadge,
 } from '../../components/ui';
 import { PhotoViewer } from '../../components/PhotoViewer';
+import { ReportSheet } from '../../components/ReportSheet';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
@@ -47,7 +52,81 @@ export default function SaleDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const { isFavorited, toggle: toggleFavorite } = useFavorites();
+  const { user } = useAuth();
+  const { block } = useBlockedUsers();
+  const { start: startConversation } = useStartConversation();
+  const [startingConversation, setStartingConversation] = useState(false);
+
+  const isOwnSale = sale?.user_id === user?.id;
+
+  const handleMessageSeller = async () => {
+    if (!sale) return;
+    setStartingConversation(true);
+    const { id, error: convErr } = await startConversation('sale', sale.id);
+    setStartingConversation(false);
+    if (convErr) {
+      Alert.alert(
+        'Could not start conversation',
+        convErr.message ?? 'Please try again.',
+      );
+      return;
+    }
+    if (id) {
+      (navigation as any).navigate('Messages', {
+        screen: 'Conversation',
+        params: { conversationId: id },
+      });
+    }
+  };
+
+  const handleMoreMenu = () => {
+    if (!sale) return;
+    Alert.alert(
+      sale.title,
+      undefined,
+      [
+        {
+          text: 'Report sale',
+          style: 'destructive',
+          onPress: () => setReportOpen(true),
+        },
+        {
+          text: 'Block user',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Block user?',
+              `You won't see any sales or listings from ${
+                sale.profile?.display_name ?? 'this user'
+              } in the app.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Block',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const { error } = await block(sale.user_id);
+                    if (error) {
+                      Alert.alert('Could not block', error.message);
+                      return;
+                    }
+                    // The sale is now hidden by the blocked-user
+                    // filter, so pop back to where the user came
+                    // from instead of staring at content they just
+                    // chose to stop seeing.
+                    navigation.goBack();
+                  },
+                },
+              ],
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +171,7 @@ export default function SaleDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -209,6 +288,24 @@ export default function SaleDetailScreen() {
                 }
               }}
             />
+            {/* Overflow menu — Report / Block. Only shown on sales
+                the current user doesn't own; reporting your own
+                content doesn't make sense and blocking yourself is
+                rejected by the table's CHECK constraint anyway. */}
+            {!isOwnSale && (
+              <IconButton
+                variant="glass"
+                size="sm"
+                icon={
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={16}
+                    color="#18181B"
+                  />
+                }
+                onPress={handleMoreMenu}
+              />
+            )}
           </View>
 
           {/* Floating 'expand' button — opens full-screen viewer at the current photo */}
@@ -251,7 +348,7 @@ export default function SaleDetailScreen() {
           <Card className="mt-4 p-4">
             <View className="flex-row items-center">
               <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                <Ionicons name="calendar-outline" size={20} color="#F97316" />
+                <Ionicons name="calendar-outline" size={20} color="#2D5F3E" />
               </View>
               <View className="flex-1">
                 <Text className="text-xs uppercase tracking-wide text-zinc-400">
@@ -268,7 +365,7 @@ export default function SaleDetailScreen() {
             <View className="my-3 h-px bg-zinc-100" />
             <View className="flex-row items-center">
               <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                <Ionicons name="location-outline" size={20} color="#F97316" />
+                <Ionicons name="location-outline" size={20} color="#2D5F3E" />
               </View>
               <View className="flex-1">
                 <Text className="text-xs uppercase tracking-wide text-zinc-400">
@@ -340,8 +437,24 @@ export default function SaleDetailScreen() {
         onClose={() => setIsViewerOpen(false)}
       />
 
-      {/* Sticky CTA */}
-      <View className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3">
+      <ReportSheet
+        visible={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="sale"
+        targetId={sale.id}
+        ownerUserId={sale.user_id}
+        ownerName={sale.title}
+        onSubmitted={() => navigation.goBack()}
+      />
+
+      {/* Sticky CTA — directions is the primary action; messaging
+          the seller is a secondary outlined button. Both are hidden
+          on the user's own sale (can't message yourself, and you
+          don't need directions to your own yard). */}
+      <View
+        className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3"
+        style={{ gap: 8 }}
+      >
         <Button
           size="lg"
           onPress={openDirections}
@@ -349,6 +462,19 @@ export default function SaleDetailScreen() {
         >
           Get directions
         </Button>
+        {!isOwnSale && (
+          <Button
+            size="lg"
+            variant="outline"
+            onPress={handleMessageSeller}
+            loading={startingConversation}
+            leftIcon={
+              <Ionicons name="chatbubble-outline" size={18} color="#18181B" />
+            }
+          >
+            Message seller
+          </Button>
+        )}
       </View>
     </View>
   );

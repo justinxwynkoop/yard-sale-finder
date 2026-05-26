@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'localhauls.lastMapRegion.v1';
+// AsyncStorage key. Keep the v1 suffix in case we ever need to bump
+// the format. The "trove" prefix is the current app brand -- the old
+// "localhauls" key naturally lapses; users on a fresh install land on
+// the new key without migration.
+const KEY = 'trove.lastMapRegion.v1';
 
 export type Region = {
   latitude: number;

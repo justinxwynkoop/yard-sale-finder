@@ -91,6 +91,34 @@ export default function AuthScreen() {
           options: { emailRedirectTo: redirectTo },
         });
         if (error) throw error;
+
+        // Detect 'user_repeated_signup': Supabase doesn't return an
+        // error when the email is already registered (security: avoids
+        // user-enumeration) but the returned user has an empty
+        // identities array. We DO want to tell the user, so they're
+        // not stuck waiting for an email that won't come.
+        const alreadyExists =
+          data.user && Array.isArray(data.user.identities) &&
+          data.user.identities.length === 0;
+        if (alreadyExists) {
+          Alert.alert(
+            'Account already exists',
+            `An account with ${cleanEmail} is already set up — maybe via Sign in with Apple. Sign in instead?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Sign in',
+                onPress: () => setMode('signin'),
+              },
+              {
+                text: 'Reset password',
+                onPress: () => navigation.navigate('ForgotPassword'),
+              },
+            ],
+          );
+          return;
+        }
+
         // If email confirmation is enabled, session will be null until
         // the user clicks the link — route to a dedicated CheckEmail
         // screen with a resend option.

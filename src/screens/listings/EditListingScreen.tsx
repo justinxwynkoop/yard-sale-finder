@@ -136,12 +136,27 @@ export default function EditListingScreen() {
       const { error: uploadError } = await supabase.storage
         .from('listing-media')
         .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        const enriched: any = new Error(
+          `Storage upload rejected (path=${path}): ${uploadError.message}`,
+        );
+        enriched.code =
+          (uploadError as any).statusCode ?? (uploadError as any).status;
+        throw enriched;
+      }
       const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
       const { error: insertError } = await supabase.from('listing_media').insert({
         listing_id: listingId, url: publicUrl, type: 'image', order: startIndex + i,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        const enriched: any = new Error(
+          `listing_media insert rejected: ${insertError.message}`,
+        );
+        enriched.code = insertError.code;
+        enriched.details = insertError.details;
+        enriched.hint = insertError.hint;
+        throw enriched;
+      }
     }
   };
 
@@ -199,7 +214,7 @@ export default function EditListingScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center">
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </SafeAreaView>
     );
   }
@@ -309,7 +324,7 @@ export default function EditListingScreen() {
                 rotateEnabled={false}
               >
                 {pinCoords && (
-                  <Marker coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }} pinColor="#F97316" />
+                  <Marker coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }} pinColor="#2D5F3E" />
                 )}
               </MapView>
             </View>

@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
-import { useProfile } from '../../hooks/useProfile';
+import { useProfile, invalidateProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
 import { Avatar, Button, Input } from '../../components/ui';
 
@@ -48,8 +48,11 @@ export default function CompleteProfileScreen() {
         Alert.alert('Could not save', error.message);
         return;
       }
-      // Refetch so useProfile flips and the Navigator swaps to MainTabs.
+      // Refetch this screen's own useProfile state plus every other
+      // mounted instance (notably MainGate in the navigator) so the
+      // gate flips to MainTabs without an app relaunch.
       await refetch();
+      invalidateProfile();
     } catch (e: any) {
       console.warn('Profile save threw:', e);
       Alert.alert('Could not save', e.message ?? 'Unknown error');

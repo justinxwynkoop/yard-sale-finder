@@ -1,6 +1,10 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  LinkingOptions,
+  getFocusedRouteNameFromRoute,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
@@ -15,6 +19,8 @@ import {
   MapStackParamList,
   SaleStackParamList,
   ListingsStackParamList,
+  ProfileStackParamList,
+  MessagesStackParamList,
 } from '../types';
 
 import AuthScreen from '../screens/auth/AuthScreen';
@@ -34,15 +40,47 @@ import EditListingScreen from '../screens/listings/EditListingScreen';
 import ListingsScreen from '../screens/listings/ListingsScreen';
 import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
+import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
+import SavedHomeScreen from '../screens/saved/SavedHomeScreen';
+import InboxScreen from '../screens/messages/InboxScreen';
+import ConversationScreen from '../screens/messages/ConversationScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
 const SaleStack = createNativeStackNavigator<SaleStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 
-const BRAND = '#F97316';
+const BRAND = '#2D5F3E';
 const INACTIVE = '#A1A1AA';
+
+// Default tab bar style. Defined once so the per-tab `screenOptions`
+// can return EXACTLY this object when not hiding the bar -- toggling
+// to / from `undefined` causes a visible bounce as RN swaps the
+// custom height for its smaller default.
+const DEFAULT_TAB_BAR_STYLE = {
+  borderTopColor: '#F4F4F5',
+  height: 64,
+  paddingTop: 6,
+  paddingBottom: 10,
+} as const;
+
+// Stack routes that should hide the tab bar while focused (full-screen
+// experiences -- conversations, capture, etc.). Keep in one place so
+// the dynamic option below stays cheap.
+const FULL_SCREEN_ROUTES = new Set(['Conversation', 'Capture']);
+
+function hideTabBarOnFullScreen(route: any) {
+  const focused = getFocusedRouteNameFromRoute(route) ?? '';
+  if (FULL_SCREEN_ROUTES.has(focused)) {
+    return { display: 'none' as const };
+  }
+  return DEFAULT_TAB_BAR_STYLE;
+}
 
 function MapNavigator() {
   return (
@@ -110,7 +148,98 @@ function ListingsNavigator() {
     <ListingsStack.Navigator screenOptions={{ headerShown: false }}>
       <ListingsStack.Screen name="ListingsHome" component={ListingsScreen} />
       <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} />
+      {/* Create / Edit are also registered in SaleStack so MySales can
+          push them directly. Duplicating the registration here lets
+          taps from the Listings tab open them within this stack --
+          keeping the user in Listings instead of yanking them across
+          tabs. Same screen components either way. */}
+      <ListingsStack.Screen
+        name="CreateListing"
+        component={CreateListingScreen as any}
+      />
+      <ListingsStack.Screen
+        name="EditListing"
+        component={EditListingScreen as any}
+      />
+      {/* Saved sales: previously a dedicated bottom tab. Now lives
+          here as a pushed route, reached via the heart icon in the
+          Listings header. SaleDetail registered alongside it so
+          tapping a saved-sale card stays in the Listings tab. */}
+      <ListingsStack.Screen
+        name="SavedHome"
+        component={SavedHomeScreen}
+        options={{
+          headerShown: true,
+          title: 'Saved Sales',
+          headerStyle: { backgroundColor: '#fff' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          headerTintColor: '#18181B',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <ListingsStack.Screen
+        name="SaleDetail"
+        component={SaleDetailScreen as any}
+        options={{ headerShown: false }}
+      />
     </ListingsStack.Navigator>
+  );
+}
+
+function MessagesNavigator() {
+  return (
+    <MessagesStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerShadowVisible: false,
+        headerTintColor: '#18181B',
+        headerBackTitle: 'Back',
+      }}
+    >
+      <MessagesStack.Screen
+        name="Inbox"
+        component={InboxScreen}
+        options={{ title: 'Messages' }}
+      />
+      <MessagesStack.Screen name="Conversation" component={ConversationScreen} />
+    </MessagesStack.Navigator>
+  );
+}
+
+function ProfileNavigator() {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerShadowVisible: false,
+        headerTintColor: '#18181B',
+        headerBackTitle: 'Back',
+      }}
+    >
+      <ProfileStack.Screen
+        name="ProfileHome"
+        component={ProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Edit Profile' }}
+      />
+      <ProfileStack.Screen
+        name="BlockedUsers"
+        component={BlockedUsersScreen}
+        options={{ title: 'Blocked Users' }}
+      />
+      <ProfileStack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
+        options={{ title: 'Delete Account' }}
+      />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -123,12 +252,11 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: BRAND,
         tabBarInactiveTintColor: INACTIVE,
-        tabBarStyle: {
-          borderTopColor: '#F4F4F5',
-          height: 64,
-          paddingTop: 6,
-          paddingBottom: 10,
-        },
+        // Per-tab tabBarStyle: hide the bar when the focused nested
+        // route is full-screen (e.g. Conversation), otherwise return
+        // the same default object so React Navigation never sees a
+        // structural style change and the tab bar doesn't bounce.
+        tabBarStyle: hideTabBarOnFullScreen(route),
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -141,6 +269,8 @@ function MainTabs() {
             iconName = focused ? 'pricetag' : 'pricetag-outline';
           } else if (route.name === 'Listings') {
             iconName = focused ? 'storefront' : 'storefront-outline';
+          } else if (route.name === 'Messages') {
+            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
@@ -164,8 +294,13 @@ function MainTabs() {
         options={{ tabBarLabel: 'Listings' }}
       />
       <Tab.Screen
+        name="Messages"
+        component={MessagesNavigator}
+        options={{ tabBarLabel: 'Messages' }}
+      />
+      <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
@@ -193,7 +328,7 @@ function MainGate() {
           backgroundColor: '#fff',
         }}
       >
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#2D5F3E" />
       </View>
     );
   }
@@ -223,17 +358,17 @@ function LoadingScreen() {
         backgroundColor: '#fff',
       }}
     >
-      <ActivityIndicator size="large" color="#F97316" />
+      <ActivityIndicator size="large" color="#2D5F3E" />
     </View>
   );
 }
 
-// Deep-link config: maps incoming URLs (yardsalefinder://sale/<id>,
-// https://locahauls.app/sale/<id>) to the right screen + params. Used
+// Deep-link config: maps incoming URLs (trove://sale/<id>,
+// https://trove.app/sale/<id>) to the right screen + params. Used
 // by the Share button on SaleDetail to generate URLs friends can tap
 // to jump straight to that sale in-app.
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [Linking.createURL('/'), 'https://localhauls.app'],
+  prefixes: [Linking.createURL('/'), 'https://trove.app'],
   config: {
     screens: {
       Main: {

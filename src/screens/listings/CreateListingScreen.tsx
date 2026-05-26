@@ -152,7 +152,41 @@ export default function CreateListingScreen() {
       const { error: uploadError } = await supabase.storage
         .from('listing-media')
         .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Pull live server-validated session info into the error so
+        // the alert tells us whether the JWT is being seen, whether
+        // its sub matches user.id, what HTTP status the storage
+        // service returned, etc.
+        let serverUid: string | undefined;
+        let serverErr: string | undefined;
+        try {
+          const { data, error } = await supabase.auth.getUser();
+          serverUid = data.user?.id;
+          serverErr = error?.message;
+        } catch (e: any) {
+          serverErr = e?.message ?? String(e);
+        }
+        const ue: any = uploadError;
+        const enriched: any = new Error(
+          [
+            `Storage upload rejected`,
+            `path=${path}`,
+            `client user.id=${user!.id}`,
+            `server auth.getUser().id=${serverUid ?? '<none>'}`,
+            serverErr ? `getUser error=${serverErr}` : null,
+            `bucket=listing-media`,
+            `arrayBuffer bytes=${arrayBuffer.byteLength}`,
+            `status=${ue.status ?? ue.statusCode ?? '?'}`,
+            `name=${ue.name ?? '?'}`,
+            `msg=${ue.message}`,
+            `raw=${safeStringify(uploadError)}`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        );
+        enriched.code = ue.statusCode ?? ue.status;
+        throw enriched;
+      }
 
       const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
 
@@ -162,7 +196,26 @@ export default function CreateListingScreen() {
         type: 'image',
         order: i,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        const enriched: any = new Error(
+          `listing_media insert rejected: ${insertError.message}`,
+        );
+        enriched.code = insertError.code;
+        enriched.details = insertError.details;
+        enriched.hint = insertError.hint;
+        throw enriched;
+      }
+    }
+  };
+
+  // Compact JSON.stringify that won't throw on circular refs and
+  // trims long payloads so the alert is still readable on a phone.
+  const safeStringify = (obj: unknown) => {
+    try {
+      const s = JSON.stringify(obj);
+      return s.length > 400 ? s.slice(0, 400) + '…' : s;
+    } catch {
+      return String(obj);
     }
   };
 
@@ -181,6 +234,20 @@ export default function CreateListingScreen() {
     if (err) { Alert.alert('Almost there', err); return; }
     setSubmitting(true);
     try {
+      // Force a token refresh so an expired/stale JWT can't lead to a
+      // silent auth.uid() = NULL on the server, which manifests as a
+      // generic "new row violates row-level security policy" error.
+      const { data: refreshed, error: refreshError } =
+        await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        Alert.alert(
+          'Session expired',
+          'Please sign out and back in, then try again.',
+        );
+        setSubmitting(false);
+        return;
+      }
+
       const { data: listing, error } = await supabase
         .from('listings')
         .insert({
@@ -204,7 +271,17 @@ export default function CreateListingScreen() {
         { text: 'Done', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      const parts = [
+        e?.message,
+        e?.code ? `Code: ${e.code}` : null,
+        e?.details ? `Details: ${e.details}` : null,
+        e?.hint ? `Hint: ${e.hint}` : null,
+      ].filter(Boolean);
+      console.error('Create listing failed:', e);
+      Alert.alert(
+        'Could not post listing',
+        parts.join('\n') || 'Unknown error',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -355,7 +432,7 @@ export default function CreateListingScreen() {
               className="flex-row items-center"
               style={{ gap: 6 }}
             >
-              <Ionicons name="locate-outline" size={16} color="#F97316" />
+              <Ionicons name="locate-outline" size={16} color="#2D5F3E" />
               <Text className="text-sm font-medium text-brand-600">Use my location</Text>
             </Pressable>
 
@@ -376,7 +453,7 @@ export default function CreateListingScreen() {
                 {pinCoords && (
                   <Marker
                     coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }}
-                    pinColor="#F97316"
+                    pinColor="#2D5F3E"
                   />
                 )}
               </MapView>

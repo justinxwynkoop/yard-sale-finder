@@ -266,7 +266,16 @@ export default function CreateSaleScreen() {
           contentType,
           upsert: true,
         });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        const enriched: any = new Error(
+          `Storage upload rejected (path=${path}): ${
+            uploadError.message
+          } | ${safeStringify(uploadError)}`,
+        );
+        enriched.code =
+          (uploadError as any).statusCode ?? (uploadError as any).status;
+        throw enriched;
+      }
 
       const {
         data: { publicUrl },
@@ -278,7 +287,24 @@ export default function CreateSaleScreen() {
         type: item.type,
         order: i,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        const enriched: any = new Error(
+          `sale_media insert rejected: ${insertError.message}`,
+        );
+        enriched.code = insertError.code;
+        enriched.details = insertError.details;
+        enriched.hint = insertError.hint;
+        throw enriched;
+      }
+    }
+  };
+
+  const safeStringify = (obj: unknown) => {
+    try {
+      const s = JSON.stringify(obj);
+      return s.length > 400 ? s.slice(0, 400) + '…' : s;
+    } catch {
+      return String(obj);
     }
   };
 
@@ -303,6 +329,23 @@ export default function CreateSaleScreen() {
     }
     setSubmitting(true);
     try {
+      // Force a token refresh so an expired/stale JWT can't lead to a
+      // silent auth.uid() = NULL on the server -- which manifests as
+      // a generic "new row violates row-level security policy" error
+      // with no other clue. getSession() alone returns the in-memory
+      // session even when the access token has already expired; only
+      // refreshSession() actually proves the token is still good.
+      const { data: refreshed, error: refreshError } =
+        await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        Alert.alert(
+          'Session expired',
+          'Please sign out and back in, then try again.',
+        );
+        setSubmitting(false);
+        return;
+      }
+
       const { data: sale, error } = await supabase
         .from('sales')
         .insert({
@@ -349,7 +392,17 @@ export default function CreateSaleScreen() {
         { text: 'Done', style: 'cancel', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      // Surface full PostgREST error context (code + table) so RLS
+      // rejections aren't a mystery -- the bare e.message often
+      // strips the table name.
+      const parts = [
+        e?.message,
+        e?.code ? `Code: ${e.code}` : null,
+        e?.details ? `Details: ${e.details}` : null,
+        e?.hint ? `Hint: ${e.hint}` : null,
+      ].filter(Boolean);
+      console.error('Create sale failed:', e);
+      Alert.alert('Could not post sale', parts.join('\n') || 'Unknown error');
     } finally {
       setSubmitting(false);
     }
@@ -504,7 +557,7 @@ export default function CreateSaleScreen() {
                         width: 36,
                         height: 36,
                         borderRadius: 18,
-                        backgroundColor: '#F97316',
+                        backgroundColor: '#2D5F3E',
                         borderWidth: 3,
                         borderColor: '#fff',
                         alignItems: 'center',
@@ -747,7 +800,7 @@ function ActionTile({
       className="flex-1 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 py-6 active:bg-zinc-100"
     >
       <View className="mb-2 h-10 w-10 items-center justify-center rounded-full bg-brand-50">
-        <Ionicons name={icon} size={20} color="#F97316" />
+        <Ionicons name={icon} size={20} color="#2D5F3E" />
       </View>
       <Text className="text-sm font-semibold text-zinc-900">{label}</Text>
     </Pressable>

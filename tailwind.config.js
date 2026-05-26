@@ -9,19 +9,29 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Warm yard-sale orange — primary brand
+        // Forest-green primary, paired with warm cream backgrounds.
+        // 500 is the on-screen action color (buttons, pins, active
+        // states). 600/700 match the logo wordmark for emphasis.
         brand: {
+          50: '#EFF5EF',
+          100: '#D6E5D9',
+          200: '#ADCAB3',
+          300: '#83AE8C',
+          400: '#5A9265',
+          DEFAULT: '#2D5F3E', // 500
+          500: '#2D5F3E',
+          600: '#234D24',
+          700: '#1A3A1B',
+          800: '#102810',
+          900: '#08160A',
+        },
+        // Warm cream — the other half of the brand palette. Lives
+        // in surfaces / chip backgrounds / splash. Keeps the
+        // "vintage shop" warmth the logo establishes.
+        cream: {
+          DEFAULT: '#FFEDD5',
           50: '#FFF7ED',
           100: '#FFEDD5',
-          200: '#FED7AA',
-          300: '#FDBA74',
-          400: '#FB923C',
-          DEFAULT: '#F97316', // 500
-          500: '#F97316',
-          600: '#EA580C',
-          700: '#C2410C',
-          800: '#9A3412',
-          900: '#7C2D12',
         },
         // Status palette
         live: {

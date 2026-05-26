@@ -10,7 +10,9 @@
       "channel": "development",
       "env": {
         "EXPO_PUBLIC_ENV": "development",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dxahcamntwtuzftxbxgx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_mpxg4esDmwVJ6CkJTTJ6CA__-6QrZqJ"
       },
       "ios": {
         "simulator": false
@@ -27,7 +29,9 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dxahcamntwtuzftxbxgx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_mpxg4esDmwVJ6CkJTTJ6CA__-6QrZqJ"
       },
       "ios": {
         "simulator": false
@@ -41,7 +45,9 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dxahcamntwtuzftxbxgx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_mpxg4esDmwVJ6CkJTTJ6CA__-6QrZqJ"
       },
       "android": {
         "buildType": "app-bundle"
@@ -52,7 +58,6 @@
     "production": {
       "ios": {
         "appleId": "jasonwynkoop1@yahoo.com",
-        "ascAppId": "6771190709",
         "appleTeamId": "8PHR5L3F6L"
       },
       "android": {

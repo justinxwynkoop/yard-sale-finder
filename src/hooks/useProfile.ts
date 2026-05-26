@@ -9,9 +9,29 @@ type State = {
   error: string | null;
 };
 
+// Module-level listener set so every active useProfile() instance can
+// refetch when any caller invalidates. Replaces the Supabase realtime
+// subscription, which kept failing with "cannot add postgres_changes
+// callbacks for realtime profile" even after enrolling the table in
+// the publication. A plain JS pub/sub is simpler and more reliable for
+// what we actually need: cross-instance refetch after a save.
+const listeners = new Set<() => void>();
+
+/**
+ * Tell every mounted useProfile() that something just changed and the
+ * row should be refetched. Call this from any screen that mutates the
+ * current user's profile (CompleteProfileScreen, EditProfileScreen),
+ * immediately after a successful upsert/update.
+ */
+export function invalidateProfile() {
+  listeners.forEach((fn) => fn());
+}
+
 /**
  * Loads the current user's profile row (one-to-one with auth.users).
- * Recomputes whenever the auth user changes (sign-in / sign-out / refresh).
+ * Recomputes whenever the auth user changes (sign-in / sign-out /
+ * refresh) and whenever invalidateProfile() is called from anywhere
+ * in the app.
  */
 export function useProfile() {
   const { user } = useAuth();
@@ -49,6 +69,16 @@ export function useProfile() {
 
   useEffect(() => {
     fetchProfile();
+  }, [fetchProfile]);
+
+  // Register this instance so invalidateProfile() calls from any
+  // screen reach the navigator's useProfile too -- that's what
+  // unblocks CompleteProfile -> MainTabs after a save.
+  useEffect(() => {
+    listeners.add(fetchProfile);
+    return () => {
+      listeners.delete(fetchProfile);
+    };
   }, [fetchProfile]);
 
   return { ...state, refetch: fetchProfile };

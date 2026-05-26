@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Local Hauls",
+    "name": "Trove",
     "slug": "yard-sale-finder",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "yardsalefinder",
+    "scheme": "trove",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.jwynkoop.yardsalefinder",
+      "bundleIdentifier": "com.jwynkoop.trove",
       "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFEDD5"
       },
-      "package": "com.jwynkoop.yardsalefinder",
+      "package": "com.jwynkoop.trove",
       "versionCode": 1,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
@@ -46,7 +46,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "REPLACE_WITH_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyA7o8V5v2nDkJsu2q3K_2jDZwKg-WZG6E8"
         }
       },
       "edgeToEdgeEnabled": true,
@@ -61,7 +61,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Local Hauls to access your camera."
+          "cameraPermission": "Allow Trove to access your camera."
         }
       ],
       "expo-web-browser",
@@ -84,7 +84,9 @@
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/21cc3271-4b50-4f32-a4e4-6823f78ec3e7"
+      "url": "https://u.expo.dev/21cc3271-4b50-4f32-a4e4-6823f78ec3e7",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000
     },
     "owner": "jasonwynkoop1"
   }

@@ -1,6 +1,6 @@
 # Deployment guide
 
-How to ship Local Hauls to TestFlight (iOS) and Google Play Internal
+How to ship Trove to TestFlight (iOS) and Google Play Internal
 Testing (Android) using EAS Build + Submit.
 
 ---
@@ -37,7 +37,7 @@ Search the repo for any of these strings and replace:
 
 | Placeholder | Where | What to set it to |
 |---|---|---|
-| `com.jwynkoop.yardsalefinder` | `app.json` (ios.bundleIdentifier, android.package) | Your real reverse-DNS bundle ID (e.g. `com.yourname.yardsale`). **Must match what you register in App Store Connect + Play Console.** |
+| `com.jwynkoop.trove` | `app.json` (ios.bundleIdentifier, android.package) | Your real reverse-DNS bundle ID (e.g. `com.yourname.yardsale`). **Must match what you register in App Store Connect + Play Console.** |
 | `REPLACE_WITH_GOOGLE_MAPS_API_KEY` | `app.json` (android.config.googleMaps.apiKey) | Android Google Maps API key — see ["Google Maps API key (Android)"](#google-maps-api-key-android) below. |
 | `REPLACE_WITH_EAS_PROJECT_ID_AFTER_eas_init` | `app.json` (extra.eas.projectId) | Filled in automatically by `npx eas init`. |
 | `REPLACE_WITH_YOUR_APPLE_ID_EMAIL` | `eas.json` (submit.production.ios.appleId) | Your Apple ID email. |
@@ -62,7 +62,7 @@ and EAS account are left.
 ## Step 1 — Initial config
 
 ### 1a. Bundle identifier + package name
-Pick something you own (reverse-DNS) and search-replace `com.jwynkoop.yardsalefinder`
+Pick something you own (reverse-DNS) and search-replace `com.jwynkoop.trove`
 in `app.json` with it. **Don't change it after your first store submission**;
 Apple and Google will treat a different bundle as a different app.
 
@@ -137,9 +137,9 @@ npx eas build --profile development-simulator --platform ios
 ### 4a. Apple — create the app in App Store Connect
 
 1. https://appstoreconnect.apple.com → **My Apps → +**
-2. Platform iOS, name `Local Hauls`, primary language English,
+2. Platform iOS, name `Trove`, primary language English,
    bundle ID = the one in `app.json`, SKU = anything unique
-   (e.g. `yardsalefinder-001`).
+   (e.g. `trove-001`).
 3. Once created, note the **App Store Connect App ID** (a numeric string
    like `6450000000`) — put it in `eas.json` under
    `submit.production.ios.ascAppId`.
@@ -149,7 +149,7 @@ npx eas build --profile development-simulator --platform ios
 ### 4b. Google — create the app in Google Play Console
 
 1. https://play.google.com/console → **Create app**
-2. App name `Local Hauls`, default language English, **App**, **Free**.
+2. App name `Trove`, default language English, **App**, **Free**.
 3. After creation, go to **Setup → App integrity** to set up the app
    signing key — accept Google's recommended "use Play app signing"
    (free, automatic).

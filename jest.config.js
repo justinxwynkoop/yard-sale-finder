@@ -1,4 +1,4 @@
-// Jest config for Local Hauls. Use jest-expo's preset as-is so its
+// Jest config for Trove. Use jest-expo's preset as-is so its
 // transformIgnorePatterns (which knows about every relevant
 // node_modules ESM package) is in effect. Just add our test-file
 // pattern + coverage scope on top.

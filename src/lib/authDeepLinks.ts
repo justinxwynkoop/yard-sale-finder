@@ -3,9 +3,9 @@
 // The links Supabase emails come in two shapes depending on which auth
 // flow is configured in the project:
 //   1) Implicit flow — tokens in the URL fragment:
-//        yardsalefinder://auth-callback#access_token=...&refresh_token=...&type=recovery
+//        trove://auth-callback#access_token=...&refresh_token=...&type=recovery
 //   2) PKCE / code flow — a code in the query string:
-//        yardsalefinder://reset-password?code=abc123
+//        trove://reset-password?code=abc123
 //
 // In React Native there is no window.location for the Supabase JS client
 // to auto-detect, so we listen for Linking events ourselves and feed the

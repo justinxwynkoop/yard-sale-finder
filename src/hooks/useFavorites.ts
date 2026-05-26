@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Sale } from '../types';
 import { useAuth } from './useAuth';
+import { useBlockedUsers } from './useBlockedUsers';
 
 /**
  * Loads the current user's favorited sales with the full Sale rows
@@ -10,6 +11,7 @@ import { useAuth } from './useAuth';
  */
 export function useFavorites() {
   const { user } = useAuth();
+  const { blockedIds } = useBlockedUsers();
   const [favorites, setFavorites] = useState<Sale[]>([]);
   const [ids, setIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -72,5 +74,23 @@ export function useFavorites() {
     [user, ids, fetchFavorites],
   );
 
-  return { favorites, isFavorited, toggle, loading, refetch: fetchFavorites };
+  // Hide favorites whose owner the current user has since blocked.
+  // The favorites row still exists server-side (a future unblock
+  // restores visibility); we just don't show them while the block
+  // is active.
+  const visibleFavorites = useMemo(
+    () =>
+      blockedIds.size === 0
+        ? favorites
+        : favorites.filter((s) => !blockedIds.has(s.user_id)),
+    [favorites, blockedIds],
+  );
+
+  return {
+    favorites: visibleFavorites,
+    isFavorited,
+    toggle,
+    loading,
+    refetch: fetchFavorites,
+  };
 }
