@@ -11,7 +11,16 @@ export function useAuth() {
   const [inRecovery, setInRecovery] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      // A stale / missing refresh token means the stored session is no longer
+      // valid on the server. Sign out silently so the user lands on the auth
+      // screen instead of seeing a red "Refresh Token Not Found" error banner.
+      if (error?.message?.includes('Refresh Token Not Found') ||
+          error?.message?.includes('Invalid Refresh Token')) {
+        supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -20,6 +29,12 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED with no session means the refresh token was rejected
+      // by the server (deleted user, rotated secret, etc.). Sign out cleanly.
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        supabase.auth.signOut();
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       if (event === 'PASSWORD_RECOVERY') {
