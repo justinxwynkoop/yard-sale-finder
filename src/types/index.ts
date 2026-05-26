@@ -17,6 +17,15 @@ export interface Profile {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  // Extended onboarding fields
+  first_name: string | null;
+  last_name: string | null;
+  city: string | null;
+  state: string | null;       // 2-letter US abbreviation
+  zip_code: string | null;
+  birthdate: string | null;   // ISO date  YYYY-MM-DD
+  terms_accepted_at: string | null;
+  terms_version: string | null;
   created_at: string;
 }
 

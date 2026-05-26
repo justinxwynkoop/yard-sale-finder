@@ -11,7 +11,7 @@ import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
-import { useProfile, isProfileComplete } from '../hooks/useProfile';
+import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/useProfile';
 import { useOnboarding } from '../hooks/useOnboarding';
 import {
   RootStackParamList,
@@ -28,6 +28,7 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import CheckEmailScreen from '../screens/auth/CheckEmailScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
+import TermsScreen from '../screens/auth/TermsScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import MapHomeScreen from '../screens/map/MapHomeScreen';
 import SaleDetailScreen from '../screens/map/SaleDetailScreen';
@@ -337,10 +338,17 @@ function MainGate() {
   //   1) profile.display_name missing  -> CompleteProfileScreen
   //   2) onboarding not yet seen       -> OnboardingScreen
   //   3) otherwise                     -> MainTabs
+  // Gate 1 — collect name, birthdate (18+), and location
   if (!isProfileComplete(profile)) {
     return <CompleteProfileScreen />;
   }
 
+  // Gate 2 — must accept Terms of Service before entering the app
+  if (!hasAcceptedTerms(profile)) {
+    return <TermsScreen />;
+  }
+
+  // Gate 3 — one-time welcome / onboarding slides
   if (!onboardingCompleted) {
     return <OnboardingScreen />;
   }
