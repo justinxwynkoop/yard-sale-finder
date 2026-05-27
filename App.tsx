@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import './global.css';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -56,16 +57,18 @@ function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <OnboardingProvider>
-        <ErrorBoundary>
-          <Navigation />
-        </ErrorBoundary>
-      </OnboardingProvider>
-      <StatusBar style="auto" />
-      {/* Toast root — rendered above everything so it sits over modals too */}
-      <Toast />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <OnboardingProvider>
+          <ErrorBoundary>
+            <Navigation />
+          </ErrorBoundary>
+        </OnboardingProvider>
+        <StatusBar style="auto" />
+        {/* Toast root — rendered above everything so it sits over modals too */}
+        <Toast />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
