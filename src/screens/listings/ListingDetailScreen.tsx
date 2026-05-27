@@ -25,6 +25,7 @@ import { ReportSheet } from '../../components/ReportSheet';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
+import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { Button } from '../../components/ui';
 
 type Route = RouteProp<ListingsStackParamList, 'ListingDetail'>;
@@ -47,9 +48,11 @@ export default function ListingDetailScreen() {
   const { user } = useAuth();
   const { block } = useBlockedUsers();
   const { start: startConversation } = useStartConversation();
+  const { isFavorited, toggle: toggleFavorite } = useFavoriteListings();
   const [startingConversation, setStartingConversation] = useState(false);
 
   const isOwnListing = listing?.user_id === user?.id;
+  const favorited = listing ? isFavorited(listing.id) : false;
 
   const handleMessageSeller = async () => {
     if (!listing) return;
@@ -373,14 +376,29 @@ export default function ListingDetailScreen() {
         </Pressable>
       </View>
 
-      {/* Sticky overflow menu (Report / Block). Hidden on the user's
-          own listing — reporting yourself is meaningless and the
-          blocked_users CHECK constraint rejects self-blocks. */}
-      {!isOwnListing && (
-        <View
-          className="absolute right-4"
-          style={{ top: insets.top + 8 }}
-        >
+      {/* Top-right overlay: heart + overflow menu */}
+      <View
+        className="absolute right-4 flex-row"
+        style={{ top: insets.top + 8, gap: 8 }}
+      >
+        {/* Heart — save/unsave this listing. Hidden on own listing. */}
+        {!isOwnListing && (
+          <Pressable
+            onPress={() => listing && toggleFavorite(listing.id)}
+            className="h-10 w-10 items-center justify-center rounded-full bg-black/40 active:bg-black/60"
+            accessibilityRole="button"
+            accessibilityLabel={favorited ? 'Remove from saved' : 'Save listing'}
+          >
+            <Ionicons
+              name={favorited ? 'heart' : 'heart-outline'}
+              size={20}
+              color={favorited ? '#F43F5E' : '#fff'}
+            />
+          </Pressable>
+        )}
+
+        {/* Overflow menu (Report / Block). Hidden on own listing. */}
+        {!isOwnListing && (
           <Pressable
             onPress={handleMoreMenu}
             className="h-10 w-10 items-center justify-center rounded-full bg-black/40 active:bg-black/60"
@@ -389,8 +407,8 @@ export default function ListingDetailScreen() {
           >
             <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
           </Pressable>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Full-screen photo viewer */}
       <PhotoViewer

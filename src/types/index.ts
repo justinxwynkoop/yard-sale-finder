@@ -65,6 +65,12 @@ export interface Favorite {
   created_at: string;
 }
 
+export interface ListingFavorite {
+  user_id: string;
+  listing_id: string;
+  created_at: string;
+}
+
 export type ListingStatus = 'available' | 'sold';
 
 export interface Listing {
@@ -129,11 +135,10 @@ export type ListingsStackParamList = {
   ListingDetail: { listingId: string };
   CreateListing: undefined;
   EditListing: { listingId: string };
-  // Saved (favorited) sales live here too -- accessed via the heart
-  // icon in the Listings header. SaleDetail registered on this stack
-  // so taps on a saved-sale card push within Listings rather than
-  // yanking the user across to the Map tab.
+  // SavedHome = favorited yard sales (map + list view)
+  // SavedListings = favorited listings (list only)
   SavedHome: undefined;
+  SavedListings: undefined;
   SaleDetail: { saleId: string };
 };
 
