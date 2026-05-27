@@ -349,28 +349,9 @@ export default function CreateSaleScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(sale.id);
 
-      const focusLat = pinCoords![1];
-      const focusLng = pinCoords![0];
-
-      Alert.alert('Sale is live!', 'Your sale is now visible on the map.', [
-        {
-          text: 'View on map',
-          onPress: () => {
-            navigation.goBack();
-            // The SaleStack's parent is the bottom-tab navigator, which is
-            // the one that owns the 'Map' tab. Jump to it with nested
-            // params so MapHome animates to the new sale's coords.
-            setTimeout(() => {
-              const tabNav: any = navigation.getParent();
-              tabNav?.navigate('Map', {
-                screen: 'MapHome',
-                params: { focusLat, focusLng },
-              });
-            }, 50);
-          },
-        },
-        { text: 'Done', style: 'cancel', onPress: () => navigation.goBack() },
-      ]);
+      // Go straight to My Sales so the user can review or quickly edit
+      // the new post without any extra taps.
+      navigation.navigate('MySalesHome', { initialTab: 'sales' });
     } catch (e: any) {
       // Surface full PostgREST error context (code + table) so RLS
       // rejections aren't a mystery -- the bare e.message often

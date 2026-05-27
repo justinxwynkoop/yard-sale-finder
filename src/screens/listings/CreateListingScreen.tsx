@@ -269,9 +269,9 @@ export default function CreateListingScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(listing.id);
 
-      Alert.alert('Listing posted!', 'Buyers in your area can now find your item.', [
-        { text: 'Done', onPress: () => navigation.goBack() },
-      ]);
+      // Go straight to My Sales → Listings tab so the user can review
+      // or quickly edit the new post without any extra taps.
+      navigation.navigate('MySalesHome', { initialTab: 'listings' });
     } catch (e: any) {
       const parts = [
         e?.message,

@@ -121,8 +121,16 @@ export default function MapHomeScreen() {
     }
 
     if (lastRegion) {
-      initialPanDone.current = true;
-      return;
+      // A saved region near US center was written on a first launch before
+      // the fix above — treat it as "no saved region" so we still pan to
+      // the user's actual location instead of staying stuck there.
+      const isStaleDefault =
+        Math.abs(lastRegion.latitude - DEFAULT_REGION.latitude) < 1 &&
+        Math.abs(lastRegion.longitude - DEFAULT_REGION.longitude) < 1;
+      if (!isStaleDefault) {
+        initialPanDone.current = true;
+        return;
+      }
     }
 
     let cancelled = false;
@@ -359,7 +367,17 @@ export default function MapHomeScreen() {
   }, []);
 
   const onRegionChangeComplete = useCallback(
-    (region: Region) => { saveLastRegion(region); },
+    (region: Region) => {
+      // Don't persist the US-geographic-center default. It gets fired on
+      // first render before the user has actually viewed any real location,
+      // and saving it would lock every subsequent open at "middle of nowhere"
+      // until the user manually pans away.
+      const isDefault =
+        Math.abs(region.latitude - DEFAULT_REGION.latitude) < 1 &&
+        Math.abs(region.longitude - DEFAULT_REGION.longitude) < 1;
+      if (isDefault) return;
+      saveLastRegion(region);
+    },
     [saveLastRegion],
   );
 
