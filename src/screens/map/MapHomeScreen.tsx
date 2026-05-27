@@ -6,6 +6,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView as RNScrollView,
   StyleSheet,
   Modal,
   TextInput,
@@ -23,7 +24,8 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { MapStackParamList } from '../../types';
 import { MapPin } from '../../components/MapPin';
 import SaleListCard from '../../components/SaleListCard';
-import { IconButton, EmptyState } from '../../components/ui';
+import { IconButton, EmptyState, CategoryPicker } from '../../components/ui';
+import { ItemCategory } from '../../types';
 import { haversineMeters } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
 
@@ -47,21 +49,8 @@ const SORT_OPTIONS: { key: SortBy; label: string }[] = [
 ];
 
 // Radius options in miles. "0" means no radius filter (show all).
-const RADIUS_OPTIONS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100] as const;
-type RadiusMiles = typeof RADIUS_OPTIONS[number] | 101; // 101 = "100+"
-
-const CATEGORIES = [
-  { label: 'Furniture', value: 'furniture' },
-  { label: 'Clothing', value: 'clothing' },
-  { label: 'Electronics', value: 'electronics' },
-  { label: 'Toys', value: 'toys' },
-  { label: 'Tools', value: 'tools' },
-  { label: 'Books', value: 'books' },
-  { label: 'Kitchen', value: 'kitchen' },
-  { label: 'Sports', value: 'sports' },
-  { label: 'Antiques', value: 'antiques' },
-  { label: 'Other', value: 'other' },
-] as const;
+const RADIUS_OPTIONS = [5, 15, 25, 50, 100] as const;
+type RadiusMiles = typeof RADIUS_OPTIONS[number];
 
 interface SearchLocation {
   lat: number;
@@ -76,7 +65,7 @@ export default function MapHomeScreen() {
   const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
 
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<ItemCategory[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [sortBy, setSortBy] = useState<SortBy>('distance');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
@@ -89,6 +78,10 @@ export default function MapHomeScreen() {
   const [searchText, setSearchText] = useState('');
   const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // Filter sheet location input (pre-geocode text, local to filter sheet)
+  const [filterLocationText, setFilterLocationText] = useState('');
+  const [filterLocationSearching, setFilterLocationSearching] = useState(false);
 
   // Radius filter (miles). null = no filter.
   const [radiusMiles, setRadiusMiles] = useState<RadiusMiles | null>(null);
@@ -209,21 +202,85 @@ export default function MapHomeScreen() {
     finally { setSearching(false); }
   }, [searchText]);
 
+  // Filter sheet location search
+  const handleFilterLocationSearch = useCallback(async () => {
+    const query = filterLocationText.trim();
+    if (!query) return;
+    setFilterLocationSearching(true);
+    try {
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let label = query;
+
+      if (/^\d{5}$/.test(query)) {
+        const res = await fetch(`https://api.zippopotam.us/us/${query}`);
+        if (res.ok) {
+          const data = await res.json();
+          const place = data.places?.[0];
+          if (place) {
+            lat = parseFloat(place.latitude);
+            lng = parseFloat(place.longitude);
+            label = `${place['place name']}, ${place['state abbreviation']} ${query}`;
+          }
+        }
+      } else {
+        const encoded = encodeURIComponent(`${query}, USA`);
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`,
+          { headers: { 'Accept-Language': 'en' } },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data[0]) {
+            lat = parseFloat(data[0].lat);
+            lng = parseFloat(data[0].lon);
+            label = data[0].display_name?.split(',').slice(0, 2).join(', ') ?? query;
+          }
+        }
+      }
+
+      if (lat !== null && lng !== null) {
+        setSearchLocation({ lat, lng, label });
+        setSearchText(label);
+        mapRef.current?.animateToRegion(
+          { latitude: lat, longitude: lng, latitudeDelta: 0.1, longitudeDelta: 0.1 },
+          800,
+        );
+      }
+    } catch { /* network error */ }
+    finally { setFilterLocationSearching(false); }
+  }, [filterLocationText]);
+
+  const handleFilterUseMyLocation = useCallback(async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+    try {
+      const loc = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = loc.coords;
+      const label = 'Current location';
+      setSearchLocation({ lat: latitude, lng: longitude, label });
+      setSearchText(label);
+      mapRef.current?.animateToRegion(
+        { latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+        800,
+      );
+    } catch { /* ignore */ }
+  }, []);
+
   // Filter + sort + radius
   const filteredSales = useMemo(() => {
-    let result = categoryFilter
-      ? sales.filter((s) => s.categories.includes(categoryFilter as any))
+    let result = categoryFilter.length > 0
+      ? sales.filter((s) => categoryFilter.some((c) => s.categories.includes(c)))
       : sales;
 
     // Radius filter — only active when a search location is pinned
     if (searchLocation && radiusMiles !== null) {
-      const limitMeters = (radiusMiles === 101 ? 100 : radiusMiles) * 1609.34;
+      const limitMeters = radiusMiles * 1609.34;
       result = result.filter(
         (s) =>
           haversineMeters(searchLocation.lat, searchLocation.lng, s.latitude, s.longitude) <=
           limitMeters,
       );
-      // 101 = "100+" means >= 100 miles, no upper cap — same as 100 for our purposes
     }
 
     if (statusFilter) {
@@ -255,7 +312,8 @@ export default function MapHomeScreen() {
       });
     }
     return sorted;
-  }, [sales, categoryFilter, viewMode, userLocation, sortBy, searchLocation, radiusMiles, statusFilter, showSavedOnly, isFavorited]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sales, categoryFilter.join(','), viewMode, userLocation, sortBy, searchLocation, radiusMiles, statusFilter, showSavedOnly, isFavorited]);
 
   const openNowCount = useMemo(
     () => filteredSales.filter((s) => isOpenNow(s)).length,
@@ -278,7 +336,7 @@ export default function MapHomeScreen() {
   );
 
   const activeFilterCount =
-    (categoryFilter ? 1 : 0) + (radiusMiles !== null ? 1 : 0) + (statusFilter ? 1 : 0);
+    (categoryFilter.length > 0 ? 1 : 0) + (searchLocation !== null ? 1 : 0) + (statusFilter ? 1 : 0);
 
   return (
     <View style={styles.root}>
@@ -356,7 +414,7 @@ export default function MapHomeScreen() {
             icon={<Ionicons name="pricetag-outline" size={32} color="#2D5F3E" />}
             title="No sales found"
             description={
-              categoryFilter || radiusMiles !== null
+              categoryFilter.length > 0 || radiusMiles !== null
                 ? 'Try adjusting your filters.'
                 : "There aren't any active sales right now."
             }
@@ -444,9 +502,7 @@ export default function MapHomeScreen() {
             <Ionicons name="location" size={12} color="#2D5F3E" />
             <Text style={styles.locationPillText} numberOfLines={1}>
               {searchLocation.label}
-              {radiusMiles !== null
-                ? ` · within ${radiusMiles === 101 ? '100+' : radiusMiles} mi`
-                : ''}
+              {radiusMiles !== null ? ` · within ${radiusMiles} mi` : ''}
             </Text>
             <Pressable
               onPress={() => { setSearchLocation(null); setSearchText(''); }}
@@ -524,13 +580,21 @@ export default function MapHomeScreen() {
         onRequestClose={() => setFilterSheetOpen(false)}
       >
         <Pressable style={styles.sheetBackdrop} onPress={() => setFilterSheetOpen(false)} />
-        <View style={[styles.sheetCard, { paddingBottom: 44 }]}>
+        <View style={[styles.sheetCard, { paddingBottom: 44, maxHeight: '80%' }]}>
           <View style={styles.sheetGrabber} />
+          <RNScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <Text style={styles.sheetTitle}>Filters</Text>
-            {(radiusMiles !== null || categoryFilter || statusFilter) && (
+            {(radiusMiles !== null || categoryFilter.length > 0 || statusFilter || searchLocation) && (
               <Pressable
-                onPress={() => { setRadiusMiles(null); setCategoryFilter(null); setStatusFilter(null); }}
+                onPress={() => {
+                  setRadiusMiles(null);
+                  setCategoryFilter([]);
+                  setStatusFilter(null);
+                  setSearchLocation(null);
+                  setSearchText('');
+                  setFilterLocationText('');
+                }}
                 hitSlop={8}
               >
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#2D5F3E' }}>Clear all</Text>
@@ -538,39 +602,55 @@ export default function MapHomeScreen() {
             )}
           </View>
 
-          <Text style={styles.filterSectionLabel}>Search radius</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-            {([...RADIUS_OPTIONS, 101] as (RadiusMiles)[]).map((miles) => {
-              const label = miles === 101 ? '100+ mi' : `${miles} mi`;
+          {/* Location */}
+          <Text style={styles.filterSectionLabel}>Location</Text>
+          <View style={{ marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F4F5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 8, marginBottom: 8 }}>
+              <Ionicons name="search-outline" size={16} color="#A1A1AA" />
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: '#18181B', padding: 0 }}
+                placeholder="City, state, or ZIP code"
+                placeholderTextColor="#A1A1AA"
+                value={filterLocationText}
+                onChangeText={setFilterLocationText}
+                returnKeyType="search"
+                onSubmitEditing={handleFilterLocationSearch}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {filterLocationSearching && <ActivityIndicator size="small" color="#2D5F3E" />}
+            </View>
+            <Pressable onPress={handleFilterUseMyLocation} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
+              <Ionicons name="locate-outline" size={14} color="#2D5F3E" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#2D5F3E' }}>Use my current location</Text>
+            </Pressable>
+            {searchLocation && (
+              <Text style={{ fontSize: 12, color: '#71717A', marginTop: 4 }}>
+                📍 {searchLocation.label}
+              </Text>
+            )}
+          </View>
+
+          {/* Distance */}
+          <Text style={styles.filterSectionLabel}>Distance</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            {[5, 15, 25, 50, 100].map((miles) => {
               const active = radiusMiles === miles;
               return (
                 <Pressable
                   key={miles}
-                  onPress={() => setRadiusMiles(active ? null : miles)}
+                  onPress={() => setRadiusMiles(active ? null : miles as RadiusMiles)}
                   style={[styles.radiusChip, active && styles.radiusChipActive]}
                 >
-                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>
-                    {label}
-                  </Text>
+                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{miles} mi</Text>
                 </Pressable>
               );
             })}
           </View>
 
           <Text style={styles.filterSectionLabel}>Category</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-            {CATEGORIES.map(({ label, value }) => {
-              const active = categoryFilter === value;
-              return (
-                <Pressable
-                  key={value}
-                  onPress={() => setCategoryFilter(active ? null : value)}
-                  style={[styles.radiusChip, active && styles.radiusChipActive]}
-                >
-                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{label}</Text>
-                </Pressable>
-              );
-            })}
+          <View style={{ marginBottom: 20 }}>
+            <CategoryPicker selected={categoryFilter} onChange={setCategoryFilter} />
           </View>
 
           <Text style={styles.filterSectionLabel}>Status</Text>
@@ -590,6 +670,44 @@ export default function MapHomeScreen() {
                 </Pressable>
               );
             })}
+          </View>
+          </RNScrollView>
+
+          {/* Footer — always visible regardless of scroll position */}
+          <View style={{ flexDirection: 'row', gap: 10, paddingTop: 12 }}>
+            <Pressable
+              onPress={() => {
+                setRadiusMiles(null);
+                setCategoryFilter([]);
+                setStatusFilter(null);
+                setSearchLocation(null);
+                setSearchText('');
+                setFilterLocationText('');
+              }}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#E4E4E7',
+                backgroundColor: '#fff',
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#52525B' }}>Reset</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setFilterSheetOpen(false)}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                borderRadius: 16,
+                backgroundColor: '#2D5F3E',
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Show Results</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>

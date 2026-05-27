@@ -25,25 +25,12 @@ import { captureBus } from '../../lib/captureBus';
 import { compressImage } from '../../lib/imageCompression';
 import {
   Button,
-  Chip,
+  CategoryPicker,
   DateRangePresets,
   DateTimeField,
   IconButton,
   Input,
 } from '../../components/ui';
-
-const CATEGORIES: ItemCategory[] = [
-  'furniture',
-  'clothing',
-  'electronics',
-  'toys',
-  'tools',
-  'books',
-  'kitchen',
-  'sports',
-  'antiques',
-  'other',
-];
 
 const MAX_TITLE = 80;
 const MAX_DESCRIPTION = 500;
@@ -233,13 +220,6 @@ export default function CreateSaleScreen() {
     } catch {
       /* ignore */
     }
-  };
-
-  // -- Categories --
-  const toggleCategory = (cat: ItemCategory) => {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
-    );
   };
 
   // -- Submit --
@@ -696,17 +676,7 @@ export default function CreateSaleScreen() {
             title="What you're selling"
             subtitle="Pick any that apply — helps buyers filter."
           >
-            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-              {CATEGORIES.map((cat) => (
-                <Chip
-                  key={cat}
-                  label={cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  size="sm"
-                  active={selectedCategories.includes(cat)}
-                  onPress={() => toggleCategory(cat)}
-                />
-              ))}
-            </View>
+            <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
             {selectedCategories.length > 0 && (
               <Text className="mt-2 text-xs text-zinc-500">
                 {selectedCategories.length} selected

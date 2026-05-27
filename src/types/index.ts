@@ -3,7 +3,13 @@ export type SaleStatus = 'active' | 'winding_down' | 'ended';
 export type ItemCategory =
   | 'furniture'
   | 'clothing'
+  | 'clothing_womens'
+  | 'clothing_mens'
+  | 'clothing_toddler'
+  | 'clothing_teen'
   | 'electronics'
+  | 'electronics_video_games'
+  | 'electronics_computers'
   | 'toys'
   | 'tools'
   | 'books'

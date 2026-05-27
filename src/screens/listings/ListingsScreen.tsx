@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
 import { ListingsStackParamList, ItemCategory, Listing } from '../../types';
-import { EmptyState, IconButton } from '../../components/ui';
+import { EmptyState, IconButton, CategoryPicker } from '../../components/ui';
 
 // ListingsScreen lives in ListingsStack -- the Nav type must match
 // the stack the screen is actually mounted in, otherwise
@@ -24,41 +24,30 @@ import { EmptyState, IconButton } from '../../components/ui';
 // (here AND on SaleStack), so this resolves locally.
 type Nav = NativeStackNavigationProp<ListingsStackParamList>;
 
-const CATEGORIES: { label: string; value: ItemCategory }[] = [
-  { label: 'Furniture',   value: 'furniture'   },
-  { label: 'Clothing',    value: 'clothing'    },
-  { label: 'Electronics', value: 'electronics' },
-  { label: 'Toys',        value: 'toys'        },
-  { label: 'Tools',       value: 'tools'       },
-  { label: 'Books',       value: 'books'       },
-  { label: 'Kitchen',     value: 'kitchen'     },
-  { label: 'Sports',      value: 'sports'      },
-  { label: 'Antiques',    value: 'antiques'    },
-  { label: 'Other',       value: 'other'       },
-];
 
 export default function ListingsScreen() {
   const navigation = useNavigation<Nav>();
 
-  const [category, setCategory] = useState<ItemCategory | null>(null);
+  const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [priceRangeIndex, setPriceRangeIndex] = useState<number | null>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const filters: ListingFilters = useMemo(() => {
     const range = priceRangeIndex !== null ? PRICE_RANGES[priceRangeIndex] : null;
     return {
-      category,
+      category: categories.length > 0 ? categories[0] : null,
+      categories: categories.length > 0 ? categories : undefined,
       priceMin: range?.min ?? null,
       priceMax: range?.max ?? null,
     };
-  }, [category, priceRangeIndex]);
+  }, [categories, priceRangeIndex]);
 
   const { listings, loading, refetch } = useListings(filters);
 
-  const activeFilterCount = (category ? 1 : 0) + (priceRangeIndex !== null ? 1 : 0);
+  const activeFilterCount = (categories.length > 0 ? 1 : 0) + (priceRangeIndex !== null ? 1 : 0);
 
   const clearFilters = useCallback(() => {
-    setCategory(null);
+    setCategories([]);
     setPriceRangeIndex(null);
   }, []);
 
@@ -112,10 +101,10 @@ export default function ListingsScreen() {
         {/* Active filter summary chips */}
         {activeFilterCount > 0 && (
           <View className="mt-3 flex-row flex-wrap items-center" style={{ gap: 6 }}>
-            {category && (
+            {categories.length > 0 && (
               <ActiveFilterChip
-                label={CATEGORIES.find((c) => c.value === category)?.label ?? category}
-                onRemove={() => setCategory(null)}
+                label={`${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}`}
+                onRemove={() => setCategories([])}
               />
             )}
             {priceRangeIndex !== null && (
@@ -178,8 +167,8 @@ export default function ListingsScreen() {
       <FilterSheet
         visible={filterSheetOpen}
         onClose={() => setFilterSheetOpen(false)}
-        category={category}
-        onCategoryChange={setCategory}
+        categories={categories}
+        onCategoriesChange={setCategories}
         priceRangeIndex={priceRangeIndex}
         onPriceRangeChange={setPriceRangeIndex}
         onClear={clearFilters}
@@ -257,8 +246,8 @@ function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => 
 interface FilterSheetProps {
   visible: boolean;
   onClose: () => void;
-  category: ItemCategory | null;
-  onCategoryChange: (c: ItemCategory | null) => void;
+  categories: ItemCategory[];
+  onCategoriesChange: (cats: ItemCategory[]) => void;
   priceRangeIndex: number | null;
   onPriceRangeChange: (i: number | null) => void;
   onClear: () => void;
@@ -290,8 +279,8 @@ const filterChipStyle = {
 function FilterSheet({
   visible,
   onClose,
-  category,
-  onCategoryChange,
+  categories,
+  onCategoriesChange,
   priceRangeIndex,
   onPriceRangeChange,
   onClear,
@@ -335,21 +324,8 @@ function FilterSheet({
         >
           Category
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-          {CATEGORIES.map((cat) => {
-            const active = category === cat.value;
-            return (
-              <Pressable
-                key={cat.value}
-                onPress={() => onCategoryChange(active ? null : cat.value)}
-                style={[filterChipStyle.base, active && filterChipStyle.active]}
-              >
-                <Text style={[filterChipStyle.text, active && filterChipStyle.textActive]}>
-                  {cat.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <View style={{ marginBottom: 20 }}>
+          <CategoryPicker selected={categories} onChange={onCategoriesChange} />
         </View>
 
         {/* Price range */}
@@ -382,13 +358,21 @@ function FilterSheet({
           })}
         </View>
 
-        {/* Apply */}
-        <Pressable
-          onPress={onClose}
-          className="items-center rounded-2xl bg-brand py-4 active:opacity-80"
-        >
-          <Text className="text-base font-bold text-white">Show Results</Text>
-        </Pressable>
+        {/* Actions */}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Pressable
+            onPress={() => { onClear(); onClose(); }}
+            className="flex-1 items-center rounded-2xl border border-zinc-200 bg-white py-4 active:bg-zinc-50"
+          >
+            <Text className="text-base font-semibold text-zinc-700">Reset</Text>
+          </Pressable>
+          <Pressable
+            onPress={onClose}
+            className="flex-1 items-center rounded-2xl bg-brand py-4 active:opacity-80"
+          >
+            <Text className="text-base font-bold text-white">Show Results</Text>
+          </Pressable>
+        </View>
       </View>
     </Modal>
   );

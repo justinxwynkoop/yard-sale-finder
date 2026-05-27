@@ -26,3 +26,5 @@ export type { DateRangePresetsProps } from './DateRangePresets';
 export { SettingsRow, SettingsGroup } from './SettingsList';
 export { AvatarEditor } from './AvatarEditor';
 export type { AvatarEditorProps } from './AvatarEditor';
+export { CategoryPicker } from './CategoryPicker';
+export type { CategoryPickerProps } from './CategoryPicker';

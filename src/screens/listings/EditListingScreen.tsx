@@ -22,9 +22,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import { Listing, SaleStackParamList } from '../../types';
+import { ItemCategory, Listing, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, IconButton, Input } from '../../components/ui';
+import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'EditListing'>;
 type Route = RouteProp<SaleStackParamList, 'EditListing'>;
@@ -58,6 +58,7 @@ export default function EditListingScreen() {
   const [pickupDisplay, setPickupDisplay] = useState('');
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<ItemCategory[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -74,6 +75,7 @@ export default function EditListingScreen() {
         setPickupInput(data.pickup_input);
         setPickupDisplay(data.pickup_display);
         setPinCoords({ lat: data.pickup_lat, lng: data.pickup_lng });
+        setSelectedCategories(data.categories ?? []);
         setMedia((data.media ?? []).map((m: any) => ({
           uri: m.url,
           type: m.type,
@@ -181,6 +183,7 @@ export default function EditListingScreen() {
           title: title.trim(),
           description: description.trim() || null,
           price: parseFloat(price),
+          categories: selectedCategories,
           pickup_input: pickupInput.trim(),
           pickup_display: pickupDisplay,
           pickup_lat: pinCoords!.lat,
@@ -285,6 +288,13 @@ export default function EditListingScreen() {
               keyboardType="decimal-pad"
               leftIcon={<Text className="text-base text-zinc-500">$</Text>}
             />
+          </View>
+
+          {/* Category */}
+          <View className="bg-white mt-3 px-4 py-4" style={{ gap: 12 }}>
+            <Text className="text-sm font-bold text-zinc-700">Category</Text>
+            <Text className="text-xs text-zinc-500">Help buyers find your item.</Text>
+            <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
           </View>
 
           {/* Pickup Location */}

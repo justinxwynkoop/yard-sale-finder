@@ -26,7 +26,7 @@ import {
 } from '../../types';
 import {
   Button,
-  Chip,
+  CategoryPicker,
   DateRangePresets,
   DateTimeField,
   Input,
@@ -37,19 +37,6 @@ import { compressImage } from '../../lib/imageCompression';
 
 type Route = RouteProp<SaleStackParamList, 'EditSale'>;
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'EditSale'>;
-
-const CATEGORIES: ItemCategory[] = [
-  'furniture',
-  'clothing',
-  'electronics',
-  'toys',
-  'tools',
-  'books',
-  'kitchen',
-  'sports',
-  'antiques',
-  'other',
-];
 
 const STATUSES: { value: SaleStatus; label: string }[] = [
   { value: 'active', label: 'Live now' },
@@ -140,12 +127,6 @@ export default function EditSaleScreen() {
   const totalMediaCount =
     existingMedia.length - removedMediaIds.size + newMedia.length;
   const remainingSlots = MAX_MEDIA - totalMediaCount;
-
-  const toggleCategory = (cat: ItemCategory) => {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
-    );
-  };
 
   const toggleRemoveExisting = (mediaId: string) => {
     setRemovedMediaIds((prev) => {
@@ -533,17 +514,7 @@ export default function EditSaleScreen() {
             <Text className="mb-2 text-sm font-medium text-zinc-700">
               Categories
             </Text>
-            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-              {CATEGORIES.map((cat) => (
-                <Chip
-                  key={cat}
-                  label={cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  size="sm"
-                  active={selectedCategories.includes(cat)}
-                  onPress={() => toggleCategory(cat)}
-                />
-              ))}
-            </View>
+            <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
           </View>
 
           {/* PRICING */}
