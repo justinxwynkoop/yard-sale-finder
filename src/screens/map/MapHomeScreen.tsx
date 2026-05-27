@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
@@ -94,7 +94,15 @@ export default function MapHomeScreen() {
   const [radiusMiles, setRadiusMiles] = useState<RadiusMiles | null>(null);
 
   const { sales, loading, refetch } = useSales();
-  const { isFavorited } = useFavorites();
+  const { isFavorited, refetch: refetchFavorites } = useFavorites();
+
+  // Re-fetch favorites whenever the Discover screen comes back into focus
+  // (e.g. after the user hearts a sale in SaleDetail and navigates back).
+  useFocusEffect(
+    useCallback(() => {
+      refetchFavorites();
+    }, [refetchFavorites]),
+  );
   const userLocation = useUserLocation();
   const { region: lastRegion, save: saveLastRegion, ready: regionReady } =
     useLastMapRegion();

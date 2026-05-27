@@ -205,17 +205,13 @@ export default function ProfileScreen() {
             icon="pricetag-outline"
             label="Yard Sales"
             detail={sales.length > 0 ? `${sales.length} posted` : 'None yet'}
-            onPress={() =>
-              navigation.navigate('MySalesHome')
-            }
+            onPress={() => navigation.navigate('MySalesHome', { initialTab: 'sales' })}
           />
           <SettingsRow
             icon="storefront-outline"
             label="Listings"
             detail={listings.length > 0 ? `${listings.length} posted` : 'None yet'}
-            onPress={() =>
-              (navigation as any).navigate('Listings', { screen: 'ListingsHome' })
-            }
+            onPress={() => navigation.navigate('MySalesHome', { initialTab: 'listings' })}
           />
         </SettingsGroup>
 

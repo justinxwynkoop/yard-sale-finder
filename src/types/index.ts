@@ -163,7 +163,9 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   BlockedUsers: undefined;
   DeleteAccount: undefined;
-  MySalesHome: undefined;
+  // initialTab lets Profile → "Yard Sales" and Profile → "Listings" open
+  // MySalesScreen on the right tab without exposing the other tab.
+  MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
   CreateSale: undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;

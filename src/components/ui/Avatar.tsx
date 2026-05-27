@@ -25,9 +25,13 @@ export function Avatar({ uri, name, size = 'md', className = '' }: AvatarProps) 
     return (
       <Image
         source={{ uri }}
+        // expo-image doesn't pick up NativeWind className for dimensions, so
+        // we supply explicit inline styles alongside the class for border-radius
+        // and background. The sizeMap px value is the authoritative size.
         className={['rounded-full bg-zinc-100', s.box, className]
           .filter(Boolean)
           .join(' ')}
+        style={{ width: s.px, height: s.px, borderRadius: s.px / 2 }}
       />
     );
   }
