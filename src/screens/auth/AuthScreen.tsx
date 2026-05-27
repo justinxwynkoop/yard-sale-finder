@@ -447,6 +447,19 @@ export default function AuthScreen() {
   );
 }
 
+const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
+
+function TroveSupportLink() {
+  return (
+    <Text
+      style={{ fontWeight: '600', color: '#2D5F3E' }}
+      onPress={() => Linking.openURL(SUPPORT_MAILTO)}
+    >
+      TroveSupport
+    </Text>
+  );
+}
+
 // ─── Legal Modal ─────────────────────────────────────────────────────────────
 
 function LegalModal({
@@ -582,7 +595,10 @@ function TermsContent() {
       </LegalSection>
 
       <LegalSection title="9. Contact Us">
-        {'Questions about these Terms? Contact us at:\njasonwynkoop1@yahoo.com'}
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+          {'Questions about these Terms? Contact us at: '}
+          <TroveSupportLink />
+        </Text>
       </LegalSection>
     </>
   );
@@ -617,7 +633,11 @@ function PrivacyContent() {
       </LegalSection>
 
       <LegalSection title="6. Your Rights and Choices">
-        {`• Update or delete any sale you’ve posted from the My Sales tab.\n\n• Turn off location access in iOS Settings → Privacy & Security → Location Services → Trove. The app will still work but won’t auto-center on your location.\n\n• Delete your account — email jasonwynkoop1@yahoo.com from the address associated with your account and we’ll remove your account and all your sales within a few business days.`}
+        <Text style={{ fontSize: 13, color: ‘#52525B’, lineHeight: 20 }}>
+          {"• Update or delete any sale you’ve posted from the My Sales tab.\n\n• Turn off location access in iOS Settings → Privacy & Security → Location Services → Trove. The app will still work but won’t auto-center on your location.\n\n• Delete your account — email "}
+          <TroveSupportLink />
+          {" from the address associated with your account and we’ll remove your account and all your sales within a few business days."}
+        </Text>
       </LegalSection>
 
       <LegalSection title="7. Children's Privacy">
@@ -633,7 +653,10 @@ function PrivacyContent() {
       </LegalSection>
 
       <LegalSection title="10. Contact">
-        {'Questions, deletion requests, or anything else:\njasonwynkoop1@yahoo.com'}
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+          {'Questions, deletion requests, or anything else: '}
+          <TroveSupportLink />
+        </Text>
       </LegalSection>
     </>
   );

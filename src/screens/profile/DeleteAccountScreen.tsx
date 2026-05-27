@@ -5,8 +5,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Linking,
   Platform,
 } from 'react-native';
+
+const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -69,8 +72,11 @@ export default function DeleteAccountScreen() {
     } catch (e: any) {
       Alert.alert(
         'Could not delete account',
-        e?.message ??
-          'Something went wrong. Email jasonwynkoop1@yahoo.com if this keeps happening.',
+        e?.message ?? 'Something went wrong. Contact TroveSupport if this keeps happening.',
+        [
+          { text: 'OK' },
+          { text: 'Email TroveSupport', onPress: () => Linking.openURL(SUPPORT_MAILTO) },
+        ],
       );
       setDeleting(false);
     }
@@ -173,8 +179,12 @@ export default function DeleteAccountScreen() {
           style={{ paddingHorizontal: 24 }}
         >
           Questions or concerns? Email{' '}
-          <Text className="font-semibold text-zinc-600">
-            jasonwynkoop1@yahoo.com
+          <Text
+            className="font-semibold"
+            style={{ color: '#2D5F3E' }}
+            onPress={() => Linking.openURL(SUPPORT_MAILTO)}
+          >
+            TroveSupport
           </Text>{' '}
           before deleting your account.
         </Text>

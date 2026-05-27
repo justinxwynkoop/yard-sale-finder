@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
+
+const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -104,7 +107,15 @@ We do not knowingly collect personal information from users under 13 years of ag
         </Section>
 
         <Section title="9. Contact Us">
-          {`Questions about these Terms? Contact us at:\njasonwynkoop1@yahoo.com`}
+          <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+            {'Questions about these Terms? Contact us at: '}
+            <Text
+              style={{ fontWeight: '600', color: '#2D5F3E' }}
+              onPress={() => Linking.openURL(SUPPORT_MAILTO)}
+            >
+              TroveSupport
+            </Text>
+          </Text>
         </Section>
 
         {/* Spacer so the checkbox doesn't hide behind the CTA */}
