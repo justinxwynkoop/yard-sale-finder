@@ -116,7 +116,6 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Map: undefined;
-  MySales: undefined;
   Listings: undefined;
   // Slot previously occupied by "Saved" -- saved sales now live as a
   // pushed route inside the Listings stack (accessed via a heart icon
@@ -164,6 +163,12 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   BlockedUsers: undefined;
   DeleteAccount: undefined;
+  MySalesHome: undefined;
+  CreateSale: undefined;
+  EditSale: { saleId: string };
+  Capture: { max?: number } | undefined;
+  CreateListing: undefined;
+  EditListing: { listingId: string };
 };
 
 export type ReportTargetType = 'sale' | 'listing' | 'profile';

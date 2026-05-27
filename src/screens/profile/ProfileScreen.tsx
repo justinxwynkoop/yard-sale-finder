@@ -206,7 +206,7 @@ export default function ProfileScreen() {
             label="Yard Sales"
             detail={sales.length > 0 ? `${sales.length} posted` : 'None yet'}
             onPress={() =>
-              (navigation as any).navigate('MySales', { screen: 'MySalesHome' })
+              navigation.navigate('MySalesHome')
             }
           />
           <SettingsRow

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
+import { useFavorites } from '../../hooks/useFavorites';
 import { MapStackParamList } from '../../types';
 import { MapPin } from '../../components/MapPin';
 import SaleListCard from '../../components/SaleListCard';
@@ -49,6 +50,19 @@ const SORT_OPTIONS: { key: SortBy; label: string }[] = [
 const RADIUS_OPTIONS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100] as const;
 type RadiusMiles = typeof RADIUS_OPTIONS[number] | 101; // 101 = "100+"
 
+const CATEGORIES = [
+  { label: 'Furniture', value: 'furniture' },
+  { label: 'Clothing', value: 'clothing' },
+  { label: 'Electronics', value: 'electronics' },
+  { label: 'Toys', value: 'toys' },
+  { label: 'Tools', value: 'tools' },
+  { label: 'Books', value: 'books' },
+  { label: 'Kitchen', value: 'kitchen' },
+  { label: 'Sports', value: 'sports' },
+  { label: 'Antiques', value: 'antiques' },
+  { label: 'Other', value: 'other' },
+] as const;
+
 interface SearchLocation {
   lat: number;
   lng: number;
@@ -68,6 +82,8 @@ export default function MapHomeScreen() {
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'winding_down' | null>(null);
 
   // Search state
   const [searchText, setSearchText] = useState('');
@@ -78,6 +94,7 @@ export default function MapHomeScreen() {
   const [radiusMiles, setRadiusMiles] = useState<RadiusMiles | null>(null);
 
   const { sales, loading, refetch } = useSales();
+  const { isFavorited } = useFavorites();
   const userLocation = useUserLocation();
   const { region: lastRegion, save: saveLastRegion, ready: regionReady } =
     useLastMapRegion();
@@ -201,6 +218,14 @@ export default function MapHomeScreen() {
       // 101 = "100+" means >= 100 miles, no upper cap — same as 100 for our purposes
     }
 
+    if (statusFilter) {
+      result = result.filter((s) => s.status === statusFilter);
+    }
+
+    if (showSavedOnly) {
+      result = result.filter((s) => isFavorited(s.id));
+    }
+
     if (viewMode !== 'list') return result;
 
     const distance = (s: typeof result[number]) =>
@@ -222,7 +247,7 @@ export default function MapHomeScreen() {
       });
     }
     return sorted;
-  }, [sales, categoryFilter, viewMode, userLocation, sortBy, searchLocation, radiusMiles]);
+  }, [sales, categoryFilter, viewMode, userLocation, sortBy, searchLocation, radiusMiles, statusFilter, showSavedOnly, isFavorited]);
 
   const openNowCount = useMemo(
     () => filteredSales.filter((s) => isOpenNow(s)).length,
@@ -245,7 +270,7 @@ export default function MapHomeScreen() {
   );
 
   const activeFilterCount =
-    (categoryFilter ? 1 : 0) + (radiusMiles !== null ? 1 : 0);
+    (categoryFilter ? 1 : 0) + (radiusMiles !== null ? 1 : 0) + (statusFilter ? 1 : 0);
 
   return (
     <View style={styles.root}>
@@ -266,7 +291,7 @@ export default function MapHomeScreen() {
               onPress={() => navigation.navigate('SaleDetail', { saleId: sale.id })}
               tracksViewChanges={false}
             >
-              <MapPin status={sale.status} />
+              <MapPin status={sale.status} favorited={isFavorited(sale.id)} />
             </Marker>
           ))}
         </MapView>
@@ -284,6 +309,23 @@ export default function MapHomeScreen() {
 
       {/* LIST MODE */}
       <View style={[styles.mode, styles.listMode, { display: viewMode === 'list' ? 'flex' : 'none' }]}>
+        {/* Saved toggle */}
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 8, gap: 8 }}>
+          <Pressable
+            onPress={() => setShowSavedOnly(false)}
+            style={[styles.savedToggle, !showSavedOnly && styles.savedToggleActive]}
+          >
+            <Text style={[styles.savedToggleText, !showSavedOnly && styles.savedToggleTextActive]}>All</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowSavedOnly(true)}
+            style={[styles.savedToggle, showSavedOnly && styles.savedToggleActive]}
+          >
+            <Ionicons name="heart" size={13} color={showSavedOnly ? '#fff' : '#71717A'} />
+            <Text style={[styles.savedToggleText, showSavedOnly && styles.savedToggleTextActive]}>Saved</Text>
+          </Pressable>
+        </View>
+
         {filteredSales.length > 0 && (
           <View style={styles.sortRow}>
             <Pressable onPress={() => setSortSheetOpen(true)} style={styles.sortPill}>
@@ -363,14 +405,15 @@ export default function MapHomeScreen() {
 
           {/* Filter + view toggle */}
           <View style={styles.searchActions}>
-            {/* Filter */}
-            <Pressable onPress={() => setFilterSheetOpen(true)} style={styles.filterBtn}>
-              <Ionicons name="options-outline" size={17} color="#18181B" />
-              {activeFilterCount > 0 && (
-                <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-                </View>
-              )}
+            {/* Filter pill */}
+            <Pressable
+              onPress={() => setFilterSheetOpen(true)}
+              style={[styles.filterPill, activeFilterCount > 0 && { backgroundColor: '#2D5F3E' }]}
+            >
+              <Ionicons name="options-outline" size={15} color={activeFilterCount > 0 ? '#fff' : '#18181B'} />
+              <Text style={[styles.filterPillText, activeFilterCount > 0 && { color: '#fff' }]}>
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </Text>
             </Pressable>
 
             {/* View toggle — single button showing the OTHER mode */}
@@ -433,7 +476,7 @@ export default function MapHomeScreen() {
           <Pressable
             onPress={() => {
               setPostMenuOpen(false);
-              (navigation as any).navigate('MySales', { screen: 'CreateSale' });
+              (navigation as any).navigate('Profile', { screen: 'CreateSale' });
             }}
             style={styles.postRow}
           >
@@ -449,7 +492,7 @@ export default function MapHomeScreen() {
           <Pressable
             onPress={() => {
               setPostMenuOpen(false);
-              (navigation as any).navigate('MySales', { screen: 'CreateListing' });
+              (navigation as any).navigate('Profile', { screen: 'CreateListing' });
             }}
             style={styles.postRow}
           >
@@ -476,10 +519,10 @@ export default function MapHomeScreen() {
         <View style={[styles.sheetCard, { paddingBottom: 44 }]}>
           <View style={styles.sheetGrabber} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <Text style={styles.sheetTitle}>Filter</Text>
-            {(radiusMiles !== null || categoryFilter) && (
+            <Text style={styles.sheetTitle}>Filters</Text>
+            {(radiusMiles !== null || categoryFilter || statusFilter) && (
               <Pressable
-                onPress={() => { setRadiusMiles(null); setCategoryFilter(null); }}
+                onPress={() => { setRadiusMiles(null); setCategoryFilter(null); setStatusFilter(null); }}
                 hitSlop={8}
               >
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#2D5F3E' }}>Clear all</Text>
@@ -506,11 +549,40 @@ export default function MapHomeScreen() {
             })}
           </View>
 
-          <Pressable
-            style={[styles.sheetRow, { borderBottomWidth: 0 }]}
-            onPress={() => setFilterSheetOpen(false)}
-          >
-          </Pressable>
+          <Text style={styles.filterSectionLabel}>Category</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+            {CATEGORIES.map(({ label, value }) => {
+              const active = categoryFilter === value;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => setCategoryFilter(active ? null : value)}
+                  style={[styles.radiusChip, active && styles.radiusChipActive]}
+                >
+                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.filterSectionLabel}>Status</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            {[
+              { key: 'active' as const, label: 'Active' },
+              { key: 'winding_down' as const, label: 'Winding Down' },
+            ].map(({ key, label }) => {
+              const active = statusFilter === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setStatusFilter(active ? null : key)}
+                  style={[styles.radiusChip, active && styles.radiusChipActive]}
+                >
+                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </Modal>
 
@@ -551,7 +623,7 @@ const BRAND = '#2D5F3E';
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FAFAF9' },
   mode: { flex: 1 },
-  listMode: { paddingTop: 108 },
+  listMode: { paddingTop: 148 },
   map: { flex: 1 },
   locateWrap: {
     position: 'absolute',
@@ -576,14 +648,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    gap: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+    gap: 10,
   },
   searchInputWrap: {
     flex: 1,
@@ -592,38 +664,29 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: '#18181B',
     padding: 0,
+    fontWeight: '400',
   },
   searchActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  filterBtn: {
-    width: 34,
-    height: 34,
+  filterPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
     backgroundColor: '#F4F4F5',
   },
-  filterBadge: {
-    position: 'absolute',
-    top: 3,
-    right: 3,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: BRAND,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#fff',
+  filterPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#18181B',
   },
   viewToggleBtn: {
     width: 34,
@@ -787,6 +850,29 @@ const styles = StyleSheet.create({
     color: '#52525B',
   },
   radiusChipTextActive: {
+    color: '#fff',
+  },
+  savedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+  },
+  savedToggleActive: {
+    backgroundColor: '#2D5F3E',
+    borderColor: '#2D5F3E',
+  },
+  savedToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#52525B',
+  },
+  savedToggleTextActive: {
     color: '#fff',
   },
 });

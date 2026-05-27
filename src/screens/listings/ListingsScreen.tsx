@@ -7,7 +7,6 @@ import {
   Pressable,
   ActivityIndicator,
   Modal,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
 import { ListingsStackParamList, ItemCategory, Listing } from '../../types';
-import { Chip, EmptyState, IconButton } from '../../components/ui';
+import { EmptyState, IconButton } from '../../components/ui';
 
 // ListingsScreen lives in ListingsStack -- the Nav type must match
 // the stack the screen is actually mounted in, otherwise
@@ -265,6 +264,29 @@ interface FilterSheetProps {
   onClear: () => void;
 }
 
+const filterChipStyle = {
+  base: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+  } as const,
+  active: {
+    backgroundColor: '#2D5F3E',
+    borderColor: '#2D5F3E',
+  } as const,
+  text: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#52525B',
+  },
+  textActive: {
+    color: '#fff',
+  },
+};
+
 function FilterSheet({
   visible,
   onClose,
@@ -294,53 +316,70 @@ function FilterSheet({
 
         {/* Title row */}
         <View className="mb-5 flex-row items-center justify-between">
-          <Text className="text-lg font-bold text-zinc-900">Filter listings</Text>
+          <Text className="text-lg font-bold text-zinc-900">Filters</Text>
           <Pressable onPress={onClear}>
             <Text className="text-sm font-semibold text-brand-600">Clear all</Text>
           </Pressable>
         </View>
 
         {/* Category */}
-        <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: '700',
+            color: '#A1A1AA',
+            textTransform: 'uppercase',
+            letterSpacing: 0.8,
+            marginBottom: 10,
+          }}
+        >
           Category
         </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-          className="mb-5"
-        >
-          <Chip
-            label="All"
-            size="sm"
-            active={!category}
-            onPress={() => onCategoryChange(null)}
-          />
-          {CATEGORIES.map((cat) => (
-            <Chip
-              key={cat.value}
-              label={cat.label}
-              size="sm"
-              active={category === cat.value}
-              onPress={() => onCategoryChange(category === cat.value ? null : cat.value)}
-            />
-          ))}
-        </ScrollView>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {CATEGORIES.map((cat) => {
+            const active = category === cat.value;
+            return (
+              <Pressable
+                key={cat.value}
+                onPress={() => onCategoryChange(active ? null : cat.value)}
+                style={[filterChipStyle.base, active && filterChipStyle.active]}
+              >
+                <Text style={[filterChipStyle.text, active && filterChipStyle.textActive]}>
+                  {cat.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {/* Price range */}
-        <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Price range
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: '700',
+            color: '#A1A1AA',
+            textTransform: 'uppercase',
+            letterSpacing: 0.8,
+            marginBottom: 10,
+          }}
+        >
+          Price
         </Text>
-        <View className="mb-6 flex-row flex-wrap" style={{ gap: 8 }}>
-          {PRICE_RANGES.map((range, i) => (
-            <Chip
-              key={range.label}
-              label={range.label}
-              size="sm"
-              active={priceRangeIndex === i}
-              onPress={() => onPriceRangeChange(priceRangeIndex === i ? null : i)}
-            />
-          ))}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+          {PRICE_RANGES.map((range, i) => {
+            const active = priceRangeIndex === i;
+            return (
+              <Pressable
+                key={range.label}
+                onPress={() => onPriceRangeChange(active ? null : i)}
+                style={[filterChipStyle.base, active && filterChipStyle.active]}
+              >
+                <Text style={[filterChipStyle.text, active && filterChipStyle.textActive]}>
+                  {range.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Apply */}
@@ -348,7 +387,7 @@ function FilterSheet({
           onPress={onClose}
           className="items-center rounded-2xl bg-brand py-4 active:opacity-80"
         >
-          <Text className="text-base font-bold text-white">Show results</Text>
+          <Text className="text-base font-bold text-white">Show Results</Text>
         </Pressable>
       </View>
     </Modal>

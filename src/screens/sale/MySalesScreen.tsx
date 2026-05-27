@@ -16,7 +16,7 @@ import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
 import { supabase } from '../../lib/supabase';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
-import { Listing, Sale, SaleStackParamList, SaleStatus } from '../../types';
+import { Listing, Sale, ProfileStackParamList, SaleStatus } from '../../types';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import {
   Button,
@@ -29,7 +29,7 @@ import {
   StatusBadge,
 } from '../../components/ui';
 
-type Nav = NativeStackNavigationProp<SaleStackParamList, 'MySalesHome'>;
+type Nav = NativeStackNavigationProp<ProfileStackParamList, 'MySalesHome'>;
 type Tab = 'sales' | 'listings';
 type Filter = 'all' | 'active' | 'winding_down' | 'ended';
 
