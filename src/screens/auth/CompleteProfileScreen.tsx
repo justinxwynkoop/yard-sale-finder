@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -370,21 +371,65 @@ function Step2({
   onStatePicker: () => void;
 }) {
   const selectedState = US_STATES.find((s) => s.abbr === state);
+  const [zipLooking, setZipLooking] = useState(false);
+
+  // Auto-fill city + state when a 5-digit ZIP is entered
+  const handleZipChange = async (raw: string) => {
+    const v = raw.replace(/\D/g, '').slice(0, 10);
+    setZip(v);
+    if (v.length !== 5) return;
+    setZipLooking(true);
+    try {
+      const res = await fetch(`https://api.zippopotam.us/us/${v}`);
+      if (!res.ok) return; // unknown ZIP — leave fields blank
+      const data = await res.json();
+      const place = data.places?.[0];
+      if (place) {
+        setCity(place['place name'] ?? '');
+        setState(place['state abbreviation'] ?? '');
+      }
+    } catch {
+      // network error — user can fill in manually
+    } finally {
+      setZipLooking(false);
+    }
+  };
 
   return (
     <View style={{ gap: 20 }}>
       <View className="mb-2">
         <Text className="text-2xl font-extrabold text-zinc-900">Your location</Text>
         <Text className="mt-1 text-sm text-zinc-500">
-          Used to show nearby sales and listings in your area.
+          Enter your ZIP code and we'll fill in your city and state automatically.
         </Text>
+      </View>
+
+      {/* ZIP first — drives the auto-fill */}
+      <View>
+        <Text className="mb-1 text-sm font-semibold text-zinc-700">ZIP code</Text>
+        <View className="flex-row items-center rounded-xl border border-zinc-200 bg-white px-4" style={{ gap: 8 }}>
+          <TextInput
+            value={zip}
+            onChangeText={handleZipChange}
+            placeholder="e.g. 43201"
+            keyboardType="number-pad"
+            maxLength={10}
+            returnKeyType="done"
+            style={{ flex: 1, paddingVertical: 12, fontSize: 16, color: '#18181B' }}
+            placeholderTextColor="#A1A1AA"
+          />
+          {zipLooking && <ActivityIndicator size="small" color="#2D5F3E" />}
+          {!zipLooking && city && state && (
+            <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+          )}
+        </View>
       </View>
 
       <Input
         label="City"
         value={city}
         onChangeText={setCity}
-        placeholder="e.g. Columbus"
+        placeholder="Auto-filled from ZIP"
         autoCapitalize="words"
         returnKeyType="next"
       />
@@ -397,20 +442,11 @@ function Step2({
           className="flex-row items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 active:bg-zinc-50"
         >
           <Text className={selectedState ? 'text-base text-zinc-900' : 'text-base text-zinc-400'}>
-            {selectedState ? `${selectedState.abbr} — ${selectedState.name}` : 'Select state…'}
+            {selectedState ? `${selectedState.abbr} — ${selectedState.name}` : 'Auto-filled from ZIP'}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#A1A1AA" />
         </Pressable>
       </View>
-
-      <Input
-        label="ZIP code"
-        value={zip}
-        onChangeText={(v) => setZip(v.replace(/\D/g, '').slice(0, 10))}
-        placeholder="e.g. 43201"
-        keyboardType="number-pad"
-        returnKeyType="done"
-      />
     </View>
   );
 }
