@@ -81,19 +81,28 @@ export default function ListingsScreen() {
             >
               <Ionicons name="heart-outline" size={20} color="#18181B" />
             </Pressable>
-            {/* Filter button */}
+            {/* Filter button — green background when any filter is active */}
             <Pressable
               onPress={() => setFilterSheetOpen(true)}
-              className="flex-row items-center rounded-xl border border-zinc-200 bg-white px-3 py-2 active:bg-zinc-50"
-              style={{ gap: 6 }}
+              style={[
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  gap: 6,
+                },
+                activeFilterCount > 0
+                  ? { backgroundColor: '#2D5F3E', borderColor: '#2D5F3E' }
+                  : { backgroundColor: '#fff', borderColor: '#E4E4E7' },
+              ]}
             >
-              <Ionicons name="options-outline" size={18} color="#18181B" />
-              <Text className="text-sm font-semibold text-zinc-800">Filter</Text>
-              {activeFilterCount > 0 && (
-                <View className="h-5 w-5 items-center justify-center rounded-full bg-brand">
-                  <Text className="text-xs font-bold text-white">{activeFilterCount}</Text>
-                </View>
-              )}
+              <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? '#fff' : '#18181B'} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: activeFilterCount > 0 ? '#fff' : '#3F3F46' }}>
+                Filter
+              </Text>
             </Pressable>
             {/* Post a listing */}
             <IconButton
@@ -105,26 +114,7 @@ export default function ListingsScreen() {
           </View>
         </View>
 
-        {/* Active filter summary chips */}
-        {activeFilterCount > 0 && (
-          <View className="mt-3 flex-row flex-wrap items-center" style={{ gap: 6 }}>
-            {categories.length > 0 && (
-              <ActiveFilterChip
-                label={`${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}`}
-                onRemove={() => setCategories([])}
-              />
-            )}
-            {priceRangeIndex !== null && (
-              <ActiveFilterChip
-                label={PRICE_RANGES[priceRangeIndex].label}
-                onRemove={() => setPriceRangeIndex(null)}
-              />
-            )}
-            <Pressable onPress={clearFilters}>
-              <Text className="text-xs font-semibold text-brand-600">Clear all</Text>
-            </Pressable>
-          </View>
-        )}
+        {/* Active filters are indicated by the green Filter button — no chips shown here */}
       </View>
 
       {/* List — always a FlatList so pull-to-refresh works in every state */}
