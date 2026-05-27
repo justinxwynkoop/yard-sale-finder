@@ -7,8 +7,10 @@ import {
   Alert,
   ScrollView,
   KeyboardAvoidingView,
+  Modal,
   Platform,
 } from 'react-native';
+import { SafeAreaView as SafeAreaViewRN } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -34,6 +36,7 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState<null | 'email' | Provider>(null);
   const [showSocial, setShowSocial] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const [legalModal, setLegalModal] = useState<null | 'terms' | 'privacy'>(null);
 
   // Detect whether Sign in with Apple is available on this device.
   // Returns false in Expo Go (no native module), on Android, or on
@@ -420,11 +423,242 @@ export default function AuthScreen() {
           )}
 
           <Text className="mt-8 text-center text-xs leading-5 text-zinc-400">
-            By continuing, you agree to our Terms of Service and Privacy Policy.
+            {'By continuing, you agree to our '}
+            <Text
+              className="font-semibold text-zinc-600"
+              onPress={() => setLegalModal('terms')}
+            >
+              Terms of Service
+            </Text>
+            {' and '}
+            <Text
+              className="font-semibold text-zinc-600"
+              onPress={() => setLegalModal('privacy')}
+            >
+              Privacy Policy
+            </Text>
+            .
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <LegalModal type={legalModal} onClose={() => setLegalModal(null)} />
     </SafeAreaView>
+  );
+}
+
+const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
+
+function TroveSupportLink() {
+  return (
+    <Text
+      style={{ fontWeight: '600', color: '#2D5F3E' }}
+      onPress={() => Linking.openURL(SUPPORT_MAILTO)}
+    >
+      TroveSupport
+    </Text>
+  );
+}
+
+// ─── Legal Modal ─────────────────────────────────────────────────────────────
+
+function LegalModal({
+  type,
+  onClose,
+}: {
+  type: null | 'terms' | 'privacy';
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={type !== null}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaViewRN style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            paddingVertical: 14,
+            borderBottomWidth: 1,
+            borderBottomColor: '#F4F4F5',
+          }}
+        >
+          <Text style={{ fontSize: 17, fontWeight: '700', color: '#18181B' }}>
+            {type === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+          </Text>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Ionicons name="close" size={24} color="#71717A" />
+          </Pressable>
+        </View>
+        <ScrollView
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+          showsVerticalScrollIndicator
+        >
+          {type === 'terms' ? <TermsContent /> : <PrivacyContent />}
+        </ScrollView>
+      </SafeAreaViewRN>
+    </Modal>
+  );
+}
+
+function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: '#18181B', marginBottom: 8 }}>
+        {title}
+      </Text>
+      {typeof children === 'string' ? (
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>{children}</Text>
+      ) : (
+        children
+      )}
+    </View>
+  );
+}
+
+function LegalBody({ children }: { children: string }) {
+  return (
+    <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>{children}</Text>
+  );
+}
+
+function ProhibitedRow({ label, detail }: { label: string; detail: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        marginBottom: 6,
+      }}
+    >
+      <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>{'•'}</Text>
+      <Text style={{ flex: 1, fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+        <Text style={{ fontWeight: '700' }}>{label}</Text>
+        {` — ${detail}`}
+      </Text>
+    </View>
+  );
+}
+
+function TermsContent() {
+  return (
+    <>
+      <LegalSection title="1. Eligibility — You Must Be 18 or Older">
+        {`You must be at least 18 years of age to create an account or use this app. By registering, you confirm that you are 18 or older and have the legal capacity to enter into a binding agreement.\n\nWe do not knowingly collect personal information from users under 13 years of age (COPPA). If you believe a minor has created an account, please report it to us immediately.`}
+      </LegalSection>
+
+      <LegalSection title="2. Prohibited Content">
+        <LegalBody>
+          {'The following are strictly prohibited. Violations may result in immediate account termination and reporting to law enforcement:'}
+        </LegalBody>
+        <View style={{ marginTop: 8 }}>
+          <ProhibitedRow label="Adult content" detail="Nudity, pornography, or sexually explicit material of any kind." />
+          <ProhibitedRow label="Content involving minors" detail="Any content that sexualizes, exploits, or endangers children. We have zero tolerance for CSAM and will report such content to the NCMEC and law enforcement." />
+          <ProhibitedRow label="Live animals or pets" detail="The sale, trade, or rehoming of live animals — including pets, livestock, or wildlife — is not permitted." />
+          <ProhibitedRow label="Firearms and weapons" detail="Firearms, ammunition, explosives, tasers, switchblades, or any weapon primarily designed to cause harm, regardless of local laws." />
+          <ProhibitedRow label="Illegal drugs and paraphernalia" detail="Illegal substances, controlled substances without a valid prescription, or items used primarily for consuming illegal drugs." />
+          <ProhibitedRow label="Prescription medications" detail="Prescription drugs may not be sold or transferred between users." />
+          <ProhibitedRow label="Stolen or counterfeit goods" detail="All items must be legally owned by the seller. Fraudulent, counterfeit, or stolen merchandise is prohibited." />
+          <ProhibitedRow label="Hazardous materials" detail="Recalled products, unregistered pesticides, or items that pose an unreasonable safety risk to buyers." />
+          <ProhibitedRow label="Harassment and hate speech" detail="Content targeting individuals or groups based on race, religion, gender, sexual orientation, national origin, disability, or other protected characteristics." />
+        </View>
+      </LegalSection>
+
+      <LegalSection title="3. Your Responsibilities">
+        {`By posting a listing, you confirm that:\n\n• You legally own the item and have the right to sell it.\n• All photos and descriptions are accurate and not misleading.\n• The item does not fall into any prohibited category above.\n• You will complete sales honestly and as described.\n\nYou are solely responsible for the content you post.`}
+      </LegalSection>
+
+      <LegalSection title="4. Content Moderation">
+        {`We reserve the right to remove any content that violates these Terms at our sole discretion and without prior notice. Buyers and sellers may report violations using the in-app report feature. We aim to review all reports within 24 hours.\n\nRepeated violations will result in permanent account suspension.`}
+      </LegalSection>
+
+      <LegalSection title="5. Privacy">
+        {'We collect your name, email address, birthdate, and general location (city, state, ZIP code) to operate the service and verify eligibility. We do not sell your personal information to third parties.'}
+      </LegalSection>
+
+      <LegalSection title="6. Transactions">
+        {'Trove is a platform connecting buyers and sellers. We do not verify the accuracy of listings, process payments, guarantee transactions, or take responsibility for items sold or purchased through the app. All transactions are conducted directly between the buyer and seller.'}
+      </LegalSection>
+
+      <LegalSection title="7. Limitation of Liability">
+        {'To the maximum extent permitted by applicable law, Trove shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the app, including but not limited to loss of goods, personal injury, or financial loss resulting from a transaction.'}
+      </LegalSection>
+
+      <LegalSection title="8. Changes to These Terms">
+        {'We may update these Terms from time to time. We will notify you within the app when material changes are made. Continued use of the app after changes are posted constitutes acceptance of the updated Terms.'}
+      </LegalSection>
+
+      <LegalSection title="9. Contact Us">
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+          {'Questions about these Terms? Contact us at: '}
+          <TroveSupportLink />
+        </Text>
+      </LegalSection>
+    </>
+  );
+}
+
+function PrivacyContent() {
+  return (
+    <>
+      <LegalBody>
+        {'This Privacy Policy explains how Trove collects, uses, and protects information when you use our mobile application.'}
+      </LegalBody>
+      <View style={{ height: 16 }} />
+
+      <LegalSection title="1. Information We Collect">
+        {`To make the app work, we collect the following:\n\n• Account information — your email address, or if you use Sign in with Apple, the Apple ID identifier and name you choose to share. We also store the display name you set in onboarding.\n\n• Location data — while you have the app open, we access your device's location to show yard sales near you and to let you pin your own sale on the map. We do not collect your location in the background.\n\n• Content you post — photos, text, address, dates, times, categories, and pricing notes so that other users can see them on the map.\n\n• Device information — basic crash and diagnostic data (device model, OS version, crash stack traces) to help us fix bugs.`}
+      </LegalSection>
+
+      <LegalSection title="2. How We Use Information">
+        {`• To show you yard sales near your current location.\n• To display sales you post to other users browsing the map.\n• To authenticate you when you sign in.\n• To improve the app and fix problems.\n• To contact you about your account if necessary.\n\nWe do not sell your data, and we do not use it for advertising or tracking across other apps or websites.`}
+      </LegalSection>
+
+      <LegalSection title="3. What Other Users Can See">
+        {'When you post a sale, the photos, description, address, dates and times, categories, pricing notes, and the display name on your profile are visible to anyone using the app. Your email address and precise location (apart from any sale address you choose to post) are not shared with other users.'}
+      </LegalSection>
+
+      <LegalSection title="4. Where Your Data Is Stored">
+        {'We use Supabase as our backend. Your account and sale data live in a managed Postgres database, and photos are stored in Supabase Storage. Data is encrypted in transit (HTTPS) and at rest.'}
+      </LegalSection>
+
+      <LegalSection title="5. Third-Party Services">
+        {`• Apple Sign in — if you choose to sign in with Apple, Apple shares an Apple ID identifier and optionally your name and email with us.\n\n• Supabase — provides authentication, database, and file storage.\n\n• Apple — the App Store and TestFlight handle app distribution.`}
+      </LegalSection>
+
+      <LegalSection title="6. Your Rights and Choices">
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+          {"• Update or delete any sale you've posted from the My Sales tab.\n\n• Turn off location access in iOS Settings → Privacy & Security → Location Services → Trove. The app will still work but won't auto-center on your location.\n\n• Delete your account — email "}
+          <TroveSupportLink />
+          {" from the address associated with your account and we'll remove your account and all your sales within a few business days."}
+        </Text>
+      </LegalSection>
+
+      <LegalSection title="7. Children's Privacy">
+        {"Trove is not directed to children under 13, and we do not knowingly collect information from children under 13. If you believe a child has provided us information, contact us and we'll remove it."}
+      </LegalSection>
+
+      <LegalSection title="8. User-Generated Content and Moderation">
+        {'Photos and text posted by users are public to other users of the app. We reserve the right to remove content that violates our terms or applicable law. Users can report content to us at the contact address below.'}
+      </LegalSection>
+
+      <LegalSection title="9. Changes to This Policy">
+        {"We may update this policy as the app evolves. We'll update the \"Last updated\" date when we do, and significant changes will be highlighted in the app or via email."}
+      </LegalSection>
+
+      <LegalSection title="10. Contact">
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+          {'Questions, deletion requests, or anything else: '}
+          <TroveSupportLink />
+        </Text>
+      </LegalSection>
+    </>
   );
 }
 
