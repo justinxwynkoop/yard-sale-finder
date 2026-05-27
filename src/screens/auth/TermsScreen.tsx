@@ -65,7 +65,9 @@ We do not knowingly collect personal information from users under 13 years of ag
         </Section>
 
         <Section title="2. Prohibited Content">
-          {'The following are strictly prohibited. Violations may result in immediate account termination and reporting to law enforcement:\n'}
+          <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20, marginBottom: 8 }}>
+            The following are strictly prohibited. Violations may result in immediate account termination and reporting to law enforcement:
+          </Text>
           <ProhibitedItem icon="ban-outline" label="Adult content" detail="Nudity, pornography, or sexually explicit material of any kind." />
           <ProhibitedItem icon="warning-outline" label="Content involving minors" detail="Any content that sexualizes, exploits, or endangers children. We have zero tolerance for CSAM and will report such content to the NCMEC and law enforcement." />
           <ProhibitedItem icon="paw-outline" label="Live animals or pets" detail="The sale, trade, or rehoming of live animals — including pets, livestock, or wildlife — is not permitted." />

@@ -335,9 +335,10 @@ function MainGate() {
   }
 
   // Order of gates after sign-in:
-  //   1) profile.display_name missing  -> CompleteProfileScreen
-  //   2) onboarding not yet seen       -> OnboardingScreen
-  //   3) otherwise                     -> MainTabs
+  //   1) profile fields missing        -> CompleteProfileScreen
+  //   2) terms not accepted            -> TermsScreen
+  //   3) onboarding not yet seen       -> OnboardingScreen
+  //   4) otherwise                     -> MainTabs
   // Gate 1 — collect name, birthdate (18+), and location
   if (!isProfileComplete(profile)) {
     return <CompleteProfileScreen />;

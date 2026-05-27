@@ -429,7 +429,7 @@ function Step2({
         label="City"
         value={city}
         onChangeText={setCity}
-        placeholder="Auto-filled from ZIP"
+        placeholder="City"
         autoCapitalize="words"
         returnKeyType="next"
       />
@@ -442,7 +442,7 @@ function Step2({
           className="flex-row items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 active:bg-zinc-50"
         >
           <Text className={selectedState ? 'text-base text-zinc-900' : 'text-base text-zinc-400'}>
-            {selectedState ? `${selectedState.abbr} — ${selectedState.name}` : 'Auto-filled from ZIP'}
+            {selectedState ? `${selectedState.abbr} — ${selectedState.name}` : 'Select state'}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#A1A1AA" />
         </Pressable>

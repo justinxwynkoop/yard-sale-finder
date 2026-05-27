@@ -101,19 +101,23 @@ export default function AuthScreen() {
           data.user && Array.isArray(data.user.identities) &&
           data.user.identities.length === 0;
         if (alreadyExists) {
+          // Silently try signing in with the same credentials — the user
+          // may have started signup before but never finished. If it
+          // works they land back at the gates to complete their profile.
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          });
+          if (!signInError) return; // session listener takes over
+
+          // Wrong password — show options
           Alert.alert(
             'Account already exists',
-            `An account with ${cleanEmail} is already set up — maybe via Sign in with Apple. Sign in instead?`,
+            `An account with ${cleanEmail} already exists. Sign in to continue, or reset your password.`,
             [
               { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Sign in',
-                onPress: () => setMode('signin'),
-              },
-              {
-                text: 'Reset password',
-                onPress: () => navigation.navigate('ForgotPassword'),
-              },
+              { text: 'Sign in', onPress: () => setMode('signin') },
+              { text: 'Reset password', onPress: () => navigation.navigate('ForgotPassword') },
             ],
           );
           return;
