@@ -27,6 +27,7 @@ import {
 import {
   Button,
   CategoryPicker,
+  Chip,
   DateRangePresets,
   DateTimeField,
   Input,
