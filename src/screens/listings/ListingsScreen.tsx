@@ -13,8 +13,14 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
+import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { ListingsStackParamList, ItemCategory, Listing } from '../../types';
 import { EmptyState, IconButton, CategoryPicker } from '../../components/ui';
+
+/** Returns true if the listing was created within the last 3 days. */
+function isNew(createdAt: string): boolean {
+  return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
+}
 
 // ListingsScreen lives in ListingsStack -- the Nav type must match
 // the stack the screen is actually mounted in, otherwise
@@ -43,6 +49,7 @@ export default function ListingsScreen() {
   }, [categories, priceRangeIndex]);
 
   const { listings, loading, refetch } = useListings(filters);
+  const { isFavorited } = useFavoriteListings();
 
   const activeFilterCount = (categories.length > 0 ? 1 : 0) + (priceRangeIndex !== null ? 1 : 0);
 
@@ -129,7 +136,12 @@ export default function ListingsScreen() {
         columnWrapperStyle={{ gap: 10 }}
         onRefresh={refetch}
         refreshing={loading}
-        renderItem={({ item }) => <ListingCard listing={item} />}
+        renderItem={({ item }) => (
+          <ListingCard
+            listing={item}
+            favorited={isFavorited(item.id)}
+          />
+        )}
         ListEmptyComponent={
           loading ? (
             <View className="flex-1 items-center justify-center py-24">
@@ -179,9 +191,16 @@ export default function ListingsScreen() {
 
 // ── Listing card (2-column grid) ───────────────────────────────────────────
 
-function ListingCard({ listing }: { listing: Listing }) {
+function ListingCard({
+  listing,
+  favorited,
+}: {
+  listing: Listing;
+  favorited: boolean;
+}) {
   const navigation = useNavigation<Nav>();
   const firstImage = listing.media?.find((m) => m.type === 'image');
+  const showNew = isNew(listing.created_at);
 
   return (
     <Pressable
@@ -200,6 +219,44 @@ function ListingCard({ listing }: { listing: Listing }) {
         ) : (
           <View className="h-full w-full items-center justify-center bg-zinc-100">
             <Ionicons name="image-outline" size={32} color="#A1A1AA" />
+          </View>
+        )}
+
+        {/* "New" badge — top-left, shown for first 3 days */}
+        {showNew && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              backgroundColor: '#2D5F3E',
+              borderRadius: 999,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>
+              NEW
+            </Text>
+          </View>
+        )}
+
+        {/* Heart badge — top-right, shown when the user has favorited this listing */}
+        {favorited && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              backgroundColor: 'rgba(0,0,0,0.38)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="heart" size={14} color="#FF6B6B" />
           </View>
         )}
       </View>

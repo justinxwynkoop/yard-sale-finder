@@ -13,6 +13,10 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { ListingsStackParamList, Listing } from '../../types';
+
+function isNew(createdAt: string): boolean {
+  return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
+}
 import { EmptyState } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<ListingsStackParamList, 'SavedListings'>;
@@ -80,6 +84,7 @@ function SavedListingCard({
   onPress: () => void;
 }) {
   const thumb = listing.media?.find((m) => m.type === 'image')?.url;
+  const showNew = isNew(listing.created_at);
   const price =
     listing.price === 0 ? 'Free' : `$${listing.price.toLocaleString()}`;
 
@@ -116,6 +121,23 @@ function SavedListingCard({
           />
         ) : (
           <Ionicons name="image-outline" size={28} color="#D4D4D8" />
+        )}
+        {showNew && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 6,
+              left: 6,
+              backgroundColor: '#2D5F3E',
+              borderRadius: 999,
+              paddingHorizontal: 7,
+              paddingVertical: 2,
+            }}
+          >
+            <Text style={{ fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>
+              NEW
+            </Text>
+          </View>
         )}
       </View>
 
