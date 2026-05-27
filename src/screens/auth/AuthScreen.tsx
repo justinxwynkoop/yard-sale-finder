@@ -613,7 +613,7 @@ function PrivacyContent() {
       <View style={{ height: 16 }} />
 
       <LegalSection title="1. Information We Collect">
-        {`To make the app work, we collect the following:\n\n• Account information — your email address, or if you use Sign in with Apple, the Apple ID identifier and name you choose to share. We also store the display name you set in onboarding.\n\n• Location data — while you have the app open, we access your device’s location to show yard sales near you and to let you pin your own sale on the map. We do not collect your location in the background.\n\n• Content you post — photos, text, address, dates, times, categories, and pricing notes so that other users can see them on the map.\n\n• Device information — basic crash and diagnostic data (device model, OS version, crash stack traces) to help us fix bugs.`}
+        {`To make the app work, we collect the following:\n\n• Account information — your email address, or if you use Sign in with Apple, the Apple ID identifier and name you choose to share. We also store the display name you set in onboarding.\n\n• Location data — while you have the app open, we access your device's location to show yard sales near you and to let you pin your own sale on the map. We do not collect your location in the background.\n\n• Content you post — photos, text, address, dates, times, categories, and pricing notes so that other users can see them on the map.\n\n• Device information — basic crash and diagnostic data (device model, OS version, crash stack traces) to help us fix bugs.`}
       </LegalSection>
 
       <LegalSection title="2. How We Use Information">
@@ -633,10 +633,10 @@ function PrivacyContent() {
       </LegalSection>
 
       <LegalSection title="6. Your Rights and Choices">
-        <Text style={{ fontSize: 13, color: ‘#52525B’, lineHeight: 20 }}>
-          {"• Update or delete any sale you’ve posted from the My Sales tab.\n\n• Turn off location access in iOS Settings → Privacy & Security → Location Services → Trove. The app will still work but won’t auto-center on your location.\n\n• Delete your account — email "}
+        <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
+          {"• Update or delete any sale you've posted from the My Sales tab.\n\n• Turn off location access in iOS Settings → Privacy & Security → Location Services → Trove. The app will still work but won't auto-center on your location.\n\n• Delete your account — email "}
           <TroveSupportLink />
-          {" from the address associated with your account and we’ll remove your account and all your sales within a few business days."}
+          {" from the address associated with your account and we'll remove your account and all your sales within a few business days."}
         </Text>
       </LegalSection>
 
