@@ -153,7 +153,7 @@ export type MapStackParamList = {
 };
 
 export type SaleStackParamList = {
-  MySalesHome: undefined;
+  MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
   CreateSale: undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
