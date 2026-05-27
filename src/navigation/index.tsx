@@ -314,13 +314,37 @@ function MainTabs() {
             return <Ionicons name={iconName} size={size ?? 24} color={color} />;
           }
 
+          if (route.name === 'Messages') {
+            const msgIcon: IoniconName = focused
+              ? 'chatbubble-ellipses'
+              : 'chatbubble-ellipses-outline';
+            return (
+              <View>
+                <Ionicons name={msgIcon} size={size ?? 24} color={color} />
+                {unreadCount > 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -1,
+                      right: -3,
+                      width: 9,
+                      height: 9,
+                      borderRadius: 4.5,
+                      backgroundColor: '#EF4444',
+                      borderWidth: 1.5,
+                      borderColor: '#FFFFFF',
+                    }}
+                  />
+                )}
+              </View>
+            );
+          }
+
           let iconName: IoniconName = 'ellipse-outline';
           if (route.name === 'Map') {
             iconName = focused ? 'map' : 'map-outline';
           } else if (route.name === 'Listings') {
             iconName = focused ? 'storefront' : 'storefront-outline';
-          } else if (route.name === 'Messages') {
-            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
           }
           return <Ionicons name={iconName} size={size ?? 24} color={color} />;
         },
@@ -339,13 +363,7 @@ function MainTabs() {
       <Tab.Screen
         name="Messages"
         component={MessagesNavigator}
-        options={{
-          tabBarLabel: 'Messages',
-          // Show unread count as a red badge on the tab icon.
-          // undefined hides the badge entirely when there's nothing new.
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarBadgeStyle: { backgroundColor: '#EF4444', fontSize: 11 },
-        }}
+        options={{ tabBarLabel: 'Messages' }}
       />
       <Tab.Screen
         name="Profile"

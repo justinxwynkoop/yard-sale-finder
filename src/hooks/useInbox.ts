@@ -178,10 +178,29 @@ export function useInbox() {
     };
   }, [user, fetch]);
 
+  const deleteConversation = useCallback(async (id: string) => {
+    await supabase.from('conversations').delete().eq('id', id);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+  const markAsUnread = useCallback(async (id: string) => {
+    if (!user) return;
+    const conv = conversations.find((c) => c.id === id);
+    if (!conv) return;
+    const field =
+      conv.buyer_id === user.id ? 'buyer_last_read_at' : 'seller_last_read_at';
+    await supabase.from('conversations').update({ [field]: null }).eq('id', id);
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, has_unread: true } : c)),
+    );
+  }, [user, conversations]);
+
   return {
     conversations,
     loading,
     refetch: fetch,
     unreadCount: conversations.filter((c) => c.has_unread).length,
+    deleteConversation,
+    markAsUnread,
   };
 }
