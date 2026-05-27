@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -16,7 +16,7 @@ import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
 import { supabase } from '../../lib/supabase';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
-import { Listing, Sale, SaleStackParamList, SaleStatus } from '../../types';
+import { Listing, Sale, ProfileStackParamList, SaleStatus } from '../../types';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import {
   Button,
@@ -29,7 +29,8 @@ import {
   StatusBadge,
 } from '../../components/ui';
 
-type Nav = NativeStackNavigationProp<SaleStackParamList, 'MySalesHome'>;
+type Nav = NativeStackNavigationProp<ProfileStackParamList, 'MySalesHome'>;
+type RouteProps = RouteProp<ProfileStackParamList, 'MySalesHome'>;
 type Tab = 'sales' | 'listings';
 type Filter = 'all' | 'active' | 'winding_down' | 'ended';
 
@@ -42,8 +43,11 @@ const FILTERS: { key: Filter; label: string }[] = [
 
 export default function MySalesScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProps>();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('sales');
+  // initialTab lets the Profile "Yard Sales" and "Listings" rows open directly
+  // on the right tab without requiring the user to switch manually.
+  const [activeTab, setActiveTab] = useState<Tab>(route.params?.initialTab ?? 'sales');
 
   const { sales, loading: salesLoading, refetch: refetchSales } = useMySales(user?.id);
   const { listings, loading: listingsLoading, refetch: refetchListings } = useMyListings(user?.id);

@@ -5,6 +5,7 @@ import { useBlockedUsers } from './useBlockedUsers';
 
 export interface ListingFilters {
   category: ItemCategory | null;
+  categories?: ItemCategory[];
   priceMin: number | null;
   priceMax: number | null;
 }
@@ -33,7 +34,12 @@ export function useListings(filters: ListingFilters) {
         .eq('status', 'available')
         .order('created_at', { ascending: false });
 
-      if (filters.category) {
+      if (filters.categories && filters.categories.length > 0) {
+        // Filter client-side for multi-category (OR) matching after fetch;
+        // Supabase @> only supports AND (contains all), so we fetch broadly
+        // using the first category as a hint and filter the rest client-side.
+        query = query.contains('categories', [filters.categories[0]]);
+      } else if (filters.category) {
         query = query.contains('categories', [filters.category]);
       }
       if (filters.priceMin !== null) {
@@ -45,13 +51,22 @@ export function useListings(filters: ListingFilters) {
 
       const { data, error: fetchError } = await query;
       if (fetchError) throw fetchError;
-      setListings(data ?? []);
+      let results = data ?? [];
+      // Client-side OR filter when multiple categories are selected
+      if (filters.categories && filters.categories.length > 1) {
+        const cats = filters.categories;
+        results = results.filter((l: Listing) =>
+          cats.some((c) => l.categories.includes(c)),
+        );
+      }
+      setListings(results);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [filters.category, filters.priceMin, filters.priceMax]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.category, filters.categories?.join(','), filters.priceMin, filters.priceMax]);
 
   useEffect(() => {
     fetchListings();

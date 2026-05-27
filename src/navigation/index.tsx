@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Image } from 'react-native';
 import {
   NavigationContainer,
   LinkingOptions,
@@ -17,7 +17,6 @@ import {
   RootStackParamList,
   MainTabParamList,
   MapStackParamList,
-  SaleStackParamList,
   ListingsStackParamList,
   ProfileStackParamList,
   MessagesStackParamList,
@@ -45,13 +44,13 @@ import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
 import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
 import SavedHomeScreen from '../screens/saved/SavedHomeScreen';
+import SavedListingsScreen from '../screens/listings/SavedListingsScreen';
 import InboxScreen from '../screens/messages/InboxScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
-const SaleStack = createNativeStackNavigator<SaleStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
@@ -96,60 +95,13 @@ function MapNavigator() {
   );
 }
 
-function SaleNavigator() {
-  return (
-    <SaleStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: '#fff' },
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-        headerShadowVisible: false,
-        headerTintColor: '#18181B',
-      }}
-    >
-      <SaleStack.Screen
-        name="MySalesHome"
-        component={MySalesScreen}
-        options={{ headerShown: false }}
-      />
-      <SaleStack.Screen
-        name="CreateSale"
-        component={CreateSaleScreen}
-        options={{ headerShown: false }}
-      />
-      <SaleStack.Screen
-        name="EditSale"
-        component={EditSaleScreen}
-        options={{ title: 'Edit Sale', headerBackTitle: 'Back' }}
-      />
-      <SaleStack.Screen
-        name="Capture"
-        component={CaptureSaleScreen}
-        options={{
-          headerShown: false,
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <SaleStack.Screen
-        name="CreateListing"
-        component={CreateListingScreen}
-        options={{ headerShown: false }}
-      />
-      <SaleStack.Screen
-        name="EditListing"
-        component={EditListingScreen}
-        options={{ title: 'Edit Listing', headerBackTitle: 'Back' }}
-      />
-    </SaleStack.Navigator>
-  );
-}
 
 function ListingsNavigator() {
   return (
     <ListingsStack.Navigator screenOptions={{ headerShown: false }}>
       <ListingsStack.Screen name="ListingsHome" component={ListingsScreen} />
       <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} />
-      {/* Create / Edit are also registered in SaleStack so MySales can
+      {/* Create / Edit are also registered in ProfileStack so MySales can
           push them directly. Duplicating the registration here lets
           taps from the Listings tab open them within this stack --
           keeping the user in Listings instead of yanking them across
@@ -172,6 +124,19 @@ function ListingsNavigator() {
         options={{
           headerShown: true,
           title: 'Saved Sales',
+          headerStyle: { backgroundColor: '#fff' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          headerTintColor: '#18181B',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <ListingsStack.Screen
+        name="SavedListings"
+        component={SavedListingsScreen}
+        options={{
+          headerShown: true,
+          title: 'Saved Listings',
           headerStyle: { backgroundColor: '#fff' },
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerShadowVisible: false,
@@ -240,6 +205,40 @@ function ProfileNavigator() {
         component={DeleteAccountScreen}
         options={{ title: 'Delete Account' }}
       />
+      <ProfileStack.Screen
+        name="MySalesHome"
+        component={MySalesScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="CreateSale"
+        component={CreateSaleScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="EditSale"
+        component={EditSaleScreen}
+        options={{ title: 'Edit Sale', headerBackTitle: 'Back' }}
+      />
+      <ProfileStack.Screen
+        name="Capture"
+        component={CaptureSaleScreen}
+        options={{
+          headerShown: false,
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <ProfileStack.Screen
+        name="CreateListing"
+        component={CreateListingScreen as any}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="EditListing"
+        component={EditListingScreen as any}
+        options={{ title: 'Edit Listing', headerBackTitle: 'Back' }}
+      />
     </ProfileStack.Navigator>
   );
 }
@@ -247,6 +246,8 @@ function ProfileNavigator() {
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function MainTabs() {
+  const { profile } = useProfile();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -263,17 +264,32 @@ function MainTabs() {
           fontWeight: '600',
         },
         tabBarIcon: ({ color, focused, size }) => {
+          if (route.name === 'Profile') {
+            if (profile?.avatar_url) {
+              return (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={{
+                    width: size ?? 24,
+                    height: size ?? 24,
+                    borderRadius: (size ?? 24) / 2,
+                    borderWidth: focused ? 2 : 0,
+                    borderColor: '#2D5F3E',
+                  }}
+                />
+              );
+            }
+            const iconName: IoniconName = focused ? 'person-circle' : 'person-circle-outline';
+            return <Ionicons name={iconName} size={size ?? 24} color={color} />;
+          }
+
           let iconName: IoniconName = 'ellipse-outline';
           if (route.name === 'Map') {
             iconName = focused ? 'map' : 'map-outline';
-          } else if (route.name === 'MySales') {
-            iconName = focused ? 'pricetag' : 'pricetag-outline';
           } else if (route.name === 'Listings') {
             iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Messages') {
             iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
           return <Ionicons name={iconName} size={size ?? 24} color={color} />;
         },
@@ -283,11 +299,6 @@ function MainTabs() {
         name="Map"
         component={MapNavigator}
         options={{ tabBarLabel: 'Discover' }}
-      />
-      <Tab.Screen
-        name="MySales"
-        component={SaleNavigator}
-        options={{ tabBarLabel: 'My Sales' }}
       />
       <Tab.Screen
         name="Listings"

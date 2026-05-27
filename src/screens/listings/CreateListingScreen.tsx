@@ -21,9 +21,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import { SaleStackParamList } from '../../types';
+import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, IconButton, Input } from '../../components/ui';
+import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'CreateListing'>;
 
@@ -60,6 +60,7 @@ export default function CreateListingScreen() {
   const [pickupDisplay, setPickupDisplay] = useState('');
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<ItemCategory[]>([]);
 
   // -- Photo handlers --
   const pickFromLibrary = async () => {
@@ -255,6 +256,7 @@ export default function CreateListingScreen() {
           title: title.trim(),
           description: description.trim() || null,
           price: parseFloat(price),
+          categories: selectedCategories,
           pickup_input: pickupInput.trim(),
           pickup_display: pickupDisplay,
           pickup_lat: pinCoords!.lat,
@@ -395,6 +397,13 @@ export default function CreateListingScreen() {
               leftIcon={<Text className="text-base text-zinc-500">$</Text>}
               returnKeyType="done"
             />
+          </View>
+
+          {/* Category */}
+          <View className="bg-white mt-3 px-4 py-4" style={{ gap: 12 }}>
+            <Text className="text-sm font-bold text-zinc-700">Category</Text>
+            <Text className="text-xs text-zinc-500">Help buyers find your item.</Text>
+            <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
           </View>
 
           {/* Pickup Location */}

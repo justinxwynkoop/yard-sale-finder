@@ -6,29 +6,26 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView as RNScrollView,
   StyleSheet,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// Note: we previously wrapped MapView with react-native-map-clustering,
-// but it crashed natively at wide zoom levels under the new arch
-// (newArchEnabled = true in app.json). Falling back to vanilla
-// react-native-maps. We can re-introduce clustering via a more
-// stable library once marker density warrants it.
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSales } from '../../hooks/useSales';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
-import { useInbox } from '../../hooks/useInbox';
+import { useFavorites } from '../../hooks/useFavorites';
 import { MapStackParamList } from '../../types';
-import FilterBar from '../../components/FilterBar';
 import { MapPin } from '../../components/MapPin';
 import SaleListCard from '../../components/SaleListCard';
-import { IconButton, EmptyState } from '../../components/ui';
+import { IconButton, EmptyState, CategoryPicker } from '../../components/ui';
+import { ItemCategory } from '../../types';
 import { haversineMeters } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
 
@@ -51,48 +48,63 @@ const SORT_OPTIONS: { key: SortBy; label: string }[] = [
   { key: 'open', label: 'Open now' },
 ];
 
+// Radius options in miles. "0" means no radius filter (show all).
+const RADIUS_OPTIONS = [5, 15, 25, 50, 100] as const;
+type RadiusMiles = typeof RADIUS_OPTIONS[number];
+
+interface SearchLocation {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const initialPanDone = useRef(false);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+
+  const [categoryFilter, setCategoryFilter] = useState<ItemCategory[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
-  // List-mode sort. Persisted across viewMode toggles within a session.
   const [sortBy, setSortBy] = useState<SortBy>('distance');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
-  // Live region — feeds the clustering hook so cluster bubbles
-  // re-bucket as the user zooms / pans.
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'winding_down' | null>(null);
 
-  // Fetch every non-ended sale once. The previous viewport-bounded
-  // version caused pins to blink on / off during zoom gestures because
-  // each region change kicked off a fresh query and any sale outside
-  // the in-flight rectangle vanished until the next response landed.
-  // See useSales' doc comment for the longer story.
+  // Search state
+  const [searchText, setSearchText] = useState('');
+  const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Filter sheet location input (pre-geocode text, local to filter sheet)
+  const [filterLocationText, setFilterLocationText] = useState('');
+  const [filterLocationSearching, setFilterLocationSearching] = useState(false);
+
+  // Radius filter (miles). null = no filter.
+  const [radiusMiles, setRadiusMiles] = useState<RadiusMiles | null>(null);
+
   const { sales, loading, refetch } = useSales();
+  const { isFavorited, refetch: refetchFavorites } = useFavorites();
+
+  // Re-fetch favorites whenever the Discover screen comes back into focus
+  // (e.g. after the user hearts a sale in SaleDetail and navigates back).
+  useFocusEffect(
+    useCallback(() => {
+      refetchFavorites();
+    }, [refetchFavorites]),
+  );
   const userLocation = useUserLocation();
-  // Restore the map to wherever it was last time the app was closed.
-  // Avoids the "starts in Kansas, then awkwardly pans to me" flash.
   const { region: lastRegion, save: saveLastRegion, ready: regionReady } =
     useLastMapRegion();
-  // Drives the unread dot on the inbox icon. The hook subscribes to
-  // postgres_changes on messages, so the badge updates live.
-  const { unreadCount } = useInbox();
 
   const focusLat = route.params?.focusLat;
   const focusLng = route.params?.focusLng;
 
-  // Map pan strategy (in order):
-  //   1) Just posted a sale? Pan to it (focus coords from route params).
-  //   2) Have a saved region from a previous session? Don't auto-pan at
-  //      all — the MapView's initialRegion is already set to it below,
-  //      so the user opens exactly where they left off.
-  //   3) No saved region (first ever launch)? Use Location.getLastKnown
-  //      first for an instant approximate pan, then refine with a fresh
-  //      getCurrentPosition. Avoids the iOS-cache-stale jump.
+  // Map pan strategy (same as before)
   useEffect(() => {
-    // Wait until the AsyncStorage read settles before deciding.
     if (!regionReady) return;
     if (initialPanDone.current) return;
 
@@ -100,12 +112,7 @@ export default function MapHomeScreen() {
       initialPanDone.current = true;
       setTimeout(() => {
         mapRef.current?.animateToRegion(
-          {
-            latitude: focusLat,
-            longitude: focusLng,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          },
+          { latitude: focusLat, longitude: focusLng, latitudeDelta: 0.02, longitudeDelta: 0.02 },
           800,
         );
       }, 250);
@@ -113,60 +120,36 @@ export default function MapHomeScreen() {
       return;
     }
 
-    // We had a saved region — initialRegion already handled it. Skip
-    // the auto-pan so we don't yank the user to "where iOS thinks
-    // they are right now" instead of where they were looking.
     if (lastRegion) {
       initialPanDone.current = true;
       return;
     }
 
-    // True first launch: locate them.
     let cancelled = false;
     (async () => {
       try {
-        const { status } =
-          await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.requestForegroundPermissionsAsync();
         if (cancelled || status !== 'granted') return;
 
-        // Fast path: last-known-position is instant (cached). May be a
-        // bit stale but is way better than the US center.
         const last = await Location.getLastKnownPositionAsync({});
         if (!cancelled && last) {
           initialPanDone.current = true;
           mapRef.current?.animateToRegion(
-            {
-              latitude: last.coords.latitude,
-              longitude: last.coords.longitude,
-              latitudeDelta: 0.05,
-              longitudeDelta: 0.05,
-            },
+            { latitude: last.coords.latitude, longitude: last.coords.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
             500,
           );
         }
 
-        // Slow path: a fresh fix. May take 3-5s. Refines the pan.
-        const fresh = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         if (cancelled) return;
         initialPanDone.current = true;
         mapRef.current?.animateToRegion(
-          {
-            latitude: fresh.coords.latitude,
-            longitude: fresh.coords.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          },
+          { latitude: fresh.coords.latitude, longitude: fresh.coords.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
           800,
         );
-      } catch {
-        /* swallow */
-      }
+      } catch { /* swallow */ }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [focusLat, focusLng, navigation, regionReady, lastRegion]);
 
   // Fallback: if useUserLocation resolves AFTER the initial-pan effect
@@ -197,26 +180,153 @@ export default function MapHomeScreen() {
     );
   }, [userLocation, focusLat, focusLng, lastRegion]);
 
-  // Filter + sort
-  const filteredSales = useMemo(() => {
-    const filtered = categoryFilter
-      ? sales.filter((s) => s.categories.includes(categoryFilter as any))
-      : sales;
-    if (viewMode !== 'list') return filtered;
+  // Search: resolve ZIP or city to lat/lng and pan the map
+  const handleSearch = useCallback(async () => {
+    const query = searchText.trim();
+    if (!query) return;
+    setSearching(true);
+    try {
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let label = query;
 
-    // List-mode sort. Distance fallback for any sort that doesn't apply
-    // (e.g. 'open' partitions, then sorts by distance within each group).
-    const distance = (s: typeof filtered[number]) =>
+      if (/^\d{5}$/.test(query)) {
+        // ZIP code via zippopotam.us
+        const res = await fetch(`https://api.zippopotam.us/us/${query}`);
+        if (res.ok) {
+          const data = await res.json();
+          const place = data.places?.[0];
+          if (place) {
+            lat = parseFloat(place.latitude);
+            lng = parseFloat(place.longitude);
+            label = `${place['place name']}, ${place['state abbreviation']} ${query}`;
+          }
+        }
+      } else {
+        // City/address via Nominatim (OpenStreetMap, free, no key)
+        const encoded = encodeURIComponent(`${query}, USA`);
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`,
+          { headers: { 'Accept-Language': 'en' } },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data[0]) {
+            lat = parseFloat(data[0].lat);
+            lng = parseFloat(data[0].lon);
+            label = data[0].display_name?.split(',').slice(0, 2).join(', ') ?? query;
+          }
+        }
+      }
+
+      if (lat !== null && lng !== null) {
+        setSearchLocation({ lat, lng, label });
+        mapRef.current?.animateToRegion(
+          { latitude: lat, longitude: lng, latitudeDelta: 0.1, longitudeDelta: 0.1 },
+          800,
+        );
+      }
+    } catch { /* network error — leave current location */ }
+    finally { setSearching(false); }
+  }, [searchText]);
+
+  // Filter sheet location search
+  const handleFilterLocationSearch = useCallback(async () => {
+    const query = filterLocationText.trim();
+    if (!query) return;
+    setFilterLocationSearching(true);
+    try {
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let label = query;
+
+      if (/^\d{5}$/.test(query)) {
+        const res = await fetch(`https://api.zippopotam.us/us/${query}`);
+        if (res.ok) {
+          const data = await res.json();
+          const place = data.places?.[0];
+          if (place) {
+            lat = parseFloat(place.latitude);
+            lng = parseFloat(place.longitude);
+            label = `${place['place name']}, ${place['state abbreviation']} ${query}`;
+          }
+        }
+      } else {
+        const encoded = encodeURIComponent(`${query}, USA`);
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`,
+          { headers: { 'Accept-Language': 'en' } },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data[0]) {
+            lat = parseFloat(data[0].lat);
+            lng = parseFloat(data[0].lon);
+            label = data[0].display_name?.split(',').slice(0, 2).join(', ') ?? query;
+          }
+        }
+      }
+
+      if (lat !== null && lng !== null) {
+        setSearchLocation({ lat, lng, label });
+        setSearchText(label);
+        mapRef.current?.animateToRegion(
+          { latitude: lat, longitude: lng, latitudeDelta: 0.1, longitudeDelta: 0.1 },
+          800,
+        );
+      }
+    } catch { /* network error */ }
+    finally { setFilterLocationSearching(false); }
+  }, [filterLocationText]);
+
+  const handleFilterUseMyLocation = useCallback(async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+    try {
+      const loc = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = loc.coords;
+      const label = 'Current location';
+      setSearchLocation({ lat: latitude, lng: longitude, label });
+      setSearchText(label);
+      mapRef.current?.animateToRegion(
+        { latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+        800,
+      );
+    } catch { /* ignore */ }
+  }, []);
+
+  // Filter + sort + radius
+  const filteredSales = useMemo(() => {
+    let result = categoryFilter.length > 0
+      ? sales.filter((s) => categoryFilter.some((c) => s.categories.includes(c)))
+      : sales;
+
+    // Radius filter — only active when a search location is pinned
+    if (searchLocation && radiusMiles !== null) {
+      const limitMeters = radiusMiles * 1609.34;
+      result = result.filter(
+        (s) =>
+          haversineMeters(searchLocation.lat, searchLocation.lng, s.latitude, s.longitude) <=
+          limitMeters,
+      );
+    }
+
+    if (statusFilter) {
+      result = result.filter((s) => s.status === statusFilter);
+    }
+
+    if (showSavedOnly) {
+      result = result.filter((s) => isFavorited(s.id));
+    }
+
+    if (viewMode !== 'list') return result;
+
+    const distance = (s: typeof result[number]) =>
       userLocation
-        ? haversineMeters(
-            userLocation.latitude,
-            userLocation.longitude,
-            s.latitude,
-            s.longitude,
-          )
+        ? haversineMeters(userLocation.latitude, userLocation.longitude, s.latitude, s.longitude)
         : Number.POSITIVE_INFINITY;
 
-    const sorted = [...filtered];
+    const sorted = [...result];
     if (sortBy === 'distance') {
       sorted.sort((a, b) => distance(a) - distance(b));
     } else if (sortBy === 'newest') {
@@ -230,7 +340,8 @@ export default function MapHomeScreen() {
       });
     }
     return sorted;
-  }, [sales, categoryFilter, viewMode, userLocation, sortBy]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sales, categoryFilter.join(','), viewMode, userLocation, sortBy, searchLocation, radiusMiles, statusFilter, showSavedOnly, isFavorited]);
 
   const openNowCount = useMemo(
     () => filteredSales.filter((s) => isOpenNow(s)).length,
@@ -242,40 +353,23 @@ export default function MapHomeScreen() {
     if (status !== 'granted') return;
     const loc = await Location.getCurrentPositionAsync({});
     mapRef.current?.animateToRegion(
-      {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      },
+      { latitude: loc.coords.latitude, longitude: loc.coords.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
       800,
     );
   }, []);
 
   const onRegionChangeComplete = useCallback(
-    (region: Region) => {
-      // Persist where the user is looking so re-opening the app drops
-      // them right back here instead of US-center or wherever iOS
-      // thinks they are. Debounced inside useLastMapRegion.
-      saveLastRegion(region);
-    },
+    (region: Region) => { saveLastRegion(region); },
     [saveLastRegion],
   );
 
-  // NO className anywhere in this screen — every wrapper uses inline
-  // styles via a local StyleSheet. NativeWind v4's css-interop runtime
-  // was throwing a phantom 'no navigation context' error when several
-  // className Views were nested inside MapHomeScreen (see error
-  // boundary trace pointing into react-native-css-interop). Until we
-  // can find / fix the upstream bug, sidestep it by not using className
-  // on this screen. Child components (IconButton, FilterBar, EmptyState,
-  // SaleListCard) still use NativeWind — they're fine in isolation.
+  const activeFilterCount =
+    (categoryFilter.length > 0 ? 1 : 0) + (searchLocation !== null ? 1 : 0) + (statusFilter ? 1 : 0);
+
   return (
     <View style={styles.root}>
-      {/* MAP MODE — always mounted, hidden when in list mode */}
-      <View
-        style={[styles.mode, { display: viewMode === 'map' ? 'flex' : 'none' }]}
-      >
+      {/* MAP MODE */}
+      <View style={[styles.mode, { display: viewMode === 'map' ? 'flex' : 'none' }]}>
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -287,24 +381,16 @@ export default function MapHomeScreen() {
           {filteredSales.map((sale) => (
             <Marker
               key={sale.id}
-              coordinate={{
-                latitude: sale.latitude,
-                longitude: sale.longitude,
-              }}
-              onPress={() =>
-                navigation.navigate('SaleDetail', { saleId: sale.id })
-              }
+              coordinate={{ latitude: sale.latitude, longitude: sale.longitude }}
+              onPress={() => navigation.navigate('SaleDetail', { saleId: sale.id })}
               tracksViewChanges={false}
             >
-              <MapPin status={sale.status} />
+              <MapPin status={sale.status} favorited={isFavorited(sale.id)} />
             </Marker>
           ))}
         </MapView>
 
-        {/* Floating my-location FAB. No refresh button: useSales
-            auto-refetches on map-bounds change AND subscribes to
-            postgres_changes, so the map already reflects new sales
-            within a second of them being posted. */}
+        {/* My-location FAB */}
         <View style={styles.locateWrap}>
           <IconButton
             variant="solid"
@@ -315,35 +401,38 @@ export default function MapHomeScreen() {
         </View>
       </View>
 
-      {/* LIST MODE — always mounted, hidden when in map mode */}
-      <View
-        style={[
-          styles.mode,
-          styles.listMode,
-          { display: viewMode === 'list' ? 'flex' : 'none' },
-        ]}
-      >
-        {/* Single compact 'Sort: X' pill — opens a sheet to pick.
-            Hides 2 chips' worth of horizontal noise vs the old
-            three-chip row. */}
+      {/* LIST MODE */}
+      <View style={[styles.mode, styles.listMode, { display: viewMode === 'list' ? 'flex' : 'none' }]}>
+        {/* Saved toggle */}
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 8, gap: 8 }}>
+          <Pressable
+            onPress={() => setShowSavedOnly(false)}
+            style={[styles.savedToggle, !showSavedOnly && styles.savedToggleActive]}
+          >
+            <Text style={[styles.savedToggleText, !showSavedOnly && styles.savedToggleTextActive]}>All</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowSavedOnly(true)}
+            style={[styles.savedToggle, showSavedOnly && styles.savedToggleActive]}
+          >
+            <Ionicons name="heart" size={13} color={showSavedOnly ? '#fff' : '#71717A'} />
+            <Text style={[styles.savedToggleText, showSavedOnly && styles.savedToggleTextActive]}>Saved</Text>
+          </Pressable>
+        </View>
+
         {filteredSales.length > 0 && (
           <View style={styles.sortRow}>
-            <Pressable
-              onPress={() => setSortSheetOpen(true)}
-              style={styles.sortPill}
-            >
+            <Pressable onPress={() => setSortSheetOpen(true)} style={styles.sortPill}>
               <Ionicons name="swap-vertical" size={14} color="#71717A" />
               <Text style={styles.sortPillText}>
-                Sort:{' '}
-                <Text style={styles.sortPillValue}>
+                Sort: <Text style={styles.sortPillValue}>
                   {SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? ''}
                 </Text>
               </Text>
               <Ionicons name="chevron-down" size={12} color="#71717A" />
             </Pressable>
             <Text style={styles.sortCount}>
-              {filteredSales.length}{' '}
-              {filteredSales.length === 1 ? 'sale' : 'sales'}
+              {filteredSales.length} {filteredSales.length === 1 ? 'sale' : 'sales'}
             </Text>
           </View>
         )}
@@ -353,8 +442,8 @@ export default function MapHomeScreen() {
             icon={<Ionicons name="pricetag-outline" size={32} color="#2D5F3E" />}
             title="No sales found"
             description={
-              categoryFilter
-                ? 'Try a different category or clear the filter.'
+              categoryFilter.length > 0 || radiusMiles !== null
+                ? 'Try adjusting your filters.'
                 : "There aren't any active sales right now."
             }
           />
@@ -365,138 +454,300 @@ export default function MapHomeScreen() {
             contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl
-                refreshing={loading}
-                onRefresh={refetch}
-                tintColor="#2D5F3E"
-                colors={['#2D5F3E']}
-              />
+              <RefreshControl refreshing={loading} onRefresh={refetch} tintColor="#2D5F3E" colors={['#2D5F3E']} />
             }
             renderItem={({ item }) => (
               <SaleListCard
                 sale={item}
                 userLat={userLocation?.latitude}
                 userLng={userLocation?.longitude}
-                onPress={() =>
-                  navigation.navigate('SaleDetail', { saleId: item.id })
-                }
+                onPress={() => navigation.navigate('SaleDetail', { saleId: item.id })}
               />
             )}
           />
         )}
       </View>
 
-      {/* Floating top bar — same on both views */}
+      {/* ── Floating top bar ── */}
       <View style={[styles.topBarWrap, { top: insets.top }]}>
-        <View style={styles.topBarCard}>
-          <View style={styles.topBarIcon}>
-            <Ionicons name="map" size={20} color="#2D5F3E" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.topBarTitle}>Discover sales</Text>
-            <Text style={styles.topBarSubtitle}>
-              {loading
-                ? 'Loading nearby sales…'
-                : openNowCount > 0
-                ? `${openNowCount} open right now`
-                : filteredSales.length > 0
-                ? `${filteredSales.length} ${
-                    filteredSales.length === 1 ? 'sale' : 'sales'
-                  }`
-                : 'Pan the map to find sales'}
-            </Text>
-          </View>
-          {loading && <ActivityIndicator color="#2D5F3E" />}
-
-          {/* Inbox icon — pushes the Messages screen onto MapStack.
-              Red dot when the user has at least one unread message. */}
-          <Pressable
-            onPress={() =>
-              (navigation as any).navigate('Messages', { screen: 'Inbox' })
-            }
-            hitSlop={8}
-            style={{
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginLeft: 4,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={
-              unreadCount > 0
-                ? `Messages, ${unreadCount} unread`
-                : 'Messages'
-            }
-          >
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={22}
-              color="#18181B"
+        {/* Search row */}
+        <View style={styles.searchCard}>
+          <View style={styles.searchInputWrap}>
+            <Ionicons name="search-outline" size={16} color="#A1A1AA" style={{ marginRight: 6 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="ZIP code or city…"
+              placeholderTextColor="#A1A1AA"
+              value={searchText}
+              onChangeText={setSearchText}
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
+              autoCorrect={false}
+              autoCapitalize="none"
             />
-            {unreadCount > 0 ? (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 4,
-                  right: 6,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: '#2D5F3E',
-                  borderWidth: 1.5,
-                  borderColor: '#FFFFFF',
-                }}
-              />
+            {searching ? (
+              <ActivityIndicator size="small" color="#2D5F3E" style={{ marginLeft: 4 }} />
+            ) : searchText.length > 0 ? (
+              <Pressable
+                onPress={() => { setSearchText(''); setSearchLocation(null); }}
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle" size={16} color="#A1A1AA" />
+              </Pressable>
             ) : null}
-          </Pressable>
+          </View>
 
-          {/* Map/List toggle */}
-          <View style={styles.toggleWrap}>
+          {/* Filter + view toggle */}
+          <View style={styles.searchActions}>
+            {/* Filter pill */}
             <Pressable
-              onPress={() => setViewMode('map')}
-              style={[
-                styles.toggleBtn,
-                viewMode === 'map' && styles.toggleBtnActive,
-              ]}
+              onPress={() => setFilterSheetOpen(true)}
+              style={[styles.filterPill, activeFilterCount > 0 && { backgroundColor: '#2D5F3E' }]}
             >
-              <Ionicons
-                name="map"
-                size={16}
-                color={viewMode === 'map' ? '#2D5F3E' : '#71717A'}
-              />
+              <Ionicons name="options-outline" size={15} color={activeFilterCount > 0 ? '#fff' : '#18181B'} />
+              <Text style={[styles.filterPillText, activeFilterCount > 0 && { color: '#fff' }]}>
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </Text>
             </Pressable>
+
+            {/* View toggle — single button showing the OTHER mode */}
             <Pressable
-              onPress={() => setViewMode('list')}
-              style={[
-                styles.toggleBtn,
-                viewMode === 'list' && styles.toggleBtnActive,
-              ]}
+              onPress={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+              style={styles.viewToggleBtn}
             >
               <Ionicons
-                name="list"
-                size={16}
-                color={viewMode === 'list' ? '#2D5F3E' : '#71717A'}
+                name={viewMode === 'map' ? 'list' : 'map'}
+                size={17}
+                color="#18181B"
               />
             </Pressable>
           </View>
         </View>
-        <View style={{ marginTop: 8 }}>
-          <FilterBar selected={categoryFilter} onSelect={setCategoryFilter} />
-        </View>
+
+        {/* Location label when a search is active */}
+        {searchLocation && (
+          <View style={styles.locationPill}>
+            <Ionicons name="location" size={12} color="#2D5F3E" />
+            <Text style={styles.locationPillText} numberOfLines={1}>
+              {searchLocation.label}
+              {radiusMiles !== null ? ` · within ${radiusMiles} mi` : ''}
+            </Text>
+            <Pressable
+              onPress={() => { setSearchLocation(null); setSearchText(''); }}
+              hitSlop={8}
+            >
+              <Ionicons name="close-circle" size={14} color="#A1A1AA" />
+            </Pressable>
+          </View>
+        )}
       </View>
 
-      {/* Sort sheet — bottom modal with the three options */}
+      {/* ── Post (+) FAB ── */}
+      <View style={[styles.fabWrap, { bottom: 32 }]}>
+        <Pressable
+          onPress={() => setPostMenuOpen(true)}
+          style={styles.fab}
+          accessibilityRole="button"
+          accessibilityLabel="Post a sale or listing"
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </Pressable>
+      </View>
+
+      {/* ── Post menu sheet ── */}
+      <Modal
+        visible={postMenuOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPostMenuOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setPostMenuOpen(false)} />
+        <View style={styles.sheetCard}>
+          <View style={styles.sheetGrabber} />
+          <Text style={styles.sheetTitle}>What do you want to post?</Text>
+          <Pressable
+            onPress={() => {
+              setPostMenuOpen(false);
+              (navigation as any).navigate('Profile', { screen: 'CreateSale' });
+            }}
+            style={styles.postRow}
+          >
+            <View style={[styles.postIcon, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="pricetag" size={22} color="#2D5F3E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.postRowLabel}>Yard Sale</Text>
+              <Text style={styles.postRowDetail}>Post a sale at your address with dates and times</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D4D4D8" />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setPostMenuOpen(false);
+              (navigation as any).navigate('Profile', { screen: 'CreateListing' });
+            }}
+            style={styles.postRow}
+          >
+            <View style={[styles.postIcon, { backgroundColor: '#FEF9C3' }]}>
+              <Ionicons name="storefront" size={22} color="#854D0E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.postRowLabel}>Individual Listing</Text>
+              <Text style={styles.postRowDetail}>Sell a single item with photos and a price</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D4D4D8" />
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* ── Filter sheet ── */}
+      <Modal
+        visible={filterSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterSheetOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setFilterSheetOpen(false)} />
+        <View style={[styles.sheetCard, { paddingBottom: 44, maxHeight: '80%' }]}>
+          <View style={styles.sheetGrabber} />
+          <RNScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <Text style={styles.sheetTitle}>Filters</Text>
+            {(radiusMiles !== null || categoryFilter.length > 0 || statusFilter || searchLocation) && (
+              <Pressable
+                onPress={() => {
+                  setRadiusMiles(null);
+                  setCategoryFilter([]);
+                  setStatusFilter(null);
+                  setSearchLocation(null);
+                  setSearchText('');
+                  setFilterLocationText('');
+                }}
+                hitSlop={8}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#2D5F3E' }}>Clear all</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Location */}
+          <Text style={styles.filterSectionLabel}>Location</Text>
+          <View style={{ marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F4F5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 8, marginBottom: 8 }}>
+              <Ionicons name="search-outline" size={16} color="#A1A1AA" />
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: '#18181B', padding: 0 }}
+                placeholder="City, state, or ZIP code"
+                placeholderTextColor="#A1A1AA"
+                value={filterLocationText}
+                onChangeText={setFilterLocationText}
+                returnKeyType="search"
+                onSubmitEditing={handleFilterLocationSearch}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {filterLocationSearching && <ActivityIndicator size="small" color="#2D5F3E" />}
+            </View>
+            <Pressable onPress={handleFilterUseMyLocation} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
+              <Ionicons name="locate-outline" size={14} color="#2D5F3E" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#2D5F3E' }}>Use my current location</Text>
+            </Pressable>
+            {searchLocation && (
+              <Text style={{ fontSize: 12, color: '#71717A', marginTop: 4 }}>
+                📍 {searchLocation.label}
+              </Text>
+            )}
+          </View>
+
+          {/* Distance */}
+          <Text style={styles.filterSectionLabel}>Distance</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            {[5, 15, 25, 50, 100].map((miles) => {
+              const active = radiusMiles === miles;
+              return (
+                <Pressable
+                  key={miles}
+                  onPress={() => setRadiusMiles(active ? null : miles as RadiusMiles)}
+                  style={[styles.radiusChip, active && styles.radiusChipActive]}
+                >
+                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{miles} mi</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.filterSectionLabel}>Category</Text>
+          <View style={{ marginBottom: 20 }}>
+            <CategoryPicker selected={categoryFilter} onChange={setCategoryFilter} />
+          </View>
+
+          <Text style={styles.filterSectionLabel}>Status</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            {[
+              { key: 'active' as const, label: 'Active' },
+              { key: 'winding_down' as const, label: 'Winding Down' },
+            ].map(({ key, label }) => {
+              const active = statusFilter === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setStatusFilter(active ? null : key)}
+                  style={[styles.radiusChip, active && styles.radiusChipActive]}
+                >
+                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          </RNScrollView>
+
+          {/* Footer — always visible regardless of scroll position */}
+          <View style={{ flexDirection: 'row', gap: 10, paddingTop: 12 }}>
+            <Pressable
+              onPress={() => {
+                setRadiusMiles(null);
+                setCategoryFilter([]);
+                setStatusFilter(null);
+                setSearchLocation(null);
+                setSearchText('');
+                setFilterLocationText('');
+              }}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#E4E4E7',
+                backgroundColor: '#fff',
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#52525B' }}>Reset</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setFilterSheetOpen(false)}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                borderRadius: 16,
+                backgroundColor: '#2D5F3E',
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Show Results</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Sort sheet ── */}
       <Modal
         visible={sortSheetOpen}
         transparent
         animationType="slide"
         onRequestClose={() => setSortSheetOpen(false)}
       >
-        <Pressable
-          style={styles.sheetBackdrop}
-          onPress={() => setSortSheetOpen(false)}
-        />
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)} />
         <View style={styles.sheetCard}>
           <View style={styles.sheetGrabber} />
           <Text style={styles.sheetTitle}>Sort by</Text>
@@ -505,23 +756,13 @@ export default function MapHomeScreen() {
             return (
               <Pressable
                 key={opt.key}
-                onPress={() => {
-                  setSortBy(opt.key);
-                  setSortSheetOpen(false);
-                }}
+                onPress={() => { setSortBy(opt.key); setSortSheetOpen(false); }}
                 style={styles.sheetRow}
               >
-                <Text
-                  style={[
-                    styles.sheetRowText,
-                    active && styles.sheetRowTextActive,
-                  ]}
-                >
+                <Text style={[styles.sheetRowText, active && styles.sheetRowTextActive]}>
                   {opt.label}
                 </Text>
-                {active && (
-                  <Ionicons name="checkmark" size={20} color="#2D5F3E" />
-                )}
+                {active && <Ionicons name="checkmark" size={20} color="#2D5F3E" />}
               </Pressable>
             );
           })}
@@ -531,19 +772,126 @@ export default function MapHomeScreen() {
   );
 }
 
+const BRAND = '#2D5F3E';
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FAFAF9' },
   mode: { flex: 1 },
-  listMode: { paddingTop: 168 },
+  listMode: { paddingTop: 148 },
   map: { flex: 1 },
   locateWrap: {
     position: 'absolute',
     right: 16,
-    bottom: 24,
+    bottom: 100,
     pointerEvents: 'box-none',
     gap: 10,
     alignItems: 'flex-end',
   },
+  // ── Top bar
+  topBarWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    pointerEvents: 'box-none',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 6,
+  },
+  searchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+    gap: 10,
+  },
+  searchInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#18181B',
+    padding: 0,
+    fontWeight: '400',
+  },
+  searchActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#F4F4F5',
+  },
+  filterPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#18181B',
+  },
+  viewToggleBtn: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: '#F4F4F5',
+  },
+  locationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+    maxWidth: '90%',
+  },
+  locationPillText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#18181B',
+    fontWeight: '500',
+  },
+  // ── FAB
+  fabWrap: {
+    position: 'absolute',
+    right: 16,
+    pointerEvents: 'box-none',
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: BRAND,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  // ── Sort / List
   sortRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -561,19 +909,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#F4F4F5',
   },
-  sortPillText: {
-    fontSize: 12,
-    color: '#71717A',
-  },
-  sortPillValue: {
-    fontWeight: '700',
-    color: '#18181B',
-  },
-  sortCount: {
-    fontSize: 12,
-    color: '#A1A1AA',
-    fontWeight: '500',
-  },
+  sortPillText: { fontSize: 12, color: '#71717A' },
+  sortPillValue: { fontWeight: '700', color: '#18181B' },
+  sortCount: { fontSize: 12, color: '#A1A1AA', fontWeight: '500' },
+  // ── Sheets
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -618,74 +957,76 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#F4F4F5',
   },
-  sheetRowText: {
-    fontSize: 16,
-    color: '#27272A',
-  },
-  sheetRowTextActive: {
-    color: '#2D5F3E',
-    fontWeight: '700',
-  },
-  topBarWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    pointerEvents: 'box-none',
-  },
-  topBarCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
+  sheetRowText: { fontSize: 16, color: '#27272A' },
+  sheetRowTextActive: { color: BRAND, fontWeight: '700' },
+  // ── Post menu
+  postRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F4F4F5',
+    gap: 14,
   },
-  topBarIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#FFEDD5',
+  postIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  topBarTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#18181B',
-  },
-  topBarSubtitle: {
+  postRowLabel: { fontSize: 16, fontWeight: '600', color: '#18181B' },
+  postRowDetail: { fontSize: 12, color: '#71717A', marginTop: 2 },
+  // ── Filter chips
+  filterSectionLabel: {
     fontSize: 12,
-    color: '#71717A',
+    fontWeight: '700',
+    color: '#A1A1AA',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
   },
-  toggleWrap: {
-    marginLeft: 12,
-    flexDirection: 'row',
+  radiusChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: '#F4F4F5',
-    padding: 2,
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
   },
-  toggleBtn: {
-    width: 32,
-    height: 32,
+  radiusChipActive: {
+    backgroundColor: BRAND,
+    borderColor: BRAND,
+  },
+  radiusChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#52525B',
+  },
+  radiusChipTextActive: {
+    color: '#fff',
+  },
+  savedToggle: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 999,
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
   },
-  toggleBtnActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+  savedToggleActive: {
+    backgroundColor: '#2D5F3E',
+    borderColor: '#2D5F3E',
+  },
+  savedToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#52525B',
+  },
+  savedToggleTextActive: {
+    color: '#fff',
   },
 });
-

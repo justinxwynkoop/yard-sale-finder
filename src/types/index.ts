@@ -3,7 +3,13 @@ export type SaleStatus = 'active' | 'winding_down' | 'ended';
 export type ItemCategory =
   | 'furniture'
   | 'clothing'
+  | 'clothing_womens'
+  | 'clothing_mens'
+  | 'clothing_toddler'
+  | 'clothing_teen'
   | 'electronics'
+  | 'electronics_video_games'
+  | 'electronics_computers'
   | 'toys'
   | 'tools'
   | 'books'
@@ -65,6 +71,12 @@ export interface Favorite {
   created_at: string;
 }
 
+export interface ListingFavorite {
+  user_id: string;
+  listing_id: string;
+  created_at: string;
+}
+
 export type ListingStatus = 'available' | 'sold';
 
 export interface Listing {
@@ -110,7 +122,6 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Map: undefined;
-  MySales: undefined;
   Listings: undefined;
   // Slot previously occupied by "Saved" -- saved sales now live as a
   // pushed route inside the Listings stack (accessed via a heart icon
@@ -129,11 +140,10 @@ export type ListingsStackParamList = {
   ListingDetail: { listingId: string };
   CreateListing: undefined;
   EditListing: { listingId: string };
-  // Saved (favorited) sales live here too -- accessed via the heart
-  // icon in the Listings header. SaleDetail registered on this stack
-  // so taps on a saved-sale card push within Listings rather than
-  // yanking the user across to the Map tab.
+  // SavedHome = favorited yard sales (map + list view)
+  // SavedListings = favorited listings (list only)
   SavedHome: undefined;
+  SavedListings: undefined;
   SaleDetail: { saleId: string };
 };
 
@@ -159,6 +169,14 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   BlockedUsers: undefined;
   DeleteAccount: undefined;
+  // initialTab lets Profile → "Yard Sales" and Profile → "Listings" open
+  // MySalesScreen on the right tab without exposing the other tab.
+  MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
+  CreateSale: undefined;
+  EditSale: { saleId: string };
+  Capture: { max?: number } | undefined;
+  CreateListing: undefined;
+  EditListing: { listingId: string };
 };
 
 export type ReportTargetType = 'sale' | 'listing' | 'profile';

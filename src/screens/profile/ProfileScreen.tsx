@@ -18,7 +18,8 @@ import Constants from 'expo-constants';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { useAppVersion } from '../../hooks/useAppVersion';
-import { useInbox } from '../../hooks/useInbox';
+import { useMySales } from '../../hooks/useSales';
+import { useMyListings } from '../../hooks/useListings';
 import { ProfileStackParamList } from '../../types';
 import {
   Avatar,
@@ -48,7 +49,8 @@ export default function ProfileScreen() {
   const { signOut } = useAuth();
   const { profile, loading, error, refetch } = useProfile();
   const { appVersion, buildNumber } = useAppVersion();
-  const { unreadCount } = useInbox();
+  const { sales } = useMySales(profile?.id);
+  const { listings } = useMyListings(profile?.id);
   const [debugOpen, setDebugOpen] = useState(false);
 
   const appName = Constants.expoConfig?.name ?? '';
@@ -197,18 +199,19 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Messages — top-level shortcut that cross-navigates into
-            the Map tab's Inbox screen. Same as tapping the chat icon
-            in the Discover top bar. Unread count drives a brand-
-            colored detail string instead of the boring "0". */}
-        <SettingsGroup title="Inbox">
+        {/* My Posts */}
+        <SettingsGroup title="My Posts">
           <SettingsRow
-            icon="chatbubble-ellipses-outline"
-            label="Messages"
-            detail={unreadCount > 0 ? `${unreadCount} unread` : undefined}
-            onPress={() =>
-              (navigation as any).navigate('Messages', { screen: 'Inbox' })
-            }
+            icon="pricetag-outline"
+            label="Yard Sales"
+            detail={sales.length > 0 ? `${sales.length} posted` : 'None yet'}
+            onPress={() => navigation.navigate('MySalesHome', { initialTab: 'sales' })}
+          />
+          <SettingsRow
+            icon="storefront-outline"
+            label="Listings"
+            detail={listings.length > 0 ? `${listings.length} posted` : 'None yet'}
+            onPress={() => navigation.navigate('MySalesHome', { initialTab: 'listings' })}
           />
         </SettingsGroup>
 
