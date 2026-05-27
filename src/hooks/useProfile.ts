@@ -85,5 +85,18 @@ export function useProfile() {
 }
 
 export function isProfileComplete(profile: Profile | null): boolean {
-  return !!profile && !!profile.display_name && profile.display_name.trim() !== '';
+  if (!profile) return false;
+  return (
+    !!profile.first_name?.trim() &&
+    !!profile.last_name?.trim() &&
+    !!profile.city?.trim() &&
+    !!profile.state?.trim() &&
+    !!profile.zip_code?.trim() &&
+    !!profile.birthdate
+  );
+}
+
+/** Returns true once the user has ticked "I agree" on the T&C screen. */
+export function hasAcceptedTerms(profile: Profile | null): boolean {
+  return !!profile?.terms_accepted_at;
 }
