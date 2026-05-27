@@ -156,9 +156,8 @@ export function useInbox() {
     fetch();
   }, [fetch]);
 
-  // Realtime: re-fetch on any message insert (new preview/ordering) or
-  // any conversation update (e.g. last_read_at changing when the user
-  // opens a thread and marks it read — clears the unread badge).
+  // Realtime: any insert into messages we participate in bumps the
+  // inbox so previews + ordering stay live.
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -171,11 +170,6 @@ export function useInbox() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'conversations' },
-        () => fetch(),
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'conversations' },
         () => fetch(),
       )
       .subscribe();
