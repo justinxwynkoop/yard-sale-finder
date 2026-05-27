@@ -18,7 +18,17 @@ import { useAuth } from './useAuth';
 export function useInbox() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // loading = true only on the very first fetch (no conversations yet).
+  // refreshing = true only during an explicit pull-to-refresh.
+  // Focus-triggered silent refetches change neither — no spinner shown.
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // IDs deleted in this session. Applied as a post-filter on every fetch
+  // result so a focus-triggered refetch can't resurrect a row that was
+  // deleted but whose DB round-trip hasn't finished yet.
+  const deletedIdsRef = useRef(new Set<string>());
+
   // useInbox is mounted in multiple places (Discover header, Profile,
   // InboxScreen) -- each needs its own Realtime channel because
   // Supabase Realtime rejects a second subscribe() with the same
@@ -27,13 +37,18 @@ export function useInbox() {
     `inbox-${Math.random().toString(36).slice(2, 10)}`,
   );
 
-  const fetch = useCallback(async () => {
+  // opts.initial  — first load, shows the full-screen spinner
+  // opts.pull     — pull-to-refresh, shows the FlatList spinner
+  // (no opts)     — silent background refetch, no spinner
+  const doFetch = useCallback(async (opts: { initial?: boolean; pull?: boolean } = {}) => {
     if (!user) {
       setConversations([]);
       setLoading(false);
+      setRefreshing(false);
       return;
     }
-    setLoading(true);
+    if (opts.initial) setLoading(true);
+    if (opts.pull) setRefreshing(true);
 
     // 1) Conversations the user participates in.
     const { data: convs } = await supabase
@@ -148,13 +163,17 @@ export function useInbox() {
       };
     });
 
-    setConversations(hydrated);
+    // Filter out any IDs deleted in this session (guards against a
+    // focus-triggered refetch racing the DB delete).
+    const visible = hydrated.filter((c) => !deletedIdsRef.current.has(c.id));
+    setConversations(visible);
     setLoading(false);
+    setRefreshing(false);
   }, [user]);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    doFetch({ initial: true });
+  }, [doFetch]);
 
   // Realtime: re-fetch on any message insert (new preview/ordering) or
   // any conversation update (e.g. last_read_at changing when the user
@@ -166,27 +185,34 @@ export function useInbox() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => fetch(),
+        () => doFetch(),
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'conversations' },
-        () => fetch(),
+        () => doFetch(),
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'conversations' },
-        () => fetch(),
+        () => doFetch(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetch]);
+  }, [user, doFetch]);
 
   const deleteConversation = useCallback(async (id: string) => {
-    await supabase.from('conversations').delete().eq('id', id);
+    // 1. Track the ID immediately — every subsequent fetch result (including
+    //    the focus-triggered refetch when the user returns to the tab) will
+    //    filter this ID out, so the row can never flash back.
+    deletedIdsRef.current.add(id);
     setConversations((prev) => prev.filter((c) => c.id !== id));
+    // 2. Delete from DB. The DELETE RLS policy allows participants to delete
+    //    their own conversations. Messages cascade automatically via the FK
+    //    ON DELETE CASCADE on messages.conversation_id.
+    await supabase.from('conversations').delete().eq('id', id);
   }, []);
 
   const markAsUnread = useCallback(async (id: string) => {
@@ -204,7 +230,11 @@ export function useInbox() {
   return {
     conversations,
     loading,
-    refetch: fetch,
+    refreshing,
+    // refetch — used by FlatList onRefresh (shows pull-to-refresh spinner)
+    refetch: () => doFetch({ pull: true }),
+    // silentRefetch — used by useFocusEffect (no spinner)
+    silentRefetch: () => doFetch(),
     unreadCount: conversations.filter((c) => c.has_unread).length,
     deleteConversation,
     markAsUnread,

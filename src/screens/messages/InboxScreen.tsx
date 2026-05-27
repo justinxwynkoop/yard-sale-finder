@@ -18,12 +18,12 @@ import { Conversation } from '../../types';
 
 export default function InboxScreen() {
   const navigation = useNavigation<any>();
-  const { conversations, loading, refetch, deleteConversation, markAsUnread } =
+  const { conversations, loading, refreshing, refetch, silentRefetch, deleteConversation, markAsUnread } =
     useInbox();
 
-  // Re-fetch every time this screen comes into focus so the unread
-  // badge and row dots clear immediately after opening a conversation.
-  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+  // Silently re-fetch when the screen comes into focus so unread dots
+  // clear after opening a conversation — no spinner shown for this.
+  useFocusEffect(useCallback(() => { silentRefetch(); }, [silentRefetch]));
 
   if (loading && conversations.length === 0) {
     return (
@@ -66,7 +66,7 @@ export default function InboxScreen() {
       <FlatList
         data={conversations}
         keyExtractor={(c) => c.id}
-        refreshing={loading}
+        refreshing={refreshing}
         onRefresh={refetch}
         contentContainerStyle={{ paddingVertical: 4 }}
         renderItem={({ item }) => (
