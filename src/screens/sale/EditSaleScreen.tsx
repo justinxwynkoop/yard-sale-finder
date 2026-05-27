@@ -27,7 +27,7 @@ import {
 import {
   Button,
   CategoryPicker,
-  Chip,
+  Chip, // used for status selector chips (Live / Ending soon / Ended)
   DateRangePresets,
   DateTimeField,
   Input,
