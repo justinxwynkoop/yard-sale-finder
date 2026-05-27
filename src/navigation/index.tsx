@@ -10,9 +10,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/useProfile';
 import { useOnboarding } from '../hooks/useOnboarding';
+import { useInbox } from '../hooks/useInbox';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import { navigationRef, navigateToConversation } from '../lib/navigationRef';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -248,6 +253,32 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 function MainTabs() {
   const { profile } = useProfile();
 
+  // Unread count drives the red badge on the Messages tab icon.
+  const { unreadCount } = useInbox();
+
+  // Register device for push notifications and persist the token to
+  // the user's profile. Runs once per sign-in, bails on simulators.
+  usePushNotifications();
+
+  // Handle notification taps → open the relevant conversation.
+  // Two cases:
+  //   Cold-start: app launched by tapping a notification while closed.
+  //   Warm:       user taps a notification while app is backgrounded/active.
+  useEffect(() => {
+    // Cold-start: getLastNotificationResponseAsync returns the notification
+    // that launched the app (or null if the user opened it normally).
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      const id = response?.notification.request.content.data?.conversationId;
+      if (id) navigateToConversation(id as string);
+    });
+
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const id = response.notification.request.content.data?.conversationId;
+      if (id) navigateToConversation(id as string);
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -308,7 +339,13 @@ function MainTabs() {
       <Tab.Screen
         name="Messages"
         component={MessagesNavigator}
-        options={{ tabBarLabel: 'Messages' }}
+        options={{
+          tabBarLabel: 'Messages',
+          // Show unread count as a red badge on the tab icon.
+          // undefined hides the badge entirely when there's nothing new.
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#EF4444', fontSize: 11 },
+        }}
       />
       <Tab.Screen
         name="Profile"
@@ -413,7 +450,7 @@ export default function Navigation() {
   // instead of returning null — that way useNavigation / useRoute
   // hooks anywhere in the tree never see an empty context.
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {loading ? (
           <RootStack.Screen name="Loading" component={LoadingScreen} />
