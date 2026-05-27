@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generate all Local Hauls icon + splash PNG assets from inline SVG.
+// Generate all Trove icon + splash PNG assets from inline SVG.
 // Run with: npm run icons:generate
 //
 // Why inline SVG: keeps the brand mark editable in this one file, no

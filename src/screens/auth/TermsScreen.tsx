@@ -48,7 +48,7 @@ export default function TermsScreen() {
       <View className="border-b border-zinc-100 px-5 py-4">
         <Text className="text-xl font-extrabold text-zinc-900">Terms of Service</Text>
         <Text className="mt-0.5 text-xs text-zinc-400">
-          Please read carefully before using Local Hauls.
+          Please read carefully before using Trove.
         </Text>
       </View>
 
@@ -92,11 +92,11 @@ We do not knowingly collect personal information from users under 13 years of ag
         </Section>
 
         <Section title="6. Transactions">
-          {`Local Hauls is a platform connecting buyers and sellers. We do not verify the accuracy of listings, process payments, guarantee transactions, or take responsibility for items sold or purchased through the app. All transactions are conducted directly between the buyer and seller.`}
+          {`Trove is a platform connecting buyers and sellers. We do not verify the accuracy of listings, process payments, guarantee transactions, or take responsibility for items sold or purchased through the app. All transactions are conducted directly between the buyer and seller.`}
         </Section>
 
         <Section title="7. Limitation of Liability">
-          {`To the maximum extent permitted by applicable law, Local Hauls shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the app, including but not limited to loss of goods, personal injury, or financial loss resulting from a transaction.`}
+          {`To the maximum extent permitted by applicable law, Trove shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the app, including but not limited to loss of goods, personal injury, or financial loss resulting from a transaction.`}
         </Section>
 
         <Section title="8. Changes to These Terms">
@@ -104,7 +104,7 @@ We do not knowingly collect personal information from users under 13 years of ag
         </Section>
 
         <Section title="9. Contact Us">
-          {`Questions about these Terms? Contact us at:\nsupport@localhauls.app`}
+          {`Questions about these Terms? Contact us at:\njasonwynkoop1@yahoo.com`}
         </Section>
 
         {/* Spacer so the checkbox doesn't hide behind the CTA */}
