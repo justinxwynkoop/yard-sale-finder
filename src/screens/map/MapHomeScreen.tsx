@@ -79,6 +79,11 @@ export default function MapHomeScreen() {
   const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
   const [searching, setSearching] = useState(false);
 
+  // Address autocomplete state
+  const [suggestions, setSuggestions] = useState<SearchLocation[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Filter sheet location input (pre-geocode text, local to filter sheet)
   const [filterLocationText, setFilterLocationText] = useState('');
   const [filterLocationSearching, setFilterLocationSearching] = useState(false);
@@ -187,6 +192,46 @@ export default function MapHomeScreen() {
       800,
     );
   }, [userLocation, focusLat, focusLng, lastRegion]);
+
+  // Fetch address suggestions from Nominatim as user types (debounced 400 ms)
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.trim().length < 3 || /^\d{5}$/.test(query.trim())) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    try {
+      const encoded = encodeURIComponent(`${query.trim()}, USA`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&countrycodes=us`,
+        { headers: { 'Accept-Language': 'en' } },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: SearchLocation[] = (data as any[]).map((r) => ({
+          lat: parseFloat(r.lat),
+          lng: parseFloat(r.lon),
+          label: (r.display_name as string).split(',').slice(0, 3).join(',').trim(),
+        }));
+        setSuggestions(mapped);
+        setShowSuggestions(mapped.length > 0);
+      }
+    } catch {
+      // network error — leave dropdown as-is
+    }
+  }, []);
+
+  // User taps a suggestion — pin location, pan map, dismiss dropdown
+  const handleSelectSuggestion = useCallback((s: SearchLocation) => {
+    setSearchText(s.label);
+    setSearchLocation(s);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    mapRef.current?.animateToRegion(
+      { latitude: s.lat, longitude: s.lng, latitudeDelta: 0.1, longitudeDelta: 0.1 },
+      800,
+    );
+  }, []);
 
   // Search: resolve ZIP or city to lat/lng and pan the map
   const handleSearch = useCallback(async () => {
@@ -494,12 +539,30 @@ export default function MapHomeScreen() {
             <Ionicons name="search-outline" size={16} color="#A1A1AA" style={{ marginRight: 6 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="ZIP code or city…"
+              placeholder="Address, ZIP, or city…"
               placeholderTextColor="#A1A1AA"
               value={searchText}
-              onChangeText={setSearchText}
+              onChangeText={(text) => {
+                setSearchText(text);
+                // Debounce autocomplete — fires 400 ms after the user stops typing
+                if (suggestDebounce.current) clearTimeout(suggestDebounce.current);
+                if (text.trim().length >= 3) {
+                  suggestDebounce.current = setTimeout(() => fetchSuggestions(text), 400);
+                } else {
+                  setSuggestions([]);
+                  setShowSuggestions(false);
+                }
+              }}
               returnKeyType="search"
-              onSubmitEditing={handleSearch}
+              onSubmitEditing={() => {
+                setSuggestions([]);
+                setShowSuggestions(false);
+                handleSearch();
+              }}
+              onBlur={() => {
+                // Small delay so a tap on a suggestion row registers first
+                setTimeout(() => { setSuggestions([]); setShowSuggestions(false); }, 150);
+              }}
               autoCorrect={false}
               autoCapitalize="none"
             />
@@ -507,7 +570,7 @@ export default function MapHomeScreen() {
               <ActivityIndicator size="small" color="#2D5F3E" style={{ marginLeft: 4 }} />
             ) : searchText.length > 0 ? (
               <Pressable
-                onPress={() => { setSearchText(''); setSearchLocation(null); }}
+                onPress={() => { setSearchText(''); setSearchLocation(null); setSuggestions([]); setShowSuggestions(false); }}
                 hitSlop={8}
               >
                 <Ionicons name="close-circle" size={16} color="#A1A1AA" />
@@ -517,14 +580,14 @@ export default function MapHomeScreen() {
 
           {/* Filter + view toggle */}
           <View style={styles.searchActions}>
-            {/* Filter pill */}
+            {/* Filter pill — green when any filter is active, no count shown */}
             <Pressable
               onPress={() => setFilterSheetOpen(true)}
               style={[styles.filterPill, activeFilterCount > 0 && { backgroundColor: '#2D5F3E' }]}
             >
               <Ionicons name="options-outline" size={15} color={activeFilterCount > 0 ? '#fff' : '#18181B'} />
               <Text style={[styles.filterPillText, activeFilterCount > 0 && { color: '#fff' }]}>
-                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                Filters
               </Text>
             </Pressable>
 
@@ -542,20 +605,19 @@ export default function MapHomeScreen() {
           </View>
         </View>
 
-        {/* Location label when a search is active */}
-        {searchLocation && (
-          <View style={styles.locationPill}>
-            <Ionicons name="location" size={12} color="#2D5F3E" />
-            <Text style={styles.locationPillText} numberOfLines={1}>
-              {searchLocation.label}
-              {radiusMiles !== null ? ` · within ${radiusMiles} mi` : ''}
-            </Text>
-            <Pressable
-              onPress={() => { setSearchLocation(null); setSearchText(''); }}
-              hitSlop={8}
-            >
-              <Ionicons name="close-circle" size={14} color="#A1A1AA" />
-            </Pressable>
+        {/* Address autocomplete dropdown — shown while user is typing */}
+        {showSuggestions && suggestions.length > 0 && (
+          <View style={styles.suggestionsCard}>
+            {suggestions.map((s, i) => (
+              <Pressable
+                key={i}
+                onPress={() => handleSelectSuggestion(s)}
+                style={[styles.suggestionRow, i < suggestions.length - 1 && styles.suggestionBorder]}
+              >
+                <Ionicons name="location-outline" size={14} color="#71717A" style={{ marginRight: 8 }} />
+                <Text style={styles.suggestionText} numberOfLines={2}>{s.label}</Text>
+              </Pressable>
+            ))}
           </View>
         )}
       </View>
@@ -868,27 +930,31 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#F4F4F5',
   },
-  locationPill: {
+  // ── Address autocomplete dropdown
+  suggestionsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#fff',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-    maxWidth: '90%',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  locationPillText: {
+  suggestionBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F4F4F5',
+  },
+  suggestionText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     color: '#18181B',
-    fontWeight: '500',
   },
   // ── FAB
   fabWrap: {

@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useInbox } from '../../hooks/useInbox';
-import { Avatar, EmptyState } from '../../components/ui';
+import { EmptyState } from '../../components/ui';
 import { Conversation } from '../../types';
 
 export default function InboxScreen() {
@@ -199,16 +199,16 @@ function ConversationRow({
           ) : null}
         </View>
 
-        {/* Item photo — left, larger */}
+        {/* Listing photo — left, 2× larger than before */}
         {conversation.target_image_url ? (
           <Image
             source={{ uri: conversation.target_image_url }}
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 10,
+              width: 144,
+              height: 144,
+              borderRadius: 12,
               backgroundColor: '#F4F4F5',
-              marginRight: 12,
+              marginRight: 14,
             }}
             contentFit="cover"
             transition={120}
@@ -216,45 +216,35 @@ function ConversationRow({
         ) : (
           <View
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 10,
+              width: 144,
+              height: 144,
+              borderRadius: 12,
               backgroundColor: '#FFEDD5',
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: 12,
+              marginRight: 14,
             }}
           >
-            <Ionicons name="image-outline" size={28} color="#2D5F3E" />
+            <Ionicons name="image-outline" size={48} color="#2D5F3E" />
           </View>
         )}
 
-        {/* Profile avatar + name + sale title + message preview — right */}
+        {/* Seller name + listing title + message preview — right */}
         <View style={{ flex: 1 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginBottom: 5,
-            }}
-          >
-            <Avatar uri={other?.avatar_url} name={other?.display_name} size="sm" />
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 15,
-                fontWeight: '600',
-                color: '#18181B',
-                marginLeft: 8,
-              }}
-              numberOfLines={1}
-            >
-              {other?.display_name ?? 'Unknown user'}
-            </Text>
-          </View>
           <Text
-            style={{ fontSize: 12, color: '#71717A', marginBottom: 2 }}
+            style={{
+              fontSize: 15,
+              fontWeight: '700',
+              color: '#18181B',
+              marginBottom: 4,
+            }}
             numberOfLines={1}
+          >
+            {other?.display_name ?? 'Unknown user'}
+          </Text>
+          <Text
+            style={{ fontSize: 12, color: '#71717A', marginBottom: 6 }}
+            numberOfLines={2}
           >
             {targetTitle}
           </Text>
@@ -264,7 +254,7 @@ function ConversationRow({
               color: conversation.has_unread ? '#18181B' : '#71717A',
               fontWeight: conversation.has_unread ? '600' : '400',
             }}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {preview}
           </Text>
