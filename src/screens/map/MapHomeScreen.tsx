@@ -152,6 +152,34 @@ export default function MapHomeScreen() {
     return () => { cancelled = true; };
   }, [focusLat, focusLng, navigation, regionReady, lastRegion]);
 
+  // Fallback: if useUserLocation resolves AFTER the initial-pan effect
+  // above already bailed (permission was 'undetermined' when the OS
+  // dialog was still showing, or getCurrentPositionAsync was too slow
+  // to win the race), pan as soon as we get a fix. Without this, fresh
+  // logins on a new install stay parked on DEFAULT_REGION (US center)
+  // until the user manually pans.
+  //
+  // Only fires when we haven't already panned somewhere meaningful —
+  // we don't want to yank the user back to "current location" if they
+  // already opened the app at their saved region or just navigated in
+  // with focus coords from a posted sale.
+  useEffect(() => {
+    if (!userLocation) return;
+    if (initialPanDone.current) return;
+    if (focusLat != null && focusLng != null) return;
+    if (lastRegion) return;
+    initialPanDone.current = true;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      },
+      800,
+    );
+  }, [userLocation, focusLat, focusLng, lastRegion]);
+
   // Search: resolve ZIP or city to lat/lng and pan the map
   const handleSearch = useCallback(async () => {
     const query = searchText.trim();
