@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useInbox } from '../../hooks/useInbox';
 import { Avatar, EmptyState } from '../../components/ui';
@@ -20,6 +20,10 @@ export default function InboxScreen() {
   const navigation = useNavigation<any>();
   const { conversations, loading, refetch, deleteConversation, markAsUnread } =
     useInbox();
+
+  // Re-fetch every time this screen comes into focus so the unread
+  // badge and row dots clear immediately after opening a conversation.
+  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
 
   if (loading && conversations.length === 0) {
     return (
