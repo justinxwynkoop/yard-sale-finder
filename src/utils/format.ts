@@ -96,6 +96,27 @@ export function formatSaleWhen(
   return `${date}, ${time}`;
 }
 
+/**
+ * Human-friendly "when was this posted" label for listing detail screens.
+ *   < 1 day  → "Posted today"
+ *   1 day    → "Posted yesterday"
+ *   2 days   → "Posted 2 days ago"
+ *   3+ days  → "Posted January 2026"
+ */
+export function formatPostedDate(createdAt: string): string {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysDiff = Math.floor((Date.now() - new Date(createdAt).getTime()) / msPerDay);
+
+  if (daysDiff === 0) return 'Posted today';
+  if (daysDiff === 1) return 'Posted yesterday';
+  if (daysDiff < 3) return `Posted ${daysDiff} days ago`;
+
+  return `Posted ${new Date(createdAt).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  })}`;
+}
+
 // -- internals -------------------------------------------------------
 
 function parseLocalDate(iso: string): Date {
