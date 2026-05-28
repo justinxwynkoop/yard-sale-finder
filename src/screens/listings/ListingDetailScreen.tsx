@@ -27,6 +27,8 @@ import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { Button } from '../../components/ui';
+import { formatPostedDate } from '../../utils/format';
+import { getCategoryLabel } from '../../lib/categories';
 
 type Route = RouteProp<ListingsStackParamList, 'ListingDetail'>;
 
@@ -307,6 +309,10 @@ export default function ListingDetailScreen() {
             </View>
           )}
 
+          <Text className="mt-2 text-xs text-zinc-400">
+            {formatPostedDate(listing.created_at)}
+          </Text>
+
           <View className="my-5 h-px bg-zinc-100" />
 
           {/* Description */}
@@ -332,8 +338,8 @@ export default function ListingDetailScreen() {
                     key={cat}
                     className="rounded-full bg-brand-50 px-3 py-1.5"
                   >
-                    <Text className="text-xs font-semibold capitalize text-brand-700">
-                      {cat}
+                    <Text className="text-xs font-semibold text-brand-700">
+                      {getCategoryLabel(cat)}
                     </Text>
                   </View>
                 ))}

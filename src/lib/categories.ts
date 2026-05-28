@@ -12,7 +12,18 @@ export interface CategoryGroup {
 }
 
 export const CATEGORY_GROUPS: CategoryGroup[] = [
-  { value: 'furniture', label: 'Furniture' },
+  {
+    value: 'furniture',
+    label: 'Furniture',
+    subcategories: [
+      { value: 'furniture_bedroom', label: 'Bedroom' },
+      { value: 'furniture_living_room', label: 'Living Room' },
+      { value: 'furniture_dining_room', label: 'Dining Room' },
+      { value: 'furniture_kitchen', label: 'Kitchen' },
+      { value: 'furniture_office', label: 'Office' },
+      { value: 'furniture_outdoor', label: 'Outdoor & Patio' },
+    ],
+  },
   {
     value: 'clothing',
     label: 'Clothing',
@@ -27,20 +38,68 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
     value: 'electronics',
     label: 'Electronics',
     subcategories: [
+      { value: 'electronics_phones', label: 'Phones & Tablets' },
+      { value: 'electronics_audio', label: 'Audio' },
+      { value: 'electronics_tv', label: 'TV & Video' },
+      { value: 'electronics_cameras', label: 'Cameras' },
+      { value: 'electronics_smart_home', label: 'Smart Home' },
       { value: 'electronics_video_games', label: 'Video Games' },
       { value: 'electronics_computers', label: 'Computers' },
     ],
   },
   { value: 'toys', label: 'Toys' },
   { value: 'tools', label: 'Tools' },
-  { value: 'books', label: 'Books' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'sports', label: 'Sports' },
+  {
+    value: 'books',
+    label: 'Books',
+    subcategories: [
+      { value: 'books_fiction', label: 'Fiction' },
+      { value: 'books_nonfiction', label: 'Non-Fiction' },
+      { value: 'books_childrens', label: "Children's" },
+      { value: 'books_comics', label: 'Comics & Manga' },
+      { value: 'books_textbooks', label: 'Textbooks' },
+      { value: 'books_self_help', label: 'Self-Help' },
+    ],
+  },
+  {
+    value: 'kitchen',
+    label: 'Kitchen',
+    subcategories: [
+      { value: 'kitchen_appliances', label: 'Appliances' },
+      { value: 'kitchen_cookware', label: 'Cookware' },
+      { value: 'kitchen_bakeware', label: 'Bakeware' },
+      { value: 'kitchen_dinnerware', label: 'Dinnerware' },
+      { value: 'kitchen_storage', label: 'Storage' },
+    ],
+  },
+  {
+    value: 'sports',
+    label: 'Sports',
+    subcategories: [
+      { value: 'sports_golf', label: 'Golf' },
+      { value: 'sports_cycling', label: 'Cycling' },
+      { value: 'sports_fishing', label: 'Fishing' },
+      { value: 'sports_camping', label: 'Camping & Hiking' },
+      { value: 'sports_fitness', label: 'Fitness & Gym' },
+      { value: 'sports_water', label: 'Water Sports' },
+    ],
+  },
   { value: 'antiques', label: 'Antiques' },
   { value: 'other', label: 'Misc' },
 ];
 
-// Returns the parent group for a subcategory value, or null if it's a top-level category
+// Returns the human-readable label for any ItemCategory value.
+// Used wherever raw enum values would otherwise appear in the UI.
+export function getCategoryLabel(value: ItemCategory): string {
+  for (const group of CATEGORY_GROUPS) {
+    if (group.value === value) return group.label;
+    const sub = group.subcategories?.find((s) => s.value === value);
+    if (sub) return sub.label;
+  }
+  return value.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+}
+
+// Returns the parent group for a subcategory value, or null if it's a top-level category.
 export function getParentGroup(value: ItemCategory): CategoryGroup | null {
   for (const group of CATEGORY_GROUPS) {
     if (group.subcategories?.some((s) => s.value === value)) return group;
