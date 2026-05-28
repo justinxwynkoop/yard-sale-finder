@@ -16,6 +16,29 @@ import { useInbox } from '../../hooks/useInbox';
 import { EmptyState } from '../../components/ui';
 import { Conversation } from '../../types';
 
+/** Format last_message_at for the inbox row.
+ *  today        → "3:42 PM"
+ *  this week    → "Mon"
+ *  this year    → "Jun 3"
+ *  older        → "1/5/24"
+ */
+function formatMessageDate(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  if (diffDays < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  return date.toLocaleDateString([], { month: 'numeric', day: 'numeric', year: '2-digit' });
+}
+
 export default function InboxScreen() {
   const navigation = useNavigation<any>();
   const { conversations, loading, refreshing, refetch, silentRefetch, deleteConversation, markAsUnread } =
@@ -115,6 +138,9 @@ function ConversationRow({
   const other = conversation.other_profile;
   const preview = conversation.last_message_preview ?? 'Tap to view';
   const targetTitle = conversation.target_title ?? '(deleted)';
+  const formattedDate = conversation.last_message_at
+    ? formatMessageDate(conversation.last_message_at)
+    : '';
 
   const renderLeftActions = () => (
     // Revealed when the user swipes RIGHT → delete
@@ -171,44 +197,22 @@ function ConversationRow({
         onPress={onPress}
         android_ripple={{ color: '#F4F4F5' }}
         style={{
-          backgroundColor: conversation.has_unread ? '#FFF8F8' : '#FFFFFF',
+          backgroundColor: '#FFFFFF',
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 16,
-          paddingVertical: 10,
+          paddingVertical: 12,
         }}
       >
-        {/* Unread indicator dot — far left, sized so it's easy to see */}
-        <View
-          style={{
-            width: 12,
-            marginRight: 10,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {conversation.has_unread ? (
-            <View
-              style={{
-                width: 11,
-                height: 11,
-                borderRadius: 6,
-                backgroundColor: '#EF4444',
-              }}
-            />
-          ) : null}
-        </View>
-
-        {/* Listing photo — left, 2× larger than before */}
+        {/* Circular listing photo — FB Marketplace style */}
         {conversation.target_image_url ? (
           <Image
             source={{ uri: conversation.target_image_url }}
             style={{
-              width: 144,
-              height: 144,
-              borderRadius: 12,
+              width: 62,
+              height: 62,
+              borderRadius: 31,
               backgroundColor: '#F4F4F5',
-              marginRight: 14,
             }}
             contentFit="cover"
             transition={120}
@@ -216,49 +220,56 @@ function ConversationRow({
         ) : (
           <View
             style={{
-              width: 144,
-              height: 144,
-              borderRadius: 12,
+              width: 62,
+              height: 62,
+              borderRadius: 31,
               backgroundColor: '#FFEDD5',
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: 14,
             }}
           >
-            <Ionicons name="image-outline" size={48} color="#2D5F3E" />
+            <Ionicons name="image-outline" size={26} color="#2D5F3E" />
           </View>
         )}
 
-        {/* Seller name + listing title + message preview — right */}
-        <View style={{ flex: 1 }}>
+        {/* Name · Item title  /  Preview · Date */}
+        <View style={{ flex: 1, marginLeft: 12 }}>
           <Text
             style={{
               fontSize: 15,
               fontWeight: '700',
               color: '#18181B',
-              marginBottom: 4,
+              marginBottom: 3,
             }}
             numberOfLines={1}
           >
-            {other?.display_name ?? 'Unknown user'}
-          </Text>
-          <Text
-            style={{ fontSize: 12, color: '#71717A', marginBottom: 6 }}
-            numberOfLines={2}
-          >
-            {targetTitle}
+            {other?.display_name ?? 'Unknown'}{' · '}{targetTitle}
           </Text>
           <Text
             style={{
               fontSize: 13,
               color: conversation.has_unread ? '#18181B' : '#71717A',
-              fontWeight: conversation.has_unread ? '600' : '400',
+              fontWeight: conversation.has_unread ? '500' : '400',
             }}
-            numberOfLines={2}
+            numberOfLines={1}
           >
-            {preview}
+            {preview}{formattedDate ? ` · ${formattedDate}` : ''}
           </Text>
         </View>
+
+        {/* Unread dot — right side */}
+        {conversation.has_unread ? (
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: '#EF4444',
+              marginLeft: 10,
+              flexShrink: 0,
+            }}
+          />
+        ) : null}
       </Pressable>
     </Swipeable>
   );

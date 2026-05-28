@@ -14,7 +14,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -272,11 +272,25 @@ export default function MapHomeScreen() {
     await Linking.openURL(url);
   }, [routeSales, computeOptimizedRoute, userLocation]);
 
-  // The optimized display order for the route sheet (recomputed when sheet opens).
+  // Open native maps for a single stop: Apple Maps on iOS, Google Maps on Android.
+  const handleSingleStopDirections = useCallback(async (sale: typeof sales[number]) => {
+    const dest = `${sale.latitude},${sale.longitude}`;
+    if (Platform.OS === 'ios') {
+      await Linking.openURL(`maps://?daddr=${dest}`);
+    } else {
+      await Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`,
+      );
+    }
+  }, []);
+
+  // Optimized stop order — always kept current so the Polyline on the map
+  // draws live as the user adds/removes stops, and the route sheet can
+  // open instantly without waiting for a recompute.
   const optimizedRoute = useMemo(
-    () => (routeSheetOpen ? computeOptimizedRoute(routeSales) : []),
+    () => computeOptimizedRoute(routeSales),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routeSheetOpen, routeSales.map((s) => s.id).join(','), computeOptimizedRoute],
+    [routeSales.map((s) => s.id).join(','), computeOptimizedRoute],
   );
 
   // Quick set lookup for "is this sale in the route?" used by pins + list cards.
@@ -557,6 +571,21 @@ export default function MapHomeScreen() {
               />
             </Marker>
           ))}
+
+          {/* Route polyline — draws the optimized path between selected stops
+              while route mode is active so the user sees the route on the map
+              as they pick each sale, before ever opening the route sheet. */}
+          {routeMode && optimizedRoute.length >= 2 && (
+            <Polyline
+              coordinates={optimizedRoute.map((s) => ({
+                latitude: s.latitude,
+                longitude: s.longitude,
+              }))}
+              strokeColor="#4F46E5"
+              strokeWidth={3}
+              lineDashPattern={[0]}
+            />
+          )}
         </MapView>
 
         {/* My-location FAB */}
@@ -1010,6 +1039,15 @@ export default function MapHomeScreen() {
                         {sale.address}
                       </Text>
                     </View>
+                    {/* Navigate to this stop only — native maps app */}
+                    <Pressable
+                      onPress={() => handleSingleStopDirections(sale)}
+                      hitSlop={8}
+                      style={{ marginRight: 6 }}
+                    >
+                      <Ionicons name="navigate-outline" size={20} color="#4F46E5" />
+                    </Pressable>
+                    {/* Remove from route */}
                     <Pressable onPress={() => toggleSaleInRoute(sale)} hitSlop={8}>
                       <Ionicons name="close-circle-outline" size={20} color="#A1A1AA" />
                     </Pressable>
@@ -1019,16 +1057,11 @@ export default function MapHomeScreen() {
             })}
           </RNScrollView>
 
-          {/* Note for multi-stop iOS */}
-          {Platform.OS === 'ios' && optimizedRoute.length > 1 && (
-            <Text style={{ fontSize: 11, color: '#A1A1AA', textAlign: 'center', marginBottom: 10 }}>
-              Multi-stop routes open in Google Maps
-            </Text>
-          )}
-
           <Pressable onPress={handleGetDirections} style={styles.routeDirectionsBtn}>
             <Ionicons name="navigate" size={18} color="#fff" />
-            <Text style={styles.routeDirectionsBtnText}>Get Directions</Text>
+            <Text style={styles.routeDirectionsBtnText}>
+              {optimizedRoute.length > 1 ? 'Full Route in Google Maps' : 'Get Directions'}
+            </Text>
           </Pressable>
         </View>
       </Modal>
