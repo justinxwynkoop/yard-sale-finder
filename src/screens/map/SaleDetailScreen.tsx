@@ -74,6 +74,10 @@ export default function SaleDetailScreen() {
       return;
     }
     if (id) {
+      // Navigate to Messages tab first so Inbox is always in the stack,
+      // then push Conversation. See navigateToConversation for the full
+      // explanation.
+      (navigation as any).navigate('Messages');
       (navigation as any).navigate('Messages', {
         screen: 'Conversation',
         params: { conversationId: id },
