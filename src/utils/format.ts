@@ -101,7 +101,7 @@ export function formatSaleWhen(
  *   < 1 day  → "Posted today"
  *   1 day    → "Posted yesterday"
  *   2 days   → "Posted 2 days ago"
- *   3+ days  → "Posted May 2026"
+ *   3+ days  → "Posted January 2026"
  */
 export function formatPostedDate(createdAt: string): string {
   const msPerDay = 24 * 60 * 60 * 1000;
