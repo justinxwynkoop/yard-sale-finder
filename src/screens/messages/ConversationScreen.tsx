@@ -248,6 +248,20 @@ export default function ConversationScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: otherProfile?.display_name ?? 'Conversation',
+      // Fallback back button for cases where Conversation is the stack root
+      // (e.g. if the two-step navigation above races or is bypassed). Checked
+      // at press time so it always reflects the live navigation state.
+      headerLeft: navigation.canGoBack()
+        ? undefined
+        : () => (
+            <Pressable
+              onPress={() => (navigation as any).navigate('Inbox')}
+              style={{ paddingLeft: 8, paddingRight: 4 }}
+              hitSlop={8}
+            >
+              <Ionicons name="chevron-back" size={28} color="#18181B" />
+            </Pressable>
+          ),
     });
   }, [navigation, otherProfile]);
 

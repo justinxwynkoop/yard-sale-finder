@@ -16,8 +16,14 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
  */
 export function navigateToConversation(conversationId: string) {
   if (!navigationRef.isReady()) return;
-  // Navigate to the 'Main' screen (already rendered), then drill into
-  // the Messages tab and the Conversation screen within it.
+  // Two-step navigation ensures Inbox is always in the MessagesStack before
+  // Conversation is pushed. Without this, navigating to a lazy-mounted Messages
+  // tab with a nested `screen` param can initialize the stack with only
+  // [Conversation], leaving no back button. React 18 batches both dispatches
+  // into one render so there is no visible flash of the Inbox screen.
+  navigationRef.navigate('Main' as any, {
+    screen: 'Messages',
+  } as any);
   navigationRef.navigate('Main' as any, {
     screen: 'Messages',
     params: {
