@@ -14,7 +14,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -246,11 +246,12 @@ export default function MapHomeScreen() {
   );
 
   // Build a maps deep-link and open it.
+  // Uses displayRoute (OSRM-optimal order when available, nearest-neighbour
+  // fallback) so the external app follows the same order shown in the sheet.
   //   iOS + 1 stop  → Apple Maps (native, no install required)
   //   everything else → Google Maps web URL (works in browser or app)
-  const handleGetDirections = useCallback(async () => {
-    if (routeSales.length === 0) return;
-    const ordered = computeOptimizedRoute(routeSales);
+  const handleGetDirections = useCallback(async (ordered: typeof sales[number][]) => {
+    if (ordered.length === 0) return;
     const last = ordered[ordered.length - 1];
     const destination = `${last.latitude},${last.longitude}`;
 
@@ -270,13 +271,27 @@ export default function MapHomeScreen() {
     if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
     url += '&travelmode=driving';
     await Linking.openURL(url);
-  }, [routeSales, computeOptimizedRoute, userLocation]);
+  }, [userLocation]);
 
-  // The optimized display order for the route sheet (recomputed when sheet opens).
+  // Open native maps for a single stop: Apple Maps on iOS, Google Maps on Android.
+  const handleSingleStopDirections = useCallback(async (sale: typeof sales[number]) => {
+    const dest = `${sale.latitude},${sale.longitude}`;
+    if (Platform.OS === 'ios') {
+      await Linking.openURL(`maps://?daddr=${dest}`);
+    } else {
+      await Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`,
+      );
+    }
+  }, []);
+
+  // Optimized stop order — always kept current so the Polyline on the map
+  // draws live as the user adds/removes stops, and the route sheet can
+  // open instantly without waiting for a recompute.
   const optimizedRoute = useMemo(
-    () => (routeSheetOpen ? computeOptimizedRoute(routeSales) : []),
+    () => computeOptimizedRoute(routeSales),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routeSheetOpen, routeSales.map((s) => s.id).join(','), computeOptimizedRoute],
+    [routeSales.map((s) => s.id).join(','), computeOptimizedRoute],
   );
 
   // Quick set lookup for "is this sale in the route?" used by pins + list cards.
@@ -284,6 +299,87 @@ export default function MapHomeScreen() {
     () => new Set(routeSales.map((s) => s.id)),
     [routeSales],
   );
+
+  // ── OSRM Trip — optimal order + road geometry ────────────────────────────
+  // The /trip endpoint solves a Traveling-Salesman problem on real road
+  // travel times, so it finds the fastest visit order AND returns the
+  // road-following geometry in one request (free, no API key, OSM data).
+  //
+  // While the fetch is in-flight we fall back to the nearest-neighbor
+  // heuristic (optimizedRoute) and straight lines so there's no blank gap.
+  type TripResult = {
+    orderedSales: typeof sales[number][];
+    polyline: { latitude: number; longitude: number }[];
+  };
+  const [tripResult, setTripResult] = useState<TripResult | null>(null);
+  const routeFetchRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    // Cancel any in-flight request from the previous render
+    routeFetchRef.current?.abort();
+    setTripResult(null); // clear stale result while re-fetching
+
+    if (!routeMode || routeSales.length < 2) return;
+
+    const controller = new AbortController();
+    routeFetchRef.current = controller;
+
+    const hasOrigin = !!userLocation;
+    // OSRM coordinate format: lng,lat (longitude first)
+    const points: number[][] = [
+      ...(hasOrigin ? [[userLocation!.longitude, userLocation!.latitude]] : []),
+      ...routeSales.map((s) => [s.longitude, s.latitude]),
+    ];
+    const coordStr = points.map(([lng, lat]) => `${lng},${lat}`).join(';');
+    // source=first pins the start to the user's location; destination=any
+    // lets OSRM freely pick the best endpoint among the sales stops.
+    const params = hasOrigin
+      ? 'roundtrip=false&source=first&destination=any'
+      : 'roundtrip=false&source=any&destination=any';
+
+    fetch(
+      `https://router.project-osrm.org/trip/v1/driving/${coordStr}` +
+        `?${params}&geometries=geojson&overview=full`,
+      { signal: controller.signal },
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.code !== 'Ok') return;
+
+        // Road-following geometry
+        const coords: [number, number][] =
+          data.trips?.[0]?.geometry?.coordinates ?? [];
+        const polyline = coords.map(([lng, lat]) => ({
+          latitude: lat,
+          longitude: lng,
+        }));
+
+        // Reorder the sales array to match OSRM's optimal visit sequence.
+        // waypoints[i].waypoint_index = position in the trip where input[i] is visited.
+        // We skip the first waypoint when we injected the user's location as origin.
+        const offset = hasOrigin ? 1 : 0;
+        const orderedSales = routeSales
+          .map((sale, i) => ({
+            sale,
+            visitOrder: (data.waypoints[i + offset]?.waypoint_index ?? i),
+          }))
+          .sort((a, b) => a.visitOrder - b.visitOrder)
+          .map((x) => x.sale);
+
+        setTripResult({ orderedSales, polyline });
+      })
+      .catch(() => {
+        // Aborted or network error — nearest-neighbour fallback stays visible
+      });
+
+    return () => controller.abort();
+  // routeSales identity changes whenever a stop is added/removed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeMode, routeSales, userLocation]);
+
+  // The list shown in the route sheet: OSRM optimal order when available,
+  // nearest-neighbour heuristic while the fetch is in-flight or offline.
+  const displayRoute = tripResult?.orderedSales ?? optimizedRoute;
 
   // ── Address autocomplete ──────────────────────────────────────────────────
 
@@ -557,6 +653,24 @@ export default function MapHomeScreen() {
               />
             </Marker>
           ))}
+
+          {/* Route polyline — OSRM road geometry when ready, straight-line
+              fallback (nearest-neighbour order) while the fetch is in-flight. */}
+          {routeMode && displayRoute.length >= 2 && (
+            <Polyline
+              coordinates={
+                tripResult && tripResult.polyline.length >= 2
+                  ? tripResult.polyline
+                  : displayRoute.map((s) => ({
+                      latitude: s.latitude,
+                      longitude: s.longitude,
+                    }))
+              }
+              strokeColor="#4F46E5"
+              strokeWidth={3}
+              lineDashPattern={[0]}
+            />
+          )}
         </MapView>
 
         {/* My-location FAB */}
@@ -967,7 +1081,7 @@ export default function MapHomeScreen() {
           <View style={styles.sheetGrabber} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={styles.sheetTitle}>
-              Route Plan · {optimizedRoute.length} {optimizedRoute.length === 1 ? 'stop' : 'stops'}
+              Route Plan · {displayRoute.length} {displayRoute.length === 1 ? 'stop' : 'stops'}
             </Text>
             <Pressable
               onPress={() => { setRouteSales([]); setRouteSheetOpen(false); setRouteMode(false); }}
@@ -978,13 +1092,13 @@ export default function MapHomeScreen() {
           </View>
 
           <RNScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            {optimizedRoute.map((sale, idx) => {
+            {displayRoute.map((sale, idx) => {
               const prevLat = idx === 0
                 ? (userLocation?.latitude ?? sale.latitude)
-                : optimizedRoute[idx - 1].latitude;
+                : displayRoute[idx - 1].latitude;
               const prevLng = idx === 0
                 ? (userLocation?.longitude ?? sale.longitude)
-                : optimizedRoute[idx - 1].longitude;
+                : displayRoute[idx - 1].longitude;
               const legDist = haversineMeters(prevLat, prevLng, sale.latitude, sale.longitude);
               const legMiles = (legDist / 1609.34).toFixed(1);
 
@@ -1010,6 +1124,15 @@ export default function MapHomeScreen() {
                         {sale.address}
                       </Text>
                     </View>
+                    {/* Navigate to this stop only — native maps app */}
+                    <Pressable
+                      onPress={() => handleSingleStopDirections(sale)}
+                      hitSlop={8}
+                      style={{ marginRight: 6 }}
+                    >
+                      <Ionicons name="navigate-outline" size={20} color="#4F46E5" />
+                    </Pressable>
+                    {/* Remove from route */}
                     <Pressable onPress={() => toggleSaleInRoute(sale)} hitSlop={8}>
                       <Ionicons name="close-circle-outline" size={20} color="#A1A1AA" />
                     </Pressable>
@@ -1019,16 +1142,11 @@ export default function MapHomeScreen() {
             })}
           </RNScrollView>
 
-          {/* Note for multi-stop iOS */}
-          {Platform.OS === 'ios' && optimizedRoute.length > 1 && (
-            <Text style={{ fontSize: 11, color: '#A1A1AA', textAlign: 'center', marginBottom: 10 }}>
-              Multi-stop routes open in Google Maps
-            </Text>
-          )}
-
-          <Pressable onPress={handleGetDirections} style={styles.routeDirectionsBtn}>
+          <Pressable onPress={() => handleGetDirections(displayRoute)} style={styles.routeDirectionsBtn}>
             <Ionicons name="navigate" size={18} color="#fff" />
-            <Text style={styles.routeDirectionsBtnText}>Get Directions</Text>
+            <Text style={styles.routeDirectionsBtnText}>
+              {displayRoute.length > 1 ? 'Full Route in Google Maps' : 'Get Directions'}
+            </Text>
           </Pressable>
         </View>
       </Modal>
