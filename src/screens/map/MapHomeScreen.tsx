@@ -299,6 +299,58 @@ export default function MapHomeScreen() {
     [routeSales],
   );
 
+  // ── Road-following polyline via OSRM ──────────────────────────────────────
+  // When 2+ stops are selected we fetch the actual driving geometry from
+  // OSRM (free, no API key, OpenStreetMap roads) and draw it on the map.
+  // Falls back to straight lines silently if the network call fails.
+  const [roadPolyline, setRoadPolyline] = useState<{ latitude: number; longitude: number }[]>([]);
+  const routeFetchRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    // Cancel any in-flight request from the previous render
+    routeFetchRef.current?.abort();
+
+    if (!routeMode || optimizedRoute.length < 2) {
+      setRoadPolyline([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    routeFetchRef.current = controller;
+
+    // OSRM coordinate format: lng,lat — note longitude first
+    const points = [
+      // Use the user's current fix as the driving origin if available
+      ...(userLocation
+        ? [[userLocation.longitude, userLocation.latitude]]
+        : []),
+      ...optimizedRoute.map((s) => [s.longitude, s.latitude]),
+    ];
+    const coordStr = points.map(([lng, lat]) => `${lng},${lat}`).join(';');
+
+    fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coordStr}` +
+        `?geometries=geojson&overview=full`,
+      { signal: controller.signal },
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const coords: [number, number][] | undefined =
+          data.routes?.[0]?.geometry?.coordinates;
+        if (coords?.length) {
+          // OSRM returns [lng, lat] — flip to { latitude, longitude } for RN Maps
+          setRoadPolyline(
+            coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
+          );
+        }
+      })
+      .catch(() => {
+        // Aborted or network error — stay on straight-line fallback
+      });
+
+    return () => controller.abort();
+  }, [routeMode, optimizedRoute, userLocation]);
+
   // ── Address autocomplete ──────────────────────────────────────────────────
 
   // Fetch address suggestions from Nominatim as user types (debounced 400 ms)
@@ -572,15 +624,18 @@ export default function MapHomeScreen() {
             </Marker>
           ))}
 
-          {/* Route polyline — draws the optimized path between selected stops
-              while route mode is active so the user sees the route on the map
-              as they pick each sale, before ever opening the route sheet. */}
+          {/* Route polyline — road-following geometry from OSRM while available,
+              straight-line fallback while the fetch is in-flight or offline. */}
           {routeMode && optimizedRoute.length >= 2 && (
             <Polyline
-              coordinates={optimizedRoute.map((s) => ({
-                latitude: s.latitude,
-                longitude: s.longitude,
-              }))}
+              coordinates={
+                roadPolyline.length >= 2
+                  ? roadPolyline
+                  : optimizedRoute.map((s) => ({
+                      latitude: s.latitude,
+                      longitude: s.longitude,
+                    }))
+              }
               strokeColor="#4F46E5"
               strokeWidth={3}
               lineDashPattern={[0]}
