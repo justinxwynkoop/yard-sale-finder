@@ -171,18 +171,18 @@ function ConversationRow({
         onPress={onPress}
         android_ripple={{ color: '#F4F4F5' }}
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: conversation.has_unread ? '#FFF8F8' : '#FFFFFF',
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 16,
           paddingVertical: 10,
         }}
       >
-        {/* Unread indicator dot — far left */}
+        {/* Unread indicator dot — far left, sized so it's easy to see */}
         <View
           style={{
-            width: 10,
-            marginRight: 8,
+            width: 12,
+            marginRight: 10,
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -190,9 +190,9 @@ function ConversationRow({
           {conversation.has_unread ? (
             <View
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
+                width: 11,
+                height: 11,
+                borderRadius: 6,
                 backgroundColor: '#EF4444',
               }}
             />
