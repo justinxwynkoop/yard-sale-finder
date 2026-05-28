@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   Text,
   TextInput,
   View,
@@ -218,9 +219,17 @@ export default function ConversationScreen() {
     loading,
     error,
     send,
+    refetch,
   } = useConversation(conversationId);
 
   const [draft, setDraft] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
   const inputRef = useRef<TextInput>(null);
   // Exact pixel height of React Navigation's header, including the
   // safe-area top inset. Pass to KeyboardAvoidingView as the vertical
@@ -369,6 +378,14 @@ export default function ConversationScreen() {
             paddingTop: 4,
             paddingBottom: 12,
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#2D5F3E"
+              colors={['#2D5F3E']}
+            />
+          }
           renderItem={({ item }) => (
             <MessageBubble
               message={item.message}
