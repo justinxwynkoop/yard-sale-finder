@@ -14,6 +14,10 @@ interface Props {
   userLat?: number;
   userLng?: number;
   onPress: () => void;
+  /** Provided when route-planner mode is active. True = sale is queued. */
+  inRoute?: boolean;
+  /** Called when the route toggle circle is tapped. */
+  onRouteToggle?: () => void;
 }
 
 function SaleListCardInner({
@@ -21,6 +25,8 @@ function SaleListCardInner({
   userLat,
   userLng,
   onPress,
+  inRoute,
+  onRouteToggle,
 }: Props) {
   const firstImage = sale.media?.find((m) => m.type === 'image');
   const open = isOpenNow(sale);
@@ -41,7 +47,7 @@ function SaleListCardInner({
   return (
     <Card className="overflow-hidden">
       <Pressable onPress={onPress} className="active:bg-zinc-50">
-        <View className="flex-row p-3">
+        <View className="flex-row items-center p-3">
           {/* Cover */}
           <View
             className="overflow-hidden rounded-xl"
@@ -125,6 +131,32 @@ function SaleListCardInner({
             )}
           </View>
         </View>
+
+        {/* Route-planner toggle — only shown in route mode */}
+        {onRouteToggle !== undefined && (
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); onRouteToggle(); }}
+            hitSlop={10}
+            style={{ paddingLeft: 8 }}
+          >
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                borderWidth: 2,
+                borderColor: inRoute ? '#4F46E5' : '#D4D4D8',
+                backgroundColor: inRoute ? '#4F46E5' : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {inRoute && (
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              )}
+            </View>
+          </Pressable>
+        )}
       </Pressable>
     </Card>
   );
@@ -142,6 +174,8 @@ export default React.memo(SaleListCardInner, (prev, next) => {
     prev.sale.status === next.sale.status &&
     prev.userLat === next.userLat &&
     prev.userLng === next.userLng &&
-    prev.onPress === next.onPress
+    prev.onPress === next.onPress &&
+    prev.inRoute === next.inRoute &&
+    prev.onRouteToggle === next.onRouteToggle
   );
 });

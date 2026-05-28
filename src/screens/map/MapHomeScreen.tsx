@@ -4,6 +4,8 @@ import {
   Text,
   ActivityIndicator,
   FlatList,
+  Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView as RNScrollView,
@@ -73,6 +75,11 @@ export default function MapHomeScreen() {
   const [postMenuOpen, setPostMenuOpen] = useState(false);
   const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'active' | 'winding_down' | null>(null);
+
+  // Route-planner state
+  const [routeMode, setRouteMode] = useState(false);
+  const [routeSales, setRouteSales] = useState<typeof sales[number][]>([]);
+  const [routeSheetOpen, setRouteSheetOpen] = useState(false);
 
   // Search state
   const [searchText, setSearchText] = useState('');
@@ -192,6 +199,93 @@ export default function MapHomeScreen() {
       800,
     );
   }, [userLocation, focusLat, focusLng, lastRegion]);
+
+  // ── Route planner helpers ─────────────────────────────────────────────────
+
+  const toggleRouteMode = useCallback(() => {
+    setRouteMode((on) => {
+      if (on) {
+        // Turning off — clear any pending route
+        setRouteSales([]);
+        setRouteSheetOpen(false);
+      }
+      return !on;
+    });
+  }, []);
+
+  const toggleSaleInRoute = useCallback((sale: typeof sales[number]) => {
+    setRouteSales((prev) => {
+      const already = prev.some((s) => s.id === sale.id);
+      return already ? prev.filter((s) => s.id !== sale.id) : [...prev, sale];
+    });
+  }, [sales]);
+
+  // Nearest-neighbour heuristic: always go to the closest unvisited stop.
+  const computeOptimizedRoute = useCallback(
+    (stops: typeof sales[number][]) => {
+      if (stops.length <= 1) return [...stops];
+      const remaining = [...stops];
+      const result: typeof stops = [];
+      let curLat = userLocation?.latitude ?? stops[0].latitude;
+      let curLng = userLocation?.longitude ?? stops[0].longitude;
+      while (remaining.length > 0) {
+        let nearestIdx = 0;
+        let nearestDist = Infinity;
+        for (let i = 0; i < remaining.length; i++) {
+          const d = haversineMeters(curLat, curLng, remaining[i].latitude, remaining[i].longitude);
+          if (d < nearestDist) { nearestDist = d; nearestIdx = i; }
+        }
+        result.push(remaining[nearestIdx]);
+        curLat = remaining[nearestIdx].latitude;
+        curLng = remaining[nearestIdx].longitude;
+        remaining.splice(nearestIdx, 1);
+      }
+      return result;
+    },
+    [userLocation],
+  );
+
+  // Build a maps deep-link and open it.
+  //   iOS + 1 stop  → Apple Maps (native, no install required)
+  //   everything else → Google Maps web URL (works in browser or app)
+  const handleGetDirections = useCallback(async () => {
+    if (routeSales.length === 0) return;
+    const ordered = computeOptimizedRoute(routeSales);
+    const last = ordered[ordered.length - 1];
+    const destination = `${last.latitude},${last.longitude}`;
+
+    if (Platform.OS === 'ios' && ordered.length === 1) {
+      await Linking.openURL(`maps://?daddr=${destination}`);
+      return;
+    }
+
+    // Google Maps — supports multi-stop waypoints on both platforms
+    const middle = ordered.slice(0, -1);
+    const waypoints = middle.map((s) => `${s.latitude},${s.longitude}`).join('|');
+    let url = 'https://www.google.com/maps/dir/?api=1';
+    if (userLocation) {
+      url += `&origin=${userLocation.latitude},${userLocation.longitude}`;
+    }
+    url += `&destination=${encodeURIComponent(destination)}`;
+    if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
+    url += '&travelmode=driving';
+    await Linking.openURL(url);
+  }, [routeSales, computeOptimizedRoute, userLocation]);
+
+  // The optimized display order for the route sheet (recomputed when sheet opens).
+  const optimizedRoute = useMemo(
+    () => (routeSheetOpen ? computeOptimizedRoute(routeSales) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [routeSheetOpen, routeSales.map((s) => s.id).join(','), computeOptimizedRoute],
+  );
+
+  // Quick set lookup for "is this sale in the route?" used by pins + list cards.
+  const routeIds = useMemo(
+    () => new Set(routeSales.map((s) => s.id)),
+    [routeSales],
+  );
+
+  // ── Address autocomplete ──────────────────────────────────────────────────
 
   // Fetch address suggestions from Nominatim as user types (debounced 400 ms)
   const fetchSuggestions = useCallback(async (query: string) => {
@@ -445,10 +539,22 @@ export default function MapHomeScreen() {
             <Marker
               key={sale.id}
               coordinate={{ latitude: sale.latitude, longitude: sale.longitude }}
-              onPress={() => navigation.navigate('SaleDetail', { saleId: sale.id })}
-              tracksViewChanges={false}
+              onPress={() => {
+                if (routeMode) {
+                  toggleSaleInRoute(sale);
+                } else {
+                  navigation.navigate('SaleDetail', { saleId: sale.id });
+                }
+              }}
+              // tracksViewChanges must be true in route mode so pin color
+              // updates (selected ↔ unselected) are reflected natively.
+              tracksViewChanges={routeMode}
             >
-              <MapPin status={sale.status} favorited={isFavorited(sale.id)} />
+              <MapPin
+                status={sale.status}
+                favorited={isFavorited(sale.id)}
+                inRoute={routeMode && routeIds.has(sale.id)}
+              />
             </Marker>
           ))}
         </MapView>
@@ -524,7 +630,11 @@ export default function MapHomeScreen() {
                 sale={item}
                 userLat={userLocation?.latitude}
                 userLng={userLocation?.longitude}
-                onPress={() => navigation.navigate('SaleDetail', { saleId: item.id })}
+                onPress={() => {
+                  if (!routeMode) navigation.navigate('SaleDetail', { saleId: item.id });
+                }}
+                inRoute={routeMode ? routeIds.has(item.id) : undefined}
+                onRouteToggle={routeMode ? () => toggleSaleInRoute(item) : undefined}
               />
             )}
           />
@@ -578,7 +688,7 @@ export default function MapHomeScreen() {
             ) : null}
           </View>
 
-          {/* Filter + view toggle */}
+          {/* Filter + view toggle + route planner */}
           <View style={styles.searchActions}>
             {/* Filter pill — green when any filter is active, no count shown */}
             <Pressable
@@ -600,6 +710,18 @@ export default function MapHomeScreen() {
                 name={viewMode === 'map' ? 'list' : 'map'}
                 size={17}
                 color="#18181B"
+              />
+            </Pressable>
+
+            {/* Route planner toggle — indigo when active */}
+            <Pressable
+              onPress={toggleRouteMode}
+              style={[styles.viewToggleBtn, routeMode && { backgroundColor: '#4F46E5' }]}
+            >
+              <Ionicons
+                name="navigate"
+                size={17}
+                color={routeMode ? '#fff' : '#18181B'}
               />
             </Pressable>
           </View>
@@ -817,6 +939,97 @@ export default function MapHomeScreen() {
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Show Results</Text>
             </Pressable>
           </View>
+        </View>
+      </Modal>
+
+      {/* ── Route planner — floating banner + sheet ── */}
+      {routeMode && routeSales.length > 0 && (
+        <Pressable
+          onPress={() => setRouteSheetOpen(true)}
+          style={[styles.routeBanner, { bottom: 108 }]}
+        >
+          <Ionicons name="navigate" size={16} color="#fff" />
+          <Text style={styles.routeBannerText}>
+            {routeSales.length} {routeSales.length === 1 ? 'stop' : 'stops'} — View Route
+          </Text>
+          <Ionicons name="chevron-up" size={14} color="#fff" />
+        </Pressable>
+      )}
+
+      <Modal
+        visible={routeSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRouteSheetOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setRouteSheetOpen(false)} />
+        <View style={[styles.sheetCard, { paddingBottom: 44, maxHeight: '70%' }]}>
+          <View style={styles.sheetGrabber} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={styles.sheetTitle}>
+              Route Plan · {optimizedRoute.length} {optimizedRoute.length === 1 ? 'stop' : 'stops'}
+            </Text>
+            <Pressable
+              onPress={() => { setRouteSales([]); setRouteSheetOpen(false); setRouteMode(false); }}
+              hitSlop={8}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#EF4444' }}>Clear</Text>
+            </Pressable>
+          </View>
+
+          <RNScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            {optimizedRoute.map((sale, idx) => {
+              const prevLat = idx === 0
+                ? (userLocation?.latitude ?? sale.latitude)
+                : optimizedRoute[idx - 1].latitude;
+              const prevLng = idx === 0
+                ? (userLocation?.longitude ?? sale.longitude)
+                : optimizedRoute[idx - 1].longitude;
+              const legDist = haversineMeters(prevLat, prevLng, sale.latitude, sale.longitude);
+              const legMiles = (legDist / 1609.34).toFixed(1);
+
+              return (
+                <View key={sale.id}>
+                  {/* Leg distance connector */}
+                  {idx > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingVertical: 4, gap: 6 }}>
+                      <View style={{ width: 2, height: 16, backgroundColor: '#E4E4E7', borderRadius: 1 }} />
+                      <Text style={{ fontSize: 11, color: '#A1A1AA' }}>{legMiles} mi</Text>
+                    </View>
+                  )}
+                  <View style={styles.routeStopRow}>
+                    {/* Step number bubble */}
+                    <View style={styles.routeStepBubble}>
+                      <Text style={styles.routeStepNum}>{idx + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#18181B' }} numberOfLines={1}>
+                        {sale.title}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: '#71717A', marginTop: 2 }} numberOfLines={1}>
+                        {sale.address}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => toggleSaleInRoute(sale)} hitSlop={8}>
+                      <Ionicons name="close-circle-outline" size={20} color="#A1A1AA" />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </RNScrollView>
+
+          {/* Note for multi-stop iOS */}
+          {Platform.OS === 'ios' && optimizedRoute.length > 1 && (
+            <Text style={{ fontSize: 11, color: '#A1A1AA', textAlign: 'center', marginBottom: 10 }}>
+              Multi-stop routes open in Google Maps
+            </Text>
+          )}
+
+          <Pressable onPress={handleGetDirections} style={styles.routeDirectionsBtn}>
+            <Ionicons name="navigate" size={18} color="#fff" />
+            <Text style={styles.routeDirectionsBtnText}>Get Directions</Text>
+          </Pressable>
         </View>
       </Modal>
 
@@ -1088,6 +1301,67 @@ const styles = StyleSheet.create({
     color: '#52525B',
   },
   radiusChipTextActive: {
+    color: '#fff',
+  },
+  // ── Route planner
+  routeBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  routeBannerText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  routeStopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F4F4F5',
+  },
+  routeStepBubble: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeStepNum: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  routeDirectionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    borderRadius: 16,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  routeDirectionsBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#fff',
   },
   savedToggle: {

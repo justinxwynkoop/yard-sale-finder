@@ -9,8 +9,16 @@ const STATUS_COLOR: Record<SaleStatus, string> = {
   ended: '#9CA3AF', // zinc — muted
 };
 
+// Indigo used for pins that have been added to the route planner.
+const ROUTE_COLOR = '#4F46E5';
+
 /**
  * Map marker view: a colored circle with a price-tag (or heart) icon.
+ *
+ * Pass `inRoute={true}` to switch the pin to the route-planner style
+ * (indigo circle with a checkmark). The parent Marker should set
+ * tracksViewChanges={true} while route mode is active so the native
+ * layer picks up the color change.
  *
  * History note: a previous version layered an Animated.View pulse
  * behind the pin for `status === 'active'` markers. Under the
@@ -24,8 +32,17 @@ const STATUS_COLOR: Record<SaleStatus, string> = {
  * on zoom / refetch. The pulse was a cosmetic nicety; stability
  * matters more, so we ship a static colored circle.
  */
-function MapPinInner({ status, favorited }: { status: SaleStatus; favorited?: boolean }) {
-  const color = STATUS_COLOR[status];
+function MapPinInner({
+  status,
+  favorited,
+  inRoute,
+}: {
+  status: SaleStatus;
+  favorited?: boolean;
+  /** True when this sale has been added to the route planner. */
+  inRoute?: boolean;
+}) {
+  const color = inRoute ? ROUTE_COLOR : STATUS_COLOR[status];
   return (
     <View>
       <View
@@ -45,10 +62,14 @@ function MapPinInner({ status, favorited }: { status: SaleStatus; favorited?: bo
           elevation: 4,
         }}
       >
-        <Ionicons name={favorited ? 'heart' : 'pricetag'} size={16} color="#fff" />
+        <Ionicons
+          name={inRoute ? 'checkmark' : favorited ? 'heart' : 'pricetag'}
+          size={16}
+          color="#fff"
+        />
       </View>
-      {/* Small heart badge in corner when favorited */}
-      {favorited && (
+      {/* Small heart badge in corner when favorited (hidden while in route) */}
+      {favorited && !inRoute && (
         <View
           style={{
             position: 'absolute',
@@ -69,6 +90,6 @@ function MapPinInner({ status, favorited }: { status: SaleStatus; favorited?: bo
   );
 }
 
-// Pins re-render constantly when the map pans; memo by status so
-// React skips reconciliation when the data hasn't actually changed.
+// Pins re-render constantly when the map pans; memo by status + route
+// state so React skips reconciliation when the data hasn't changed.
 export const MapPin = React.memo(MapPinInner);
