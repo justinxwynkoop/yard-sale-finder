@@ -216,15 +216,18 @@ export function useInbox() {
 
   const markAsUnread = useCallback(async (id: string) => {
     if (!user) return;
-    const conv = conversations.find((c) => c.id === id);
-    if (!conv) return;
-    const field =
-      conv.buyer_id === user.id ? 'buyer_last_read_at' : 'seller_last_read_at';
-    await supabase.from('conversations').update({ [field]: null }).eq('id', id);
+    // Optimistic update — flip the dot on immediately so the user sees
+    // instant feedback. The RPC then sets *_last_read_at = null in the
+    // DB, and the Realtime UPDATE event triggers a silent re-fetch that
+    // confirms the state.
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, has_unread: true } : c)),
     );
-  }, [user, conversations]);
+    // Direct table UPDATE silently fails because conversations has no
+    // UPDATE RLS policy for end users. The security-definer RPC
+    // bypasses RLS and sets the caller's *_last_read_at column to null.
+    await supabase.rpc('unmark_conversation_read', { p_conversation_id: id });
+  }, [user]);
 
   return {
     conversations,
