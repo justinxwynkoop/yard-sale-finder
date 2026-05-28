@@ -246,11 +246,12 @@ export default function MapHomeScreen() {
   );
 
   // Build a maps deep-link and open it.
+  // Uses displayRoute (OSRM-optimal order when available, nearest-neighbour
+  // fallback) so the external app follows the same order shown in the sheet.
   //   iOS + 1 stop  → Apple Maps (native, no install required)
   //   everything else → Google Maps web URL (works in browser or app)
-  const handleGetDirections = useCallback(async () => {
-    if (routeSales.length === 0) return;
-    const ordered = computeOptimizedRoute(routeSales);
+  const handleGetDirections = useCallback(async (ordered: typeof sales[number][]) => {
+    if (ordered.length === 0) return;
     const last = ordered[ordered.length - 1];
     const destination = `${last.latitude},${last.longitude}`;
 
@@ -270,7 +271,7 @@ export default function MapHomeScreen() {
     if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
     url += '&travelmode=driving';
     await Linking.openURL(url);
-  }, [routeSales, computeOptimizedRoute, userLocation]);
+  }, [userLocation]);
 
   // Open native maps for a single stop: Apple Maps on iOS, Google Maps on Android.
   const handleSingleStopDirections = useCallback(async (sale: typeof sales[number]) => {
@@ -299,57 +300,86 @@ export default function MapHomeScreen() {
     [routeSales],
   );
 
-  // ── Road-following polyline via OSRM ──────────────────────────────────────
-  // When 2+ stops are selected we fetch the actual driving geometry from
-  // OSRM (free, no API key, OpenStreetMap roads) and draw it on the map.
-  // Falls back to straight lines silently if the network call fails.
-  const [roadPolyline, setRoadPolyline] = useState<{ latitude: number; longitude: number }[]>([]);
+  // ── OSRM Trip — optimal order + road geometry ────────────────────────────
+  // The /trip endpoint solves a Traveling-Salesman problem on real road
+  // travel times, so it finds the fastest visit order AND returns the
+  // road-following geometry in one request (free, no API key, OSM data).
+  //
+  // While the fetch is in-flight we fall back to the nearest-neighbor
+  // heuristic (optimizedRoute) and straight lines so there's no blank gap.
+  type TripResult = {
+    orderedSales: typeof sales[number][];
+    polyline: { latitude: number; longitude: number }[];
+  };
+  const [tripResult, setTripResult] = useState<TripResult | null>(null);
   const routeFetchRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     // Cancel any in-flight request from the previous render
     routeFetchRef.current?.abort();
+    setTripResult(null); // clear stale result while re-fetching
 
-    if (!routeMode || optimizedRoute.length < 2) {
-      setRoadPolyline([]);
-      return;
-    }
+    if (!routeMode || routeSales.length < 2) return;
 
     const controller = new AbortController();
     routeFetchRef.current = controller;
 
-    // OSRM coordinate format: lng,lat — note longitude first
-    const points = [
-      // Use the user's current fix as the driving origin if available
-      ...(userLocation
-        ? [[userLocation.longitude, userLocation.latitude]]
-        : []),
-      ...optimizedRoute.map((s) => [s.longitude, s.latitude]),
+    const hasOrigin = !!userLocation;
+    // OSRM coordinate format: lng,lat (longitude first)
+    const points: number[][] = [
+      ...(hasOrigin ? [[userLocation!.longitude, userLocation!.latitude]] : []),
+      ...routeSales.map((s) => [s.longitude, s.latitude]),
     ];
     const coordStr = points.map(([lng, lat]) => `${lng},${lat}`).join(';');
+    // source=first pins the start to the user's location; destination=any
+    // lets OSRM freely pick the best endpoint among the sales stops.
+    const params = hasOrigin
+      ? 'roundtrip=false&source=first&destination=any'
+      : 'roundtrip=false&source=any&destination=any';
 
     fetch(
-      `https://router.project-osrm.org/route/v1/driving/${coordStr}` +
-        `?geometries=geojson&overview=full`,
+      `https://router.project-osrm.org/trip/v1/driving/${coordStr}` +
+        `?${params}&geometries=geojson&overview=full`,
       { signal: controller.signal },
     )
       .then((r) => r.json())
       .then((data) => {
-        const coords: [number, number][] | undefined =
-          data.routes?.[0]?.geometry?.coordinates;
-        if (coords?.length) {
-          // OSRM returns [lng, lat] — flip to { latitude, longitude } for RN Maps
-          setRoadPolyline(
-            coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
-          );
-        }
+        if (data.code !== 'Ok') return;
+
+        // Road-following geometry
+        const coords: [number, number][] =
+          data.trips?.[0]?.geometry?.coordinates ?? [];
+        const polyline = coords.map(([lng, lat]) => ({
+          latitude: lat,
+          longitude: lng,
+        }));
+
+        // Reorder the sales array to match OSRM's optimal visit sequence.
+        // waypoints[i].waypoint_index = position in the trip where input[i] is visited.
+        // We skip the first waypoint when we injected the user's location as origin.
+        const offset = hasOrigin ? 1 : 0;
+        const orderedSales = routeSales
+          .map((sale, i) => ({
+            sale,
+            visitOrder: (data.waypoints[i + offset]?.waypoint_index ?? i),
+          }))
+          .sort((a, b) => a.visitOrder - b.visitOrder)
+          .map((x) => x.sale);
+
+        setTripResult({ orderedSales, polyline });
       })
       .catch(() => {
-        // Aborted or network error — stay on straight-line fallback
+        // Aborted or network error — nearest-neighbour fallback stays visible
       });
 
     return () => controller.abort();
-  }, [routeMode, optimizedRoute, userLocation]);
+  // routeSales identity changes whenever a stop is added/removed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeMode, routeSales, userLocation]);
+
+  // The list shown in the route sheet: OSRM optimal order when available,
+  // nearest-neighbour heuristic while the fetch is in-flight or offline.
+  const displayRoute = tripResult?.orderedSales ?? optimizedRoute;
 
   // ── Address autocomplete ──────────────────────────────────────────────────
 
@@ -624,14 +654,14 @@ export default function MapHomeScreen() {
             </Marker>
           ))}
 
-          {/* Route polyline — road-following geometry from OSRM while available,
-              straight-line fallback while the fetch is in-flight or offline. */}
-          {routeMode && optimizedRoute.length >= 2 && (
+          {/* Route polyline — OSRM road geometry when ready, straight-line
+              fallback (nearest-neighbour order) while the fetch is in-flight. */}
+          {routeMode && displayRoute.length >= 2 && (
             <Polyline
               coordinates={
-                roadPolyline.length >= 2
-                  ? roadPolyline
-                  : optimizedRoute.map((s) => ({
+                tripResult && tripResult.polyline.length >= 2
+                  ? tripResult.polyline
+                  : displayRoute.map((s) => ({
                       latitude: s.latitude,
                       longitude: s.longitude,
                     }))
@@ -1051,7 +1081,7 @@ export default function MapHomeScreen() {
           <View style={styles.sheetGrabber} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={styles.sheetTitle}>
-              Route Plan · {optimizedRoute.length} {optimizedRoute.length === 1 ? 'stop' : 'stops'}
+              Route Plan · {displayRoute.length} {displayRoute.length === 1 ? 'stop' : 'stops'}
             </Text>
             <Pressable
               onPress={() => { setRouteSales([]); setRouteSheetOpen(false); setRouteMode(false); }}
@@ -1062,13 +1092,13 @@ export default function MapHomeScreen() {
           </View>
 
           <RNScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            {optimizedRoute.map((sale, idx) => {
+            {displayRoute.map((sale, idx) => {
               const prevLat = idx === 0
                 ? (userLocation?.latitude ?? sale.latitude)
-                : optimizedRoute[idx - 1].latitude;
+                : displayRoute[idx - 1].latitude;
               const prevLng = idx === 0
                 ? (userLocation?.longitude ?? sale.longitude)
-                : optimizedRoute[idx - 1].longitude;
+                : displayRoute[idx - 1].longitude;
               const legDist = haversineMeters(prevLat, prevLng, sale.latitude, sale.longitude);
               const legMiles = (legDist / 1609.34).toFixed(1);
 
@@ -1112,10 +1142,10 @@ export default function MapHomeScreen() {
             })}
           </RNScrollView>
 
-          <Pressable onPress={handleGetDirections} style={styles.routeDirectionsBtn}>
+          <Pressable onPress={() => handleGetDirections(displayRoute)} style={styles.routeDirectionsBtn}>
             <Ionicons name="navigate" size={18} color="#fff" />
             <Text style={styles.routeDirectionsBtnText}>
-              {optimizedRoute.length > 1 ? 'Full Route in Google Maps' : 'Get Directions'}
+              {displayRoute.length > 1 ? 'Full Route in Google Maps' : 'Get Directions'}
             </Text>
           </Pressable>
         </View>
