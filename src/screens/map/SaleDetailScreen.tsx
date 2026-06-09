@@ -99,6 +99,11 @@ export default function SaleDetailScreen() {
   const { start: startConversation } = useStartConversation();
   const [startingConversation, setStartingConversation] = useState(false);
   const userLocation = useUserLocation();
+  // Sticky-CTA height (the "Mark visited" row only shows for non-owners,
+  // so it varies). Declared up here with the other hooks — NOT after the
+  // loading/!sale early returns below — or the hook order changes once
+  // the sale loads ("rendered more hooks than during the previous render").
+  const [ctaHeight, setCtaHeight] = useState(180);
 
   const isOwnSale = sale?.user_id === user?.id;
   // Address-privacy resolution. exactUnlocked is true for the owner; the
@@ -292,11 +297,6 @@ export default function SaleDetailScreen() {
       : null;
   const driveMin =
     distance != null ? Math.max(1, Math.round(distance / 805)) : null;
-
-  // The sticky CTA bar's height is dynamic (the "Mark visited" row only
-  // shows for non-owners), so measure it and pad the scroll content by
-  // that much — otherwise the bar overlaps the mini-map at the bottom.
-  const [ctaHeight, setCtaHeight] = useState(180);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
