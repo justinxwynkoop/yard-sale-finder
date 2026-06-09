@@ -293,11 +293,16 @@ export default function SaleDetailScreen() {
   const driveMin =
     distance != null ? Math.max(1, Math.round(distance / 805)) : null;
 
+  // The sticky CTA bar's height is dynamic (the "Mark visited" row only
+  // shows for non-owners), so measure it and pad the scroll content by
+  // that much — otherwise the bar overlaps the mini-map at the bottom.
+  const [ctaHeight, setCtaHeight] = useState(180);
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView
         bounces={false}
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: ctaHeight + 16 }}
       >
         {/* Hero */}
         <View style={{ height: HERO_HEIGHT, backgroundColor: BRAND_SOFT }}>
@@ -933,6 +938,7 @@ export default function SaleDetailScreen() {
 
       {/* Sticky CTA */}
       <View
+        onLayout={(e) => setCtaHeight(e.nativeEvent.layout.height)}
         style={{
           position: 'absolute',
           left: 0,

@@ -21,9 +21,6 @@ import { isOpenNow } from '../utils/saleStatus';
  * viewer) reveal the exact address.
  */
 
-const BLOCK_METERS = 80; // rough city block
-const METERS_PER_DEG_LAT = 111_320;
-
 export interface PrivacyContext {
   /** The viewer is the host. Always sees exact. */
   isOwner?: boolean;
@@ -42,65 +39,36 @@ export interface SaleDisplayLocation {
   showExactAddress: boolean;
 }
 
-/** Small deterministic hash of a string → [0, 1). Stable per sale id. */
-function hash01(str: string, salt = 0): number {
-  let h = 2166136261 ^ salt;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  // → unsigned, normalized
-  return ((h >>> 0) % 100000) / 100000;
-}
-
 /**
  * Resolve where a sale should be shown on a map + whether its exact
- * address may be revealed, honoring the host's privacy snapshot.
+ * address may be revealed.
+ *
+ * PRODUCT DECISION (changed): yard sales ALWAYS show their exact address.
+ * People need the real address to actually attend a sale, so the
+ * approximate/blurred "reply" mode no longer applies to sales — this
+ * function always returns the exact location. The location-hiding option
+ * is reserved for one-off LISTINGS, which are already private by design:
+ * a listing only ever exposes its seller-chosen `pickup_display` (a
+ * general area), never the exact pickup address. The blurring math below
+ * is intentionally retired; the function shape is preserved so every
+ * sale surface keeps compiling and simply renders exact.
  */
 export function saleDisplayLocation(
   sale: Sale,
-  ctx: PrivacyContext = {},
+  _ctx: PrivacyContext = {},
 ): SaleDisplayLocation {
-  const exact: SaleDisplayLocation = {
+  return {
     latitude: sale.latitude,
     longitude: sale.longitude,
     approximate: false,
     radiusMeters: 0,
     showExactAddress: true,
   };
-
-  // Owner or an unlocked viewer always sees exact.
-  if (ctx.isOwner || ctx.exactUnlocked) return exact;
-
-  // Only 'reply' mode blurs. 'live' (and legacy null) show exact while
-  // the sale is on the map.
-  if (sale.location_privacy !== 'reply') return exact;
-
-  const blocks = sale.blur_radius_blocks ?? 3;
-  const radiusMeters = blocks * BLOCK_METERS;
-
-  // Deterministic offset so the displayed center is near — but not on —
-  // the real address. Magnitude ~60% of the radius keeps the true point
-  // comfortably inside the drawn circle.
-  const angle = hash01(sale.id, 1) * Math.PI * 2;
-  const dist = radiusMeters * 0.6;
-  const dLat = (Math.cos(angle) * dist) / METERS_PER_DEG_LAT;
-  const dLng =
-    (Math.sin(angle) * dist) /
-    (METERS_PER_DEG_LAT * Math.cos((sale.latitude * Math.PI) / 180));
-
-  return {
-    latitude: sale.latitude + dLat,
-    longitude: sale.longitude + dLng,
-    approximate: true,
-    radiusMeters,
-    showExactAddress: false,
-  };
 }
 
-/** True when this sale's address is currently being shown approximately. */
-export function isApproximate(sale: Sale, ctx: PrivacyContext = {}): boolean {
-  return saleDisplayLocation(sale, ctx).approximate;
+/** Sales are always shown exactly now, so this is always false. */
+export function isApproximate(_sale: Sale, _ctx: PrivacyContext = {}): boolean {
+  return false;
 }
 
 /**
