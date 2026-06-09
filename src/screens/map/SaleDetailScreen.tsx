@@ -7,48 +7,82 @@ import {
   Platform,
   ActivityIndicator,
   Dimensions,
+  Pressable,
   Share,
   Alert,
 } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
 import { Image } from 'expo-image';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import MapView, { Marker } from 'react-native-maps';
+import {
+  useRoute,
+  RouteProp,
+  useNavigation,
+  useIsFocused,
+} from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { MapStackParamList, Sale } from '../../types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Listing, MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
 import {
   PLACEHOLDER_BLURHASH,
   transformedImageUrl,
 } from '../../lib/imageUrl';
-import { formatSaleDate, formatSaleTime } from '../../utils/format';
+import { formatHM, formatSaleDate } from '../../utils/format';
 import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  IconButton,
-  Section,
-  StatusBadge,
-} from '../../components/ui';
+import { navigateToConversation } from '../../lib/navigationRef';
+import { useUserLocation } from '../../hooks/useUserLocation';
+import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
+import { Avatar } from '../../components/ui';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const GALLERY_HEIGHT = 320;
+const HERO_HEIGHT = 280;
+
+const BONE = '#F7F2E8';
+const BRAND = '#1F4D3A';
+const BRAND_SOFT = '#E1ECDF';
+const INK = '#171513';
+const INK_SOFT = '#54504A';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
+const AMBER = '#B8772C';
+const AMBER_SOFT = '#FBEFD6';
+const ROSE = '#A23E2D';
 
 export default function SaleDetailScreen() {
   const route = useRoute<Route>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
+  // Defer mounting the mini-map until after the push animation has
+  // finished. When the user arrives here from RoutePlanner (which also
+  // has a MapView) the two AIRMaps would otherwise reconcile subviews
+  // concurrently and crash under Fabric with
+  //   -[__NSArrayM insertObject:atIndex:]: object cannot be nil
+  // The 350ms delay matches react-navigation's default ios push timing
+  // — by then the source screen has unmounted its MapView.
+  const isFocused = useIsFocused();
+  const [miniMapMounted, setMiniMapMounted] = useState(false);
+  useEffect(() => {
+    if (!isFocused) {
+      setMiniMapMounted(false);
+      return;
+    }
+    const t = setTimeout(() => setMiniMapMounted(true), 350);
+    return () => clearTimeout(t);
+  }, [isFocused]);
   const { saleId } = route.params;
 
   const [sale, setSale] = useState<Sale | null>(null);
+  const [linkedListings, setLinkedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -58,86 +92,14 @@ export default function SaleDetailScreen() {
   const { block } = useBlockedUsers();
   const { start: startConversation } = useStartConversation();
   const [startingConversation, setStartingConversation] = useState(false);
+  const userLocation = useUserLocation();
 
   const isOwnSale = sale?.user_id === user?.id;
-
-  const handleMessageSeller = async () => {
-    if (!sale) return;
-    setStartingConversation(true);
-    const { id, error: convErr } = await startConversation('sale', sale.id);
-    setStartingConversation(false);
-    if (convErr) {
-      Alert.alert(
-        'Could not start conversation',
-        convErr.message ?? 'Please try again.',
-      );
-      return;
-    }
-    if (id) {
-      // Navigate to Messages tab first so Inbox is always in the stack,
-      // then push Conversation. See navigateToConversation for the full
-      // explanation.
-      (navigation as any).navigate('Messages');
-      (navigation as any).navigate('Messages', {
-        screen: 'Conversation',
-        params: { conversationId: id },
-      });
-    }
-  };
-
-  const handleMoreMenu = () => {
-    if (!sale) return;
-    Alert.alert(
-      sale.title,
-      undefined,
-      [
-        {
-          text: 'Report sale',
-          style: 'destructive',
-          onPress: () => setReportOpen(true),
-        },
-        {
-          text: 'Block user',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Block user?',
-              `You won't see any sales or listings from ${
-                sale.profile?.display_name ?? 'this user'
-              } in the app.`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Block',
-                  style: 'destructive',
-                  onPress: async () => {
-                    const { error } = await block(sale.user_id);
-                    if (error) {
-                      Alert.alert('Could not block', error.message);
-                      return;
-                    }
-                    // The sale is now hidden by the blocked-user
-                    // filter, so pop back to where the user came
-                    // from instead of staring at content they just
-                    // chose to stop seeing.
-                    navigation.goBack();
-                  },
-                },
-              ],
-            );
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
-  };
+  const saved = sale ? isFavorited(sale.id) : false;
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Fetch sale + media first (no profile embed, so the sale loads
-      // even if the host has no profile row). Then best-effort fetch
-      // the host profile separately.
       const { data: saleData } = await supabase
         .from('sales')
         .select('*, media:sale_media(*)')
@@ -155,11 +117,83 @@ export default function SaleDetailScreen() {
       if (cancelled) return;
       setSale({ ...saleData, profile: profileData ?? undefined });
       setLoading(false);
+
+      // Best-effort fetch of listings the host linked to this sale.
+      // Featured Items rail renders from this; empty → falls back
+      // to a photo preview rail below.
+      const { data: linked } = await supabase
+        .from('listings')
+        .select('*, media:listing_media(*)')
+        .eq('sale_id', saleId)
+        .eq('status', 'available')
+        .order('created_at', { ascending: false })
+        .limit(12);
+      if (!cancelled && linked) setLinkedListings(linked as Listing[]);
     })();
     return () => {
       cancelled = true;
     };
   }, [saleId]);
+
+  const handleMessageSeller = async () => {
+    if (!sale) return;
+    setStartingConversation(true);
+    const { id, error: convErr } = await startConversation('sale', sale.id);
+    setStartingConversation(false);
+    if (convErr) {
+      Alert.alert(
+        'Could not start conversation',
+        convErr.message ?? 'Please try again.',
+      );
+      return;
+    }
+    if (id) {
+      // Use the global helper so the Inbox tab is properly initialized
+      // with InboxHome below Conversation — otherwise React Navigation
+      // sometimes lands Conversation as the stack root and the back
+      // button disappears. See navigationRef.ts for the rationale.
+      navigateToConversation(id);
+    }
+  };
+
+  const handleMoreMenu = () => {
+    if (!sale) return;
+    Alert.alert(sale.title, undefined, [
+      {
+        text: 'Report sale',
+        style: 'destructive',
+        onPress: () => setReportOpen(true),
+      },
+      {
+        text: 'Block user',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Block user?',
+            `You won't see any sales or listings from ${
+              sale.profile?.display_name ?? 'this user'
+            } in the app.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Block',
+                style: 'destructive',
+                onPress: async () => {
+                  const { error } = await block(sale.user_id);
+                  if (error) {
+                    Alert.alert('Could not block', error.message);
+                    return;
+                  }
+                  navigation.goBack();
+                },
+              },
+            ],
+          );
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   const openDirections = () => {
     if (!sale) return;
@@ -174,33 +208,71 @@ export default function SaleDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#2D5F3E" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#fff',
+        }}
+      >
+        <ActivityIndicator size="large" color={BRAND} />
       </View>
     );
   }
 
   if (!sale) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-8">
-        <Ionicons name="alert-circle-outline" size={48} color="#A1A1AA" />
-        <Text className="mt-3 text-base text-zinc-500">Sale not found.</Text>
-        <View className="mt-6 w-full max-w-xs">
-          <Button variant="outline" onPress={() => navigation.goBack()}>
-            Go back
-          </Button>
-        </View>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#fff',
+          paddingHorizontal: 32,
+        }}
+      >
+        <Ionicons name="alert-circle-outline" size={48} color={INK_MUTED} />
+        <Text style={{ marginTop: 12, color: INK_SOFT }}>Sale not found.</Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={{
+            marginTop: 24,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+          }}
+        >
+          <Text style={{ color: INK, fontWeight: '600' }}>Go back</Text>
+        </Pressable>
       </View>
     );
   }
 
   const images = sale.media?.filter((m) => m.type === 'image') ?? [];
+  const open = isOpenNow(sale);
+  const distance =
+    userLocation != null
+      ? haversineMeters(
+          userLocation.latitude,
+          userLocation.longitude,
+          sale.latitude,
+          sale.longitude,
+        )
+      : null;
+  const driveMin =
+    distance != null ? Math.max(1, Math.round(distance / 805)) : null;
 
   return (
-    <View className="flex-1 bg-white">
-      <ScrollView bounces={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Hero gallery */}
-        <View style={{ height: GALLERY_HEIGHT }}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScrollView
+        bounces={false}
+        contentContainerStyle={{ paddingBottom: 140 }}
+      >
+        {/* Hero */}
+        <View style={{ height: HERO_HEIGHT, backgroundColor: BRAND_SOFT }}>
           {images.length > 0 ? (
             <ScrollView
               horizontal
@@ -214,223 +286,556 @@ export default function SaleDetailScreen() {
               }}
             >
               {images.map((img) => (
-                <Image
+                <Pressable
                   key={img.id}
-                  source={{
-                    uri: transformedImageUrl(img.url, {
-                      width: Math.round(SCREEN_WIDTH * 2),
-                      height: GALLERY_HEIGHT * 2,
-                      resize: 'cover',
-                      quality: 80,
-                    }),
-                  }}
-                  placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
-                  style={{
-                    width: SCREEN_WIDTH,
-                    height: GALLERY_HEIGHT,
-                  }}
-                  contentFit="cover"
-                  transition={200}
-                  cachePolicy="memory-disk"
-                />
+                  onPress={() => setIsViewerOpen(true)}
+                >
+                  <Image
+                    source={{
+                      uri: transformedImageUrl(img.url, {
+                        width: Math.round(SCREEN_WIDTH * 2),
+                        height: HERO_HEIGHT * 2,
+                        resize: 'cover',
+                        quality: 80,
+                      }),
+                    }}
+                    placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
+                    style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}
+                    contentFit="cover"
+                    transition={200}
+                    cachePolicy="memory-disk"
+                  />
+                </Pressable>
               ))}
             </ScrollView>
           ) : (
-            <View className="flex-1 items-center justify-center bg-brand-50">
-              <Ionicons name="image-outline" size={72} color="#FB923C" />
-              <Text className="mt-2 text-sm text-brand-700">No photos yet</Text>
+            <View
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="image-outline" size={56} color={BRAND} />
             </View>
           )}
 
-          {/* Floating back button */}
-          <View className="absolute left-4" style={{ top: 56 }}>
-            <IconButton
-              variant="glass"
-              size="md"
-              icon={<Ionicons name="chevron-back" size={22} color="#18181B" />}
-              onPress={() => navigation.goBack()}
-            />
-          </View>
-
-          {/* Floating status / open-now badge */}
+          {/* Floating buttons */}
           <View
-            className="absolute right-4 flex-row items-center"
-            style={{ top: 56, gap: 6 }}
+            style={{
+              position: 'absolute',
+              left: 16,
+              right: 16,
+              top: insets.top + 6,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
           >
-            {isOpenNow(sale) && (
-              <Badge tone="live" dot>
-                Open now
-              </Badge>
-            )}
-            <StatusBadge status={sale.status} />
-            <IconButton
-              variant="glass"
-              size="sm"
-              icon={
-                <Ionicons
-                  name={isFavorited(sale.id) ? 'heart' : 'heart-outline'}
-                  size={16}
-                  color={isFavorited(sale.id) ? '#DC2626' : '#18181B'}
-                />
-              }
-              onPress={() => toggleFavorite(sale.id)}
+            <GlassButton
+              icon="chevron-back"
+              size={38}
+              iconSize={20}
+              onPress={() => navigation.goBack()}
+              accessibilityLabel="Back"
             />
-            <IconButton
-              variant="glass"
-              size="sm"
-              icon={<Ionicons name="share-outline" size={16} color="#18181B" />}
+            <View style={{ flex: 1 }} />
+            <GlassButton
+              icon={saved ? 'heart' : 'heart-outline'}
+              iconColor={saved ? ROSE : INK}
+              size={38}
+              iconSize={18}
+              onPress={() => toggleFavorite(sale.id)}
+              accessibilityLabel={saved ? 'Unsave sale' : 'Save sale'}
+            />
+            <View style={{ width: 8 }} />
+            <GlassButton
+              icon="share-outline"
+              size={38}
+              iconSize={18}
               onPress={async () => {
                 const url = ExpoLinking.createURL(`sale/${sale.id}`);
                 try {
                   await Share.share({
                     title: sale.title,
                     message: `${sale.title}\n${sale.address}\n${url}`,
-                    url, // iOS-only — Android uses message
+                    url,
                   });
                 } catch {
                   /* user dismissed sheet */
                 }
               }}
+              accessibilityLabel="Share"
             />
-            {/* Overflow menu — Report / Block. Only shown on sales
-                the current user doesn't own; reporting your own
-                content doesn't make sense and blocking yourself is
-                rejected by the table's CHECK constraint anyway. */}
             {!isOwnSale && (
-              <IconButton
-                variant="glass"
-                size="sm"
-                icon={
-                  <Ionicons
-                    name="ellipsis-horizontal"
-                    size={16}
-                    color="#18181B"
-                  />
-                }
-                onPress={handleMoreMenu}
-              />
+              <>
+                <View style={{ width: 8 }} />
+                <GlassButton
+                  icon="ellipsis-horizontal"
+                  size={38}
+                  iconSize={18}
+                  onPress={handleMoreMenu}
+                  accessibilityLabel="More"
+                />
+              </>
             )}
           </View>
 
-          {/* Floating 'expand' button — opens full-screen viewer at the current photo */}
+          {/* Photo counter chip */}
           {images.length > 0 && (
-            <View className="absolute bottom-3 right-4">
-              <IconButton
-                variant="glass"
-                size="sm"
-                icon={<Ionicons name="expand-outline" size={16} color="#18181B" />}
-                onPress={() => setIsViewerOpen(true)}
-              />
-            </View>
-          )}
-
-          {/* Page dots */}
-          {images.length > 1 && (
-            <View className="absolute bottom-3 left-0 right-0 flex-row items-center justify-center" pointerEvents="none">
-              {images.map((_, i) => (
-                <View
-                  key={i}
-                  className={[
-                    'mx-1 h-1.5 rounded-full',
-                    i === activeImage ? 'w-6 bg-white' : 'w-1.5 bg-white/60',
-                  ].join(' ')}
-                />
-              ))}
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 38,
+                right: 12,
+                backgroundColor: 'rgba(20,18,15,0.65)',
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 99,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: '600',
+                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                }}
+              >
+                {activeImage + 1} / {images.length}
+              </Text>
             </View>
           )}
         </View>
 
-        {/* Body */}
-        <View className="px-5 pt-5">
-          <Text className="text-2xl font-extrabold text-zinc-900">
+        {/* Body overlapping hero */}
+        <View
+          style={{
+            marginTop: -22,
+            backgroundColor: '#fff',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: 20,
+            paddingTop: 20,
+          }}
+        >
+          {open && <OpenNowChip sale={sale} />}
+
+          <Text
+            style={{
+              marginTop: open ? 8 : 0,
+              fontSize: 24,
+              fontWeight: '700',
+              color: INK,
+              letterSpacing: -0.4,
+              lineHeight: 28,
+            }}
+            numberOfLines={2}
+          >
             {sale.title}
           </Text>
 
-          <EndsSoonBanner sale={sale} />
+          {/* Address line */}
+          <View
+            style={{
+              marginTop: 6,
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Ionicons name="location-outline" size={13} color={INK_MUTED} />
+            <Text
+              style={{
+                marginLeft: 4,
+                fontSize: 13,
+                color: INK_SOFT,
+                flexShrink: 1,
+              }}
+            >
+              {sale.address}
+            </Text>
+            {distance != null && (
+              <Text
+                style={{
+                  marginLeft: 4,
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: ROSE,
+                }}
+              >
+                · {formatDistanceMiles(distance)}
+              </Text>
+            )}
+            {driveMin != null && (
+              <Text style={{ marginLeft: 4, fontSize: 13, color: INK_SOFT }}>
+                · {driveMin} min drive
+              </Text>
+            )}
+          </View>
 
-          {/* Quick info card */}
-          <Card className="mt-4 p-4">
-            <View className="flex-row items-center">
-              <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                <Ionicons name="calendar-outline" size={20} color="#2D5F3E" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-xs uppercase tracking-wide text-zinc-400">
-                  When
-                </Text>
-                <Text className="text-sm font-semibold text-zinc-900">
-                  {formatSaleDate(sale.start_date, sale.end_date)}
-                </Text>
-                <Text className="text-sm text-zinc-600">
-                  {formatSaleTime(sale.start_time, sale.end_time)}
-                </Text>
-              </View>
-            </View>
-            <View className="my-3 h-px bg-zinc-100" />
-            <View className="flex-row items-center">
-              <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                <Ionicons name="location-outline" size={20} color="#2D5F3E" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-xs uppercase tracking-wide text-zinc-400">
-                  Where
-                </Text>
-                <Text className="text-sm font-semibold text-zinc-900">
-                  {sale.address}
-                </Text>
-              </View>
-            </View>
-          </Card>
+          {/* Stat strip */}
+          <StatStrip sale={sale} />
 
-          {/* Host */}
-          {sale.profile && (
-            <Card className="mt-3 flex-row items-center p-4">
-              <Avatar
-                uri={sale.profile.avatar_url}
-                name={sale.profile.display_name ?? sale.profile.email}
-                size="md"
-              />
-              <View className="ml-3 flex-1">
-                <Text className="text-xs uppercase tracking-wide text-zinc-400">
-                  Hosted by
-                </Text>
-                <Text className="text-sm font-semibold text-zinc-900">
-                  {sale.profile.display_name ?? 'Anonymous'}
-                </Text>
-              </View>
-            </Card>
-          )}
-
-          {/* Categories */}
+          {/* Category chips */}
           {sale.categories.length > 0 && (
-            <Section title="What you'll find">
-              <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-                {sale.categories.map((cat) => (
-                  <Badge key={cat} tone="brand">
-                    {cat}
-                  </Badge>
-                ))}
-              </View>
-            </Section>
+            <View
+              style={{
+                marginTop: 16,
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+              }}
+            >
+              {sale.categories.map((cat) => (
+                <View
+                  key={cat}
+                  style={{
+                    backgroundColor: BRAND_SOFT,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 99,
+                    marginRight: 6,
+                    marginBottom: 6,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '600',
+                      color: BRAND,
+                    }}
+                  >
+                    {labelForCategory(cat)}
+                  </Text>
+                </View>
+              ))}
+            </View>
           )}
 
           {/* Description */}
-          {sale.description && (
-            <Section title="About this sale">
-              <Text className="text-base leading-6 text-zinc-700">
-                {sale.description}
+          {sale.description ? (
+            <Text
+              style={{
+                marginTop: 16,
+                fontSize: 14,
+                lineHeight: 22,
+                color: INK,
+              }}
+            >
+              {sale.description}
+            </Text>
+          ) : null}
+
+          {/* Featured items rail — real linked listings when present,
+              otherwise a photo preview rail from sale.media. */}
+          {linkedListings.length > 0 ? (
+            <View style={{ marginTop: 22 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text
+                  style={{ fontSize: 14, fontWeight: '700', color: INK }}
+                >
+                  Items previewed
+                </Text>
+                {linkedListings.length > 4 && (
+                  <Text
+                    style={{ fontSize: 11, fontWeight: '600', color: BRAND }}
+                  >
+                    See all {linkedListings.length}
+                  </Text>
+                )}
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 10 }}
+              >
+                {linkedListings.map((listing) => {
+                  const firstImg = listing.media?.find(
+                    (m) => m.type === 'image',
+                  );
+                  const thumb = transformedImageUrl(firstImg?.url, {
+                    width: 240,
+                    height: 240,
+                    resize: 'cover',
+                    quality: 75,
+                  });
+                  return (
+                    <Pressable
+                      key={listing.id}
+                      onPress={() =>
+                        navigation.navigate('Listings' as any, {
+                          screen: 'ListingDetail',
+                          params: { listingId: listing.id },
+                        })
+                      }
+                      style={{ width: 96, marginRight: 8 }}
+                    >
+                      <View
+                        style={{
+                          width: 96,
+                          height: 96,
+                          borderRadius: 10,
+                          overflow: 'hidden',
+                          backgroundColor: BRAND_SOFT,
+                        }}
+                      >
+                        {thumb ? (
+                          <Image
+                            source={{ uri: thumb }}
+                            placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
+                            style={{ width: '100%', height: '100%' }}
+                            contentFit="cover"
+                            transition={120}
+                          />
+                        ) : (
+                          <View
+                            style={{
+                              flex: 1,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Ionicons
+                              name="pricetag-outline"
+                              size={22}
+                              color={BRAND}
+                            />
+                          </View>
+                        )}
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          marginTop: 5,
+                          fontSize: 11,
+                          fontWeight: '600',
+                          color: INK,
+                        }}
+                      >
+                        {listing.title}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: BRAND,
+                        }}
+                      >
+                        {listing.price === 0
+                          ? 'Free'
+                          : `$${listing.price % 1 === 0 ? listing.price : listing.price.toFixed(2)}`}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : images.length > 0 ? (
+            <View style={{ marginTop: 22 }}>
+              <Text
+                style={{ fontSize: 14, fontWeight: '700', color: INK }}
+              >
+                Photos
               </Text>
-            </Section>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 10 }}
+              >
+                {images.slice(0, 8).map((img, idx) => (
+                  <Pressable
+                    key={img.id}
+                    onPress={() => {
+                      setActiveImage(idx);
+                      setIsViewerOpen(true);
+                    }}
+                    style={{ width: 96, marginRight: 8 }}
+                  >
+                    <View
+                      style={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Image
+                        source={{
+                          uri: transformedImageUrl(img.url, {
+                            width: 240,
+                            height: 240,
+                            resize: 'cover',
+                            quality: 75,
+                          }),
+                        }}
+                        placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
+                        transition={120}
+                      />
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* Host card */}
+          {sale.profile && (
+            <View
+              style={{
+                marginTop: 22,
+                borderTopWidth: 1,
+                borderBottomWidth: 1,
+                borderColor: HAIRLINE,
+                paddingVertical: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <Pressable
+                onPress={() =>
+                  sale.profile?.id &&
+                  (navigation as any).navigate('PublicProfile', {
+                    userId: sale.profile.id,
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`View ${
+                  sale.profile.display_name ?? 'host'
+                }'s profile`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  flex: 1,
+                }}
+              >
+                <Avatar
+                  uri={sale.profile.avatar_url}
+                  name={sale.profile.display_name ?? sale.profile.email}
+                  size="md"
+                />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text
+                    style={{ fontSize: 13, fontWeight: '700', color: INK }}
+                  >
+                    Hosted by {sale.profile.display_name ?? 'Anonymous'}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginTop: 2,
+                    }}
+                  >
+                    <Ionicons name="star" size={11} color={AMBER} />
+                    <Text
+                      style={{
+                        marginLeft: 3,
+                        fontSize: 11,
+                        color: INK_MUTED,
+                      }}
+                    >
+                      New host
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+              {!isOwnSale && (
+                <Pressable
+                  onPress={handleMessageSeller}
+                  disabled={startingConversation}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: HAIRLINE,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Message host"
+                >
+                  {startingConversation ? (
+                    <ActivityIndicator size="small" color={INK} />
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: INK,
+                      }}
+                    >
+                      Message
+                    </Text>
+                  )}
+                </Pressable>
+              )}
+            </View>
           )}
 
-          {/* Pricing notes */}
-          {sale.pricing_notes && (
-            <Section title="Pricing">
-              <Text className="text-base leading-6 text-zinc-700">
-                {sale.pricing_notes}
-              </Text>
-            </Section>
-          )}
+          {/* Mini map */}
+          <View style={{ marginTop: 18 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: INK }}>
+              How to get there
+            </Text>
+            <View
+              style={{
+                marginTop: 10,
+                height: 130,
+                borderRadius: 16,
+                overflow: 'hidden',
+                backgroundColor: '#E1ECDF',
+              }}
+            >
+              {miniMapMounted ? (
+                <MapView
+                  style={{ flex: 1 }}
+                  initialRegion={{
+                    latitude: sale.latitude,
+                    longitude: sale.longitude,
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                  showsUserLocation
+                >
+                  {/* Custom child view rather than `pinColor` — the
+                      default native pin requires no React subview, but
+                      AIRMap under Fabric crashes during subview insert
+                      when the React-side child count is 0. A 16pt brand
+                      dot is also a closer match to the design language. */}
+                  <Marker
+                    key={`mini-${sale.id}`}
+                    coordinate={{
+                      latitude: sale.latitude,
+                      longitude: sale.longitude,
+                    }}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                    tracksViewChanges={false}
+                  >
+                    <View
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 8,
+                        backgroundColor: BRAND,
+                        borderWidth: 2,
+                        borderColor: '#fff',
+                      }}
+                    />
+                  </Marker>
+                </MapView>
+              ) : null}
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -451,87 +856,260 @@ export default function SaleDetailScreen() {
         onSubmitted={() => navigation.goBack()}
       />
 
-      {/* Sticky CTA — directions is the primary action; messaging
-          the seller is a secondary outlined button. Both are hidden
-          on the user's own sale (can't message yourself, and you
-          don't need directions to your own yard). */}
+      {/* Sticky CTA */}
       <View
-        className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3"
-        style={{ gap: 8 }}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: HAIRLINE,
+          paddingHorizontal: 14,
+          paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 14) + 14,
+          flexDirection: 'row',
+        }}
       >
-        <Button
-          size="lg"
-          onPress={openDirections}
-          leftIcon={<Ionicons name="navigate" size={20} color="#fff" />}
+        <Pressable
+          onPress={() => toggleFavorite(sale.id)}
+          style={{
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginRight: 10,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? 'Saved' : 'Save'}
         >
-          Get directions
-        </Button>
-        {!isOwnSale && (
-          <Button
-            size="lg"
-            variant="outline"
-            onPress={handleMessageSeller}
-            loading={startingConversation}
-            leftIcon={
-              <Ionicons name="chatbubble-outline" size={18} color="#18181B" />
-            }
+          <Ionicons
+            name={saved ? 'heart' : 'heart-outline'}
+            size={16}
+            color={saved ? ROSE : INK}
+          />
+          <Text
+            style={{
+              marginLeft: 6,
+              fontSize: 13,
+              fontWeight: '600',
+              color: INK,
+            }}
           >
-            Message seller
-          </Button>
-        )}
+            {saved ? 'Saved' : 'Save'}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={openDirections}
+          style={{
+            flex: 1,
+            backgroundColor: BRAND,
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Get directions"
+        >
+          <Text
+            style={{
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: '700',
+              marginRight: 8,
+            }}
+          >
+            Directions
+          </Text>
+          {driveMin != null && (
+            <Text style={{ color: '#fff', fontSize: 13, opacity: 0.9 }}>
+              {driveMin} min
+            </Text>
+          )}
+          <Ionicons
+            name="arrow-forward"
+            size={16}
+            color="#fff"
+            style={{ marginLeft: 8 }}
+          />
+        </Pressable>
       </View>
     </View>
   );
 }
 
-/**
- * Banner that shows under the title when the sale closes within the
- * next 2 hours TODAY. Re-evaluates every minute via a tick state so
- * the countdown stays fresh as long as the user is on the page.
- */
-function EndsSoonBanner({ sale }: { sale: Sale }) {
+function GlassButton({
+  icon,
+  size,
+  iconSize,
+  iconColor = INK,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  size: number;
+  iconSize: number;
+  iconColor?: string;
+  onPress: () => void;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
+      }}
+    >
+      <Ionicons name={icon} size={iconSize} color={iconColor} />
+    </Pressable>
+  );
+}
+
+function OpenNowChip({ sale }: { sale: Sale }) {
   const [, tick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => tick((n) => n + 1), 60_000);
     return () => clearInterval(id);
   }, []);
-
   const minsLeft = minutesUntilClose(sale);
-  if (minsLeft == null || minsLeft > 120) return null;
-
-  let label: string;
-  if (minsLeft <= 1) label = 'Closing now';
-  else if (minsLeft < 60) label = `Ends in ${minsLeft} min`;
-  else {
-    const h = Math.floor(minsLeft / 60);
-    const m = minsLeft % 60;
-    label = m === 0 ? `Ends in ${h} hr` : `Ends in ${h}h ${m}m`;
-  }
-
+  const close = formatHM(sale.end_time.slice(0, 5));
+  const tail =
+    minsLeft != null && minsLeft <= 60
+      ? `CLOSES IN ${minsLeft} MIN`
+      : `CLOSES ${close}`;
   return (
     <View
       style={{
-        marginTop: 12,
-        backgroundColor: '#FEF3C7',
-        borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+        alignSelf: 'flex-start',
+        backgroundColor: AMBER_SOFT,
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+        borderRadius: 99,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
       }}
     >
-      <Ionicons name="time" size={18} color="#92400E" />
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 99,
+          backgroundColor: AMBER,
+          marginRight: 6,
+        }}
+      />
       <Text
         style={{
-          color: '#92400E',
+          color: AMBER,
+          fontSize: 10,
           fontWeight: '700',
-          fontSize: 13,
-          flex: 1,
+          letterSpacing: 0.4,
         }}
       >
-        {label} — head over now if you're nearby.
+        OPEN NOW · {tail}
       </Text>
     </View>
   );
+}
+
+function StatStrip({ sale }: { sale: Sale }) {
+  // Day 1 / Day 2 stat tiles based on start_date and end_date.
+  // For single-day sales, show the day label + hours twice.
+  const day1Label = weekdayLabel(sale.start_date);
+  const day1Hours = `${formatHM(sale.start_time.slice(0, 5))}–${formatHM(sale.end_time.slice(0, 5))}`;
+  const day2Label = sale.end_date !== sale.start_date ? weekdayLabel(sale.end_date) : 'PRICING';
+  const day2Hours =
+    sale.end_date !== sale.start_date ? day1Hours : sale.pricing_notes?.slice(0, 16) || '—';
+  return (
+    <View
+      style={{
+        marginTop: 14,
+        flexDirection: 'row',
+      }}
+    >
+      <StatTile label={day1Label} value={day1Hours} flex first />
+      <StatTile label={day2Label} value={day2Hours} flex />
+      <StatTile
+        label="WHEN"
+        value={formatSaleDate(sale.start_date, sale.end_date)}
+        flex
+      />
+    </View>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  flex,
+  first,
+}: {
+  label: string;
+  value: string;
+  flex?: boolean;
+  first?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        flex: flex ? 1 : undefined,
+        backgroundColor: BONE,
+        borderRadius: 12,
+        padding: 12,
+        marginLeft: first ? 0 : 8,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 9.5,
+          fontWeight: '700',
+          color: INK_MUTED,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{ fontSize: 13, fontWeight: '700', color: INK, marginTop: 4 }}
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function weekdayLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1);
+  return date
+    .toLocaleDateString('en-US', { weekday: 'short' })
+    .toUpperCase();
+}
+
+function labelForCategory(c: string): string {
+  return c
+    .split('_')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(' ');
 }

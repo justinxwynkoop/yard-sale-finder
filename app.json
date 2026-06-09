@@ -14,7 +14,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFEDD5"
+      "backgroundColor": "#F7F2E8"
     },
     "ios": {
       "supportsTablet": false,
@@ -33,6 +33,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFEDD5"
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#F7F2E8"
       },
       "package": "com.jwynkoop.trove",
       "versionCode": 1,
@@ -60,7 +65,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#2D5F3E",
+          "color": "#1F4D3A",
           "defaultChannel": "messages"
         }
       ],
@@ -79,9 +84,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFEDD5",
+          "backgroundColor": "#F7F2E8",
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 300,
           "resizeMode": "contain"
         }
       ]

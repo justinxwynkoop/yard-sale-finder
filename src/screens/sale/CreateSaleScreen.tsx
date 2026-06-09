@@ -31,6 +31,7 @@ import {
   IconButton,
   Input,
 } from '../../components/ui';
+import { PostSection, PostProgressBar } from '../../components/PostFormShell';
 
 const MAX_TITLE = 80;
 const MAX_DESCRIPTION = 500;
@@ -373,18 +374,71 @@ export default function CreateSaleScreen() {
   const validationError = validate();
   const canSubmit = !validationError && !submitting;
 
+  // Step completion flags drive the progress bar + numbered circles.
+  const steps = [
+    { label: 'Photos', done: media.length > 0 },
+    { label: 'Where', done: !!(pinCoords && address) },
+    { label: 'When', done: !!(startDate && endDate && startTime && endTime) },
+    { label: 'About', done: !!title.trim() },
+    { label: 'Categories', done: selectedCategories.length > 0 },
+  ];
+  const firstIncomplete = steps.findIndex((s) => !s.done);
+  const activeStepIdx = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete;
+
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+    <SafeAreaView edges={['top']} className="flex-1 bg-bone">
       {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-zinc-100 bg-white px-4 py-2">
-        <IconButton
-          variant="ghost"
-          size="md"
-          onPress={() => navigation.goBack()}
-          icon={<Ionicons name="close" size={24} color="#18181B" />}
+      <View
+        style={{
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#E5DECC',
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+          }}
+        >
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="close" size={24} color="#171513" />
+          </Pressable>
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              fontSize: 16,
+              fontWeight: '700',
+              color: '#171513',
+            }}
+          >
+            New yard sale
+          </Text>
+          <Text
+            style={{
+              paddingHorizontal: 6,
+              fontSize: 13,
+              fontWeight: '600',
+              color: '#8A857C',
+            }}
+          >
+            Draft
+          </Text>
+        </View>
+        <PostProgressBar
+          steps={steps.length}
+          activeIdx={activeStepIdx}
+          dones={steps.map((s) => s.done)}
         />
-        <Text className="text-base font-bold text-zinc-900">Post a sale</Text>
-        <View style={{ width: 44 }} />
       </View>
 
       <KeyboardAvoidingView
@@ -397,7 +451,13 @@ export default function CreateSaleScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* PHOTOS SECTION */}
-          <Section title="Photos" subtitle="A great cover photo helps your sale stand out.">
+          <PostSection
+            step={1}
+            done={steps[0].done}
+            active={activeStepIdx === 0}
+            title="Photos"
+            subtitle="A great cover photo helps your sale stand out."
+          >
             {media.length === 0 ? (
               <View className="flex-row" style={{ gap: 10 }}>
                 <ActionTile
@@ -462,10 +522,13 @@ export default function CreateSaleScreen() {
                 </Text>
               </>
             )}
-          </Section>
+          </PostSection>
 
           {/* WHERE SECTION */}
-          <Section
+          <PostSection
+            step={2}
+            done={steps[1].done}
+            active={activeStepIdx === 1}
             title="Where will it be?"
             subtitle="Type an address or tap the map to drop a pin."
           >
@@ -518,7 +581,7 @@ export default function CreateSaleScreen() {
                         width: 36,
                         height: 36,
                         borderRadius: 18,
-                        backgroundColor: '#2D5F3E',
+                        backgroundColor: '#1F4D3A',
                         borderWidth: 3,
                         borderColor: '#fff',
                         alignItems: 'center',
@@ -559,10 +622,13 @@ export default function CreateSaleScreen() {
             {geocoding ? (
               <Text className="mt-2 text-xs text-zinc-500">Looking up…</Text>
             ) : null}
-          </Section>
+          </PostSection>
 
           {/* WHEN SECTION */}
-          <Section
+          <PostSection
+            step={3}
+            done={steps[2].done}
+            active={activeStepIdx === 2}
             title="When is it happening?"
             subtitle="Pick from common options or set custom times."
           >
@@ -620,10 +686,13 @@ export default function CreateSaleScreen() {
                 />
               </View>
             </View>
-          </Section>
+          </PostSection>
 
           {/* ABOUT SECTION */}
-          <Section
+          <PostSection
+            step={4}
+            done={steps[3].done}
+            active={activeStepIdx === 3}
             title="About your sale"
             subtitle="A good title gets people excited to stop by."
           >
@@ -650,10 +719,13 @@ export default function CreateSaleScreen() {
             <Text className="mt-1 text-right text-xs text-zinc-400">
               {description.length}/{MAX_DESCRIPTION}
             </Text>
-          </Section>
+          </PostSection>
 
           {/* CATEGORIES SECTION */}
-          <Section
+          <PostSection
+            step={5}
+            done={steps[4].done}
+            active={activeStepIdx === 4}
             title="What you're selling"
             subtitle="Pick any that apply — helps buyers filter."
           >
@@ -663,10 +735,10 @@ export default function CreateSaleScreen() {
                 {selectedCategories.length} selected
               </Text>
             )}
-          </Section>
+          </PostSection>
 
-          {/* PRICING SECTION */}
-          <Section
+          {/* PRICING SECTION (optional, not in progress count) */}
+          <PostSection
             title="Pricing notes"
             subtitle="Optional — set expectations on price and payment."
           >
@@ -682,59 +754,66 @@ export default function CreateSaleScreen() {
             <Text className="mt-1 text-right text-xs text-zinc-400">
               {pricingNotes.length}/{MAX_PRICING}
             </Text>
-          </Section>
+          </PostSection>
         </ScrollView>
 
         {/* Sticky CTA */}
         <View
-          className="border-t border-zinc-100 bg-white px-4 pb-6 pt-3"
-          style={{ paddingBottom: Platform.OS === 'ios' ? 28 : 16 }}
+          style={{
+            backgroundColor: '#fff',
+            borderTopWidth: 1,
+            borderTopColor: '#E5DECC',
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+          }}
         >
           {validationError ? (
-            <Text className="mb-2 text-center text-xs text-zinc-500">
+            <Text
+              style={{
+                marginBottom: 8,
+                textAlign: 'center',
+                fontSize: 11,
+                color: '#8A857C',
+              }}
+            >
               {validationError}
             </Text>
           ) : null}
-          <Button
-            size="lg"
+          <Pressable
             onPress={submit}
-            loading={submitting}
             disabled={!canSubmit}
-            leftIcon={
-              !submitting && (
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              )
-            }
+            accessibilityRole="button"
+            accessibilityLabel="Post sale"
+            style={{
+              backgroundColor: canSubmit ? '#1F4D3A' : '#C7C1B0',
+              borderRadius: 14,
+              paddingVertical: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'row',
+            }}
           >
-            Post your sale
-          </Button>
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: '700',
+                marginRight: 8,
+              }}
+            >
+              {submitting ? 'Posting…' : 'Post sale'}
+            </Text>
+            {!submitting && (
+              <Ionicons name="arrow-forward" size={16} color="#fff" />
+            )}
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="mt-3 bg-white px-5 py-5">
-      <Text className="text-lg font-bold text-zinc-900">{title}</Text>
-      {subtitle ? (
-        <Text className="mb-4 mt-0.5 text-sm text-zinc-500">{subtitle}</Text>
-      ) : (
-        <View className="mb-3" />
-      )}
-      {children}
-    </View>
-  );
-}
 
 function ActionTile({
   icon,
@@ -751,7 +830,7 @@ function ActionTile({
       className="flex-1 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 py-6 active:bg-zinc-100"
     >
       <View className="mb-2 h-10 w-10 items-center justify-center rounded-full bg-brand-50">
-        <Ionicons name={icon} size={20} color="#2D5F3E" />
+        <Ionicons name={icon} size={20} color="#1F4D3A" />
       </View>
       <Text className="text-sm font-semibold text-zinc-900">{label}</Text>
     </Pressable>

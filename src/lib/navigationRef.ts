@@ -10,7 +10,7 @@ import { RootStackParamList } from '../types';
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 /**
- * Navigate to the Messages tab and open a specific conversation.
+ * Navigate to the Inbox tab and open a specific conversation.
  * Safe to call at any time — queued silently if the nav tree isn't
  * ready yet (which can happen on cold-start from a notification).
  */
@@ -22,10 +22,10 @@ export function navigateToConversation(conversationId: string) {
   // [Conversation], leaving no back button. React 18 batches both dispatches
   // into one render so there is no visible flash of the Inbox screen.
   navigationRef.navigate('Main' as any, {
-    screen: 'Messages',
+    screen: 'Inbox',
   } as any);
   navigationRef.navigate('Main' as any, {
-    screen: 'Messages',
+    screen: 'Inbox',
     params: {
       screen: 'Conversation',
       params: { conversationId },

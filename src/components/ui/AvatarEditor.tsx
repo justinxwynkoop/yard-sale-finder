@@ -12,8 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { toast } from '../../lib/toast';
 
-const BRAND = '#2D5F3E';
-const SURFACE = '#FAFAF9';
+const BRAND = '#1F4D3A';
+const SURFACE = '#F7F2E8';
 const SIZE = 120;
 const BADGE = 40;
 

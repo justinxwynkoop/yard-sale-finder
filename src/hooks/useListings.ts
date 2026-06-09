@@ -72,10 +72,12 @@ export function useListings(filters: ListingFilters) {
     fetchListings();
   }, [fetchListings]);
 
-  // Real-time: refresh when any listing changes
+  // Real-time: refresh when any listing changes.
+  // Channel name must be unique per hook instance — same channel-collision
+  // pattern as useInbox / useSales (CLAUDE.md).
   useEffect(() => {
     const channel = supabase
-      .channel('listings-changes')
+      .channel(`listings-changes-${Math.random().toString(36).slice(2, 9)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
         fetchListings();
       })

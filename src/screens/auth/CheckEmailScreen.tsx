@@ -53,7 +53,7 @@ export default function CheckEmailScreen() {
       >
         <View className="mb-8 mt-4 items-center">
           <View className="mb-4 h-20 w-20 items-center justify-center rounded-3xl bg-brand-50">
-            <Ionicons name="mail-unread-outline" size={36} color="#2D5F3E" />
+            <Ionicons name="mail-unread-outline" size={36} color="#1F4D3A" />
           </View>
           <Text className="text-center text-2xl font-extrabold text-zinc-900">
             Check your email

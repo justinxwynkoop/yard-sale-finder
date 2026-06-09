@@ -181,7 +181,7 @@ export default function DeleteAccountScreen() {
           Questions or concerns? Email{' '}
           <Text
             className="font-semibold"
-            style={{ color: '#2D5F3E' }}
+            style={{ color: '#1F4D3A' }}
             onPress={() => Linking.openURL(SUPPORT_MAILTO)}
           >
             TroveSupport

@@ -73,7 +73,7 @@ export default function CaptureSaleScreen() {
   if (!permission) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#2D5F3E" />
+        <ActivityIndicator color="#1F4D3A" />
       </View>
     );
   }
@@ -81,7 +81,7 @@ export default function CaptureSaleScreen() {
     return (
       <View style={styles.permWrap}>
         <View style={styles.permIcon}>
-          <Ionicons name="camera-outline" size={32} color="#2D5F3E" />
+          <Ionicons name="camera-outline" size={32} color="#1F4D3A" />
         </View>
         <Text style={styles.permTitle}>Camera access needed</Text>
         <Text style={styles.permBody}>
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFEDD5',
+    backgroundColor: '#EFE8D6',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#2D5F3E',
+    backgroundColor: '#1F4D3A',
     alignItems: 'center',
     justifyContent: 'center',
   },

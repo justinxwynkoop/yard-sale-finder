@@ -452,7 +452,7 @@ const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 function TroveSupportLink() {
   return (
     <Text
-      style={{ fontWeight: '600', color: '#2D5F3E' }}
+      style={{ fontWeight: '600', color: '#1F4D3A' }}
       onPress={() => Linking.openURL(SUPPORT_MAILTO)}
     >
       TroveSupport

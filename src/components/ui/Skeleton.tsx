@@ -51,7 +51,7 @@ export function Skeleton({ width, height, radius = 12, style }: SkeletonProps) {
   );
 }
 
-/** Pre-built skeleton for a SaleListCard / SaleCard row. */
+/** Pre-built skeleton for a SaleCard row. */
 export function SaleCardSkeleton() {
   return (
     <View

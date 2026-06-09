@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ActivityIndicator, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, ActivityIndicator, Image, Pressable, Text } from 'react-native';
 import {
   NavigationContainer,
   LinkingOptions,
@@ -36,6 +36,11 @@ import TermsScreen from '../screens/auth/TermsScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import MapHomeScreen from '../screens/map/MapHomeScreen';
 import SaleDetailScreen from '../screens/map/SaleDetailScreen';
+import FilterSheet from '../screens/map/FilterSheet';
+import RoutePlannerScreen from '../screens/route/RoutePlannerScreen';
+import ActiveRouteScreen from '../screens/route/ActiveRouteScreen';
+import SearchScreen from '../screens/search/SearchScreen';
+import ListingsFilterSheet from '../screens/listings/ListingsFilterSheet';
 import MySalesScreen from '../screens/sale/MySalesScreen';
 import CreateSaleScreen from '../screens/sale/CreateSaleScreen';
 import EditSaleScreen from '../screens/sale/EditSaleScreen';
@@ -48,10 +53,17 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
 import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
-import SavedHomeScreen from '../screens/saved/SavedHomeScreen';
+import BlockedScreen from '../screens/profile/BlockedScreen';
+import NotificationsScreen from '../screens/profile/NotificationsScreen';
+import AccountScreen from '../screens/profile/AccountScreen';
+import SavedScreen from '../screens/profile/SavedScreen';
+import MySalesScreenV3 from '../screens/profile/MySalesScreen';
+import MyListingsScreen from '../screens/profile/MyListingsScreen';
+import PublicProfileScreen from '../screens/profile/PublicProfileScreen';
 import SavedListingsScreen from '../screens/listings/SavedListingsScreen';
 import InboxScreen from '../screens/messages/InboxScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
+import { PostMenu } from '../components/PostMenu';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -60,7 +72,7 @@ const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 
-const BRAND = '#2D5F3E';
+const BRAND = '#1F4D3A';
 const INACTIVE = '#A1A1AA';
 
 // Default tab bar style. Defined once so the per-tab `screenOptions`
@@ -96,6 +108,43 @@ function MapNavigator() {
         component={SaleDetailScreen}
         options={{ headerShown: false }}
       />
+      <MapStack.Screen
+        name="FilterSheet"
+        component={FilterSheet}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <MapStack.Screen
+        name="RoutePlanner"
+        component={RoutePlannerScreen}
+        options={{ headerShown: false }}
+      />
+      <MapStack.Screen
+        name="ActiveRoute"
+        component={ActiveRouteScreen}
+        options={{
+          headerShown: false,
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <MapStack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <MapStack.Screen
+        name="PublicProfile"
+        component={PublicProfileScreen as any}
+        options={{ headerShown: false }}
+      />
     </MapStack.Navigator>
   );
 }
@@ -119,23 +168,6 @@ function ListingsNavigator() {
         name="EditListing"
         component={EditListingScreen as any}
       />
-      {/* Saved sales: previously a dedicated bottom tab. Now lives
-          here as a pushed route, reached via the heart icon in the
-          Listings header. SaleDetail registered alongside it so
-          tapping a saved-sale card stays in the Listings tab. */}
-      <ListingsStack.Screen
-        name="SavedHome"
-        component={SavedHomeScreen}
-        options={{
-          headerShown: true,
-          title: 'Saved Sales',
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: false,
-          headerTintColor: '#18181B',
-          headerBackTitle: 'Back',
-        }}
-      />
       <ListingsStack.Screen
         name="SavedListings"
         component={SavedListingsScreen}
@@ -154,6 +186,29 @@ function ListingsNavigator() {
         component={SaleDetailScreen as any}
         options={{ headerShown: false }}
       />
+      <ListingsStack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <ListingsStack.Screen
+        name="ListingsFilter"
+        component={ListingsFilterSheet}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <ListingsStack.Screen
+        name="PublicProfile"
+        component={PublicProfileScreen as any}
+        options={{ headerShown: false }}
+      />
     </ListingsStack.Navigator>
   );
 }
@@ -170,11 +225,16 @@ function MessagesNavigator() {
       }}
     >
       <MessagesStack.Screen
-        name="Inbox"
+        name="InboxHome"
         component={InboxScreen}
-        options={{ title: 'Messages' }}
+        options={{ headerShown: false }}
       />
       <MessagesStack.Screen name="Conversation" component={ConversationScreen} />
+      <MessagesStack.Screen
+        name="PublicProfile"
+        component={PublicProfileScreen as any}
+        options={{ headerShown: false }}
+      />
     </MessagesStack.Navigator>
   );
 }
@@ -244,16 +304,88 @@ function ProfileNavigator() {
         component={EditListingScreen as any}
         options={{ title: 'Edit Listing', headerBackTitle: 'Back' }}
       />
+      {/* v3 Profile expansion — all push screens hide the default
+          header because they ship their own SubHeader component. */}
+      <ProfileStack.Screen
+        name="MySales"
+        component={MySalesScreenV3}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="MyListings"
+        component={MyListingsScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Saved"
+        component={SavedScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Blocked"
+        component={BlockedScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="PublicProfile"
+        component={PublicProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="SaleDetail"
+        component={SaleDetailScreen as any}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="ListingDetail"
+        component={ListingDetailScreen as any}
+        options={{ headerShown: false }}
+      />
     </ProfileStack.Navigator>
   );
 }
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
+// Tab.Screen requires a component reference even when we never render it
+// (the Post tab intercepts the press and shows a sheet instead).
+function PostPlaceholder() {
+  return <View />;
+}
+
 function MainTabs() {
   const { profile } = useProfile();
 
-  // Unread count drives the red badge on the Messages tab icon.
+  // Lifted to the navigator level so any tab can open the Post sheet.
+  const [postMenuOpen, setPostMenuOpen] = useState(false);
+
+  const handlePickSale = () => {
+    // Jump to the Profile stack's CreateSale screen — it's registered there
+    // so the user lands inside the same flow Profile→MySales pushes them into.
+    navigationRef.navigate('Main' as any, {
+      screen: 'Profile',
+      params: { screen: 'CreateSale' },
+    } as any);
+  };
+
+  const handlePickListing = () => {
+    navigationRef.navigate('Main' as any, {
+      screen: 'Profile',
+      params: { screen: 'CreateListing' },
+    } as any);
+  };
+
+  // Unread count drives the red badge on the Inbox tab icon.
   const { unreadCount } = useInbox();
 
   // Register device for push notifications and persist the token to
@@ -280,6 +412,7 @@ function MainTabs() {
   }, []);
 
   return (
+    <>
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -305,7 +438,7 @@ function MainTabs() {
                     height: size ?? 24,
                     borderRadius: (size ?? 24) / 2,
                     borderWidth: focused ? 2 : 0,
-                    borderColor: '#2D5F3E',
+                    borderColor: '#1F4D3A',
                   }}
                 />
               );
@@ -314,7 +447,7 @@ function MainTabs() {
             return <Ionicons name={iconName} size={size ?? 24} color={color} />;
           }
 
-          if (route.name === 'Messages') {
+          if (route.name === 'Inbox') {
             const msgIcon: IoniconName = focused
               ? 'chatbubble-ellipses'
               : 'chatbubble-ellipses-outline';
@@ -340,6 +473,10 @@ function MainTabs() {
             );
           }
 
+          // Post tab handled below via tabBarButton — this branch is unreachable
+          // for that route, but TypeScript prefers it covered.
+          if (route.name === 'Post') return null;
+
           let iconName: IoniconName = 'ellipse-outline';
           if (route.name === 'Map') {
             iconName = focused ? 'map' : 'map-outline';
@@ -361,9 +498,22 @@ function MainTabs() {
         options={{ tabBarLabel: 'Listings' }}
       />
       <Tab.Screen
-        name="Messages"
+        name="Post"
+        component={PostPlaceholder}
+        options={{
+          tabBarLabel: 'Post',
+          tabBarButton: (props) => (
+            <PostTabButton
+              accessibilityState={props.accessibilityState}
+              onPress={() => setPostMenuOpen(true)}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Inbox"
         component={MessagesNavigator}
-        options={{ tabBarLabel: 'Messages' }}
+        options={{ tabBarLabel: 'Inbox' }}
       />
       <Tab.Screen
         name="Profile"
@@ -371,6 +521,71 @@ function MainTabs() {
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
+
+    <PostMenu
+      visible={postMenuOpen}
+      onClose={() => setPostMenuOpen(false)}
+      onPickSale={handlePickSale}
+      onPickListing={handlePickListing}
+    />
+    </>
+  );
+}
+
+/**
+ * Custom Tab.Screen button for the center "Post" tab — renders a raised
+ * brand-bg rounded-rect with a white "+" instead of a normal tab icon.
+ * On press, opens the PostMenu sheet rather than navigating.
+ */
+function PostTabButton({
+  onPress,
+  accessibilityState,
+}: {
+  onPress: () => void;
+  accessibilityState?: { selected?: boolean };
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Post"
+      accessibilityState={accessibilityState}
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: 4,
+      }}
+    >
+      <View
+        style={{
+          width: 46,
+          height: 36,
+          borderRadius: 12,
+          backgroundColor: BRAND,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: -2,
+          shadowColor: '#000',
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 5,
+        }}
+      >
+        <Ionicons name="add" size={22} color="#fff" />
+      </View>
+      <Text
+        style={{
+          marginTop: 4,
+          fontSize: 11,
+          fontWeight: '600',
+          color: INACTIVE,
+        }}
+      >
+        Post
+      </Text>
+    </Pressable>
   );
 }
 
@@ -395,7 +610,7 @@ function MainGate() {
           backgroundColor: '#fff',
         }}
       >
-        <ActivityIndicator size="large" color="#2D5F3E" />
+        <ActivityIndicator size="large" color="#1F4D3A" />
       </View>
     );
   }
@@ -433,7 +648,7 @@ function LoadingScreen() {
         backgroundColor: '#fff',
       }}
     >
-      <ActivityIndicator size="large" color="#2D5F3E" />
+      <ActivityIndicator size="large" color="#1F4D3A" />
     </View>
   );
 }

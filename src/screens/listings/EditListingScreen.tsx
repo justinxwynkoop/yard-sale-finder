@@ -217,7 +217,7 @@ export default function EditListingScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center">
-        <ActivityIndicator size="large" color="#2D5F3E" />
+        <ActivityIndicator size="large" color="#1F4D3A" />
       </SafeAreaView>
     );
   }
@@ -334,7 +334,7 @@ export default function EditListingScreen() {
                 rotateEnabled={false}
               >
                 {pinCoords && (
-                  <Marker coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }} pinColor="#2D5F3E" />
+                  <Marker coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }} pinColor="#1F4D3A" />
                 )}
               </MapView>
             </View>

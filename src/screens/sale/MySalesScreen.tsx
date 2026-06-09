@@ -257,7 +257,7 @@ export default function MySalesScreen() {
       ) : activeTab === 'sales' ? (
         sales.length === 0 ? (
           <EmptyState
-            icon={<Ionicons name="pricetag-outline" size={32} color="#2D5F3E" />}
+            icon={<Ionicons name="pricetag-outline" size={32} color="#1F4D3A" />}
             title="Host your first yard sale"
             description="Pin a location, snap a few photos, and you're on the map."
             action={
@@ -268,7 +268,7 @@ export default function MySalesScreen() {
           />
         ) : isFilteredEmpty ? (
           <EmptyState
-            icon={<Ionicons name="filter-outline" size={28} color="#2D5F3E" />}
+            icon={<Ionicons name="filter-outline" size={28} color="#1F4D3A" />}
             title={`No ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()} sales`}
             description="Try a different filter or post a new sale."
           />
@@ -294,7 +294,7 @@ export default function MySalesScreen() {
       ) : (
         listings.length === 0 ? (
           <EmptyState
-            icon={<Ionicons name="storefront-outline" size={32} color="#2D5F3E" />}
+            icon={<Ionicons name="storefront-outline" size={32} color="#1F4D3A" />}
             title="Post your first listing"
             description="Add a photo, set a price, and let buyers find your items."
             action={
@@ -305,7 +305,7 @@ export default function MySalesScreen() {
           />
         ) : isFilteredEmpty ? (
           <EmptyState
-            icon={<Ionicons name="search-outline" size={28} color="#2D5F3E" />}
+            icon={<Ionicons name="search-outline" size={28} color="#1F4D3A" />}
             title="No listings match"
             description="Try a different search term."
           />
@@ -366,7 +366,7 @@ function SaleCard({
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-brand-50">
-                <Ionicons name="image-outline" size={28} color="#2D5F3E" />
+                <Ionicons name="image-outline" size={28} color="#1F4D3A" />
               </View>
             )}
           </View>
@@ -382,7 +382,7 @@ function SaleCard({
               <Text className="ml-1 flex-1 text-xs text-zinc-500" numberOfLines={1}>{sale.address}</Text>
             </View>
             <View className="mt-1 flex-row items-center">
-              <Ionicons name="time-outline" size={13} color="#2D5F3E" />
+              <Ionicons name="time-outline" size={13} color="#1F4D3A" />
               <Text className="ml-1 text-xs font-medium text-brand-600" numberOfLines={1}>
                 {formatSaleDate(sale.start_date, sale.end_date)} · {formatSaleTime(sale.start_time, sale.end_time)}
               </Text>
@@ -451,7 +451,7 @@ function ListingCard({
             />
           ) : (
             <View className="h-full w-full items-center justify-center bg-brand-50">
-              <Ionicons name="image-outline" size={28} color="#2D5F3E" />
+              <Ionicons name="image-outline" size={28} color="#1F4D3A" />
             </View>
           )}
         </View>

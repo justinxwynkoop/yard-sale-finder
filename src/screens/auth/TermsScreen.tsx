@@ -110,7 +110,7 @@ We do not knowingly collect personal information from users under 13 years of ag
           <Text style={{ fontSize: 13, color: '#52525B', lineHeight: 20 }}>
             {'Questions about these Terms? Contact us at: '}
             <Text
-              style={{ fontWeight: '600', color: '#2D5F3E' }}
+              style={{ fontWeight: '600', color: '#1F4D3A' }}
               onPress={() => Linking.openURL(SUPPORT_MAILTO)}
             >
               TroveSupport
@@ -134,8 +134,8 @@ We do not knowingly collect personal information from users under 13 years of ag
             className="mt-0.5 h-5 w-5 items-center justify-center rounded"
             style={{
               borderWidth: 2,
-              borderColor: agreed ? '#2D5F3E' : '#D4D4D8',
-              backgroundColor: agreed ? '#2D5F3E' : 'transparent',
+              borderColor: agreed ? '#1F4D3A' : '#D4D4D8',
+              backgroundColor: agreed ? '#1F4D3A' : 'transparent',
             }}
           >
             {agreed && <Ionicons name="checkmark" size={13} color="#fff" />}

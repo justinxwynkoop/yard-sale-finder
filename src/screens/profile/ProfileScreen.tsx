@@ -15,35 +15,30 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
+
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { useAppVersion } from '../../hooks/useAppVersion';
 import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
+import { useFavorites } from '../../hooks/useFavorites';
+import { useReviews } from '../../hooks/useReviews';
 import { ProfileStackParamList } from '../../types';
-import {
-  Avatar,
-  Button,
-  SettingsGroup,
-  SettingsRow,
-} from '../../components/ui';
+import { Avatar, Button } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
-const BRAND = '#2D5F3E';
+const BONE = '#F7F2E8';
+const BRAND = '#1F4D3A';
+const INK = '#171513';
+const INK_SOFT = '#54504A';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
+const ROSE = '#A23E2D';
+
 const SUPPORT_EMAIL =
   process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@trove.app';
 
-/**
- * Identity + settings hub. Two sections only -- Account and About --
- * per the 2026-05-22 Profile redesign spec. App name is sourced from
- * Expo config (never hardcoded). Build details are gated behind a
- * tap-version-7-times easter egg so the main surface stays clean.
- *
- * Account deletion remains a destructive row in the Account group
- * because Apple App Store Guideline 5.1.1(v) requires in-app
- * account deletion for any app that creates accounts.
- */
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const { signOut } = useAuth();
@@ -51,7 +46,18 @@ export default function ProfileScreen() {
   const { appVersion, buildNumber } = useAppVersion();
   const { sales } = useMySales(profile?.id);
   const { listings } = useMyListings(profile?.id);
+  const { favorites } = useFavorites();
+  const { summary: reviewSummary } = useReviews(profile?.id);
   const [debugOpen, setDebugOpen] = useState(false);
+
+  // Sublabel breakdowns shown on the Manage rows — match the
+  // "{X} active · {Y} ended" / "{X} live · {Y} sold" copy from the
+  // v6 screenshots so the row gives at-a-glance status without
+  // needing to push in.
+  const activeSalesCount = sales.filter((s) => s.status !== 'ended').length;
+  const endedSalesCount = sales.length - activeSalesCount;
+  const liveListingsCount = listings.filter((l) => l.status === 'available').length;
+  const soldListingsCount = listings.length - liveListingsCount;
 
   const appName = Constants.expoConfig?.name ?? '';
 
@@ -72,13 +78,6 @@ export default function ProfileScreen() {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
 
-  const memberSince = profile?.created_at
-    ? new Date(profile.created_at).toLocaleString(undefined, {
-        month: 'long',
-        year: 'numeric',
-      })
-    : null;
-
   if (loading) {
     return (
       <View
@@ -86,7 +85,7 @@ export default function ProfileScreen() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: BONE,
         }}
       >
         <ActivityIndicator size="large" color={BRAND} />
@@ -96,7 +95,7 @@ export default function ProfileScreen() {
 
   if (error || !profile) {
     return (
-      <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
         <View
           style={{
             flex: 1,
@@ -105,13 +104,13 @@ export default function ProfileScreen() {
             padding: 24,
           }}
         >
-          <Ionicons name="cloud-offline-outline" size={36} color="#A1A1AA" />
+          <Ionicons name="cloud-offline-outline" size={36} color={INK_MUTED} />
           <Text
             style={{
               marginTop: 12,
               fontSize: 17,
               fontWeight: '600',
-              color: '#18181B',
+              color: INK,
             }}
           >
             Profile not ready yet
@@ -120,7 +119,7 @@ export default function ProfileScreen() {
             style={{
               marginTop: 6,
               fontSize: 14,
-              color: '#71717A',
+              color: INK_MUTED,
               textAlign: 'center',
             }}
           >
@@ -136,135 +135,298 @@ export default function ProfileScreen() {
     );
   }
 
-  const displayName = profile.display_name ?? '';
-  const email = profile.email ?? '';
+  const displayName = profile.display_name ?? 'Your profile';
+  // Prefer first+last for the avatar so it reliably shows two initials
+  // (e.g. "JR") even when display_name is a single token. Falls back to
+  // display_name, then '?'.
+  const avatarName =
+    [profile.first_name, profile.last_name].filter(Boolean).join(' ') ||
+    profile.display_name ||
+    '?';
+  const location =
+    profile.city && profile.state
+      ? `${profile.city}, ${profile.state}`
+      : profile.city ?? profile.state ?? null;
+  const joined = profile.created_at
+    ? `Joined ${new Date(profile.created_at).toLocaleString(undefined, {
+        year: 'numeric',
+      })}`
+    : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 48,
-        }}
-      >
-        <View style={{ paddingHorizontal: 4, paddingTop: 4, paddingBottom: 8 }}>
-          <Text
-            style={{ fontSize: 28, fontWeight: '800', color: '#18181B' }}
-          >
-            Profile
-          </Text>
-        </View>
-
-        {/* Identity hero */}
-        <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-          <Pressable
-            onPress={() => navigation.navigate('EditProfile')}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${displayName || 'Profile'} avatar, opens Edit Profile`}
-          >
-            <Avatar uri={profile.avatar_url} name={displayName} size="xl" />
-          </Pressable>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 48 }}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: 4,
+            paddingBottom: 14,
+          }}
+        >
           <Text
             style={{
-              marginTop: 14,
-              fontSize: 20,
-              fontWeight: '700',
-              color: '#18181B',
+              fontSize: 28,
+              fontWeight: '800',
+              color: INK,
+              letterSpacing: -0.5,
             }}
-            numberOfLines={1}
           >
-            {displayName || 'Add your name'}
+            You
           </Text>
-          {email ? (
-            <Text
-              style={{ marginTop: 2, fontSize: 14, color: '#71717A' }}
-              numberOfLines={1}
-            >
-              {email}
-            </Text>
-          ) : null}
-          {memberSince ? (
-            <Text style={{ marginTop: 6, fontSize: 12, color: '#A1A1AA' }}>
-              Member since {memberSince}
-            </Text>
-          ) : null}
-          <View style={{ marginTop: 16 }}>
-            <Button
-              variant="outline"
-              onPress={() => navigation.navigate('EditProfile')}
-            >
-              Edit Profile
-            </Button>
-          </View>
+          <Pressable
+            onPress={() => navigation.navigate('Notifications')}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              backgroundColor: '#fff',
+              borderWidth: 1,
+              borderColor: HAIRLINE,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
+            <Ionicons name="notifications-outline" size={15} color={INK} />
+          </Pressable>
         </View>
 
-        {/* My Posts */}
-        <SettingsGroup title="My Posts">
-          <SettingsRow
+        {/* Profile card — tap to preview your public profile */}
+        <Pressable
+          onPress={() =>
+            profile?.id &&
+            navigation.navigate('PublicProfile', {
+              userId: profile.id,
+              self: true,
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Preview public profile"
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Avatar
+            uri={profile.avatar_url}
+            name={avatarName}
+            px={56}
+          />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text
+              style={{
+                fontSize: 17,
+                fontWeight: '700',
+                color: INK,
+                letterSpacing: -0.3,
+              }}
+              numberOfLines={1}
+            >
+              {displayName}
+            </Text>
+            <Text
+              style={{
+                marginTop: 2,
+                fontSize: 12,
+                color: INK_MUTED,
+              }}
+              numberOfLines={1}
+            >
+              {[location, joined].filter(Boolean).join(' · ')}
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginTop: 7,
+              }}
+            >
+              <Ionicons name="star" size={11} color="#B8772C" />
+              {/* The numeric rating is emphasized (dark, bold); the
+                  trailing "· N sales hosted" recedes in muted ink —
+                  matches the two-tone treatment in 09-profile.png. */}
+              {reviewSummary.review_count > 0 ? (
+                <Text style={{ marginLeft: 4, fontSize: 11 }}>
+                  <Text style={{ fontWeight: '700', color: INK }}>
+                    {reviewSummary.avg_stars.toFixed(1)}
+                  </Text>
+                  <Text style={{ color: INK_MUTED }}>
+                    {` · ${sales.length} ${
+                      sales.length === 1 ? 'sale' : 'sales'
+                    } hosted`}
+                  </Text>
+                </Text>
+              ) : (
+                <Text
+                  style={{ marginLeft: 4, fontSize: 11, color: INK_MUTED }}
+                >
+                  {`${sales.length} ${
+                    sales.length === 1 ? 'sale' : 'sales'
+                  } hosted`}
+                </Text>
+              )}
+            </View>
+          </View>
+          {/* The trailing element is a "View →" affordance rather than
+              a bare chevron — matches 09-profile.png. Reinforces that
+              tapping the card opens the public-profile preview. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: BRAND }}>
+              View
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={BRAND} />
+          </View>
+        </Pressable>
+
+        {/* Stats row */}
+        <View style={{ marginTop: 12, flexDirection: 'row' }}>
+          <StatTile
+            value={favorites.length}
+            group="Saved"
+            sub="sales"
+            onPress={() => navigation.navigate('Saved')}
+          />
+          <View style={{ width: 8 }} />
+          <StatTile
+            value={sales.length}
+            group="Your"
+            sub="sales"
+            onPress={() => navigation.navigate('MySales')}
+          />
+          <View style={{ width: 8 }} />
+          <StatTile
+            value={listings.length}
+            group="Your"
+            sub="items"
+            onPress={() => navigation.navigate('MyListings')}
+          />
+        </View>
+
+        {/* MANAGE */}
+        <SectionLabel>Manage</SectionLabel>
+        <RowList>
+          <Row
             icon="pricetag-outline"
-            label="Yard Sales"
-            detail={sales.length > 0 ? `${sales.length} posted` : 'None yet'}
-            onPress={() => navigation.navigate('MySalesHome', { initialTab: 'sales' })}
+            label="Your sales"
+            sublabel={
+              sales.length === 0
+                ? 'No sales yet'
+                : `${activeSalesCount} active · ${endedSalesCount} ended`
+            }
+            badge={activeSalesCount > 0 ? String(activeSalesCount) : undefined}
+            onPress={() => navigation.navigate('MySales')}
           />
-          <SettingsRow
+          <Row
             icon="storefront-outline"
-            label="Listings"
-            detail={listings.length > 0 ? `${listings.length} posted` : 'None yet'}
-            onPress={() => navigation.navigate('MySalesHome', { initialTab: 'listings' })}
+            label="Your listings"
+            sublabel={
+              listings.length === 0
+                ? 'No listings yet'
+                : `${liveListingsCount} live · ${soldListingsCount} sold`
+            }
+            onPress={() => navigation.navigate('MyListings')}
           />
-        </SettingsGroup>
+          <Row
+            icon="heart-outline"
+            label="Saved & routes"
+            sublabel={
+              favorites.length > 0
+                ? `${favorites.length} ${favorites.length === 1 ? 'save' : 'saves'} · 0 routes`
+                : 'Save sales to plan a route'
+            }
+            onPress={() => navigation.navigate('Saved')}
+            last
+          />
+        </RowList>
+
+        {/* SETTINGS */}
+        <SectionLabel>Settings</SectionLabel>
+        <RowList>
+          <Row
+            icon="person-outline"
+            label="Profile & account"
+            onPress={() => navigation.navigate('Account')}
+          />
+          <Row
+            icon="notifications-outline"
+            label="Notifications"
+            sublabel={
+              profile.notify_sales_nearby
+                ? 'Pings for sales within 1 mi'
+                : 'Customize alerts'
+            }
+            onPress={() => navigation.navigate('Notifications')}
+          />
+          <Row
+            icon="shield-checkmark-outline"
+            label="Blocked users"
+            onPress={() => navigation.navigate('Blocked')}
+            last
+          />
+        </RowList>
 
         {/* About */}
-        <SettingsGroup title="About">
-          <SettingsRow
+        <SectionLabel>About</SectionLabel>
+        <RowList>
+          <Row
             icon="mail-outline"
-            label="Email Support"
-            detail={SUPPORT_EMAIL}
+            label="Email support"
+            sublabel={SUPPORT_EMAIL}
             onPress={handleEmailSupport}
           />
-          {/* Tap-7-times debug-info easter egg is gated behind __DEV__
-              so it doesn't ship in TestFlight or App Store builds. An
-              App Reviewer accidentally tapping the version row in a
-              production build now just gets nothing -- no hidden
-              surface to confuse them or flag in review notes. */}
           {__DEV__ ? (
             <VersionRow
               label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
               onUnlock={() => setDebugOpen(true)}
             />
           ) : (
-            <SettingsRow
+            <Row
               icon="information-circle-outline"
               label={`Version ${appVersion}${buildNumber ? ` (${buildNumber})` : ''}`}
-              showChevron={false}
+              chevron={false}
+              onPress={() => {}}
+              last
             />
           )}
-        </SettingsGroup>
+        </RowList>
 
-        {/* Account -- safety-and-trust rows first, then the
-            destructive actions (Sign Out / Delete Account) at the
-            bottom per the common iOS Settings convention. */}
-        <SettingsGroup title="Account">
-          <SettingsRow
-            icon="shield-checkmark-outline"
-            label="Blocked Users"
-            onPress={() => navigation.navigate('BlockedUsers')}
-          />
-          <SettingsRow
-            icon="log-out-outline"
-            label="Sign Out"
-            destructive
-            showChevron={false}
+        {/* Destructive actions */}
+        <View style={{ marginTop: 20 }}>
+          <Pressable
             onPress={handleSignOut}
-          />
-          <SettingsRow
-            icon="trash-outline"
-            label="Delete Account"
-            destructive
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: HAIRLINE,
+              paddingVertical: 12,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: ROSE }}>
+              Sign out
+            </Text>
+          </Pressable>
+          <Pressable
             onPress={() => navigation.navigate('DeleteAccount')}
-          />
-        </SettingsGroup>
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+            style={{ marginTop: 12, alignItems: 'center', paddingVertical: 8 }}
+          >
+            <Text style={{ fontSize: 12, color: INK_MUTED }}>Delete account</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <DebugInfoModal
@@ -275,11 +437,170 @@ export default function ProfileScreen() {
   );
 }
 
-/**
- * Version row that opens the debug modal after 7 taps within 3
- * seconds. Resets the counter on any pause longer than that, so
- * casual mistaps don't open it.
- */
+function StatTile({
+  value,
+  group,
+  sub,
+  onPress,
+}: {
+  value: number;
+  group: string;
+  sub: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flex: 1,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: HAIRLINE,
+        padding: 12,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`${group} ${sub}: ${value}`}
+    >
+      <Text
+        style={{
+          fontSize: 22,
+          fontWeight: '800',
+          color: BRAND,
+          letterSpacing: -0.5,
+          lineHeight: 22,
+          fontVariant: ['tabular-nums'],
+        }}
+      >
+        {value}
+      </Text>
+      {/* Two-tone label: the group word reads darker/bolder, the sub
+          word recedes — matches the stat-tile labels in 09-profile.png. */}
+      {/* The two words differ by COLOR, not weight — the group word is
+          darker ink, the sub recedes. Matches the prototype, which does
+          not bold the group word. */}
+      <Text style={{ marginTop: 4, fontSize: 11 }}>
+        <Text style={{ color: INK_SOFT, fontWeight: '500' }}>{group}</Text>
+        <Text style={{ color: INK_MUTED, fontWeight: '500' }}>{` ${sub}`}</Text>
+      </Text>
+    </Pressable>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Text
+      style={{
+        marginTop: 14,
+        marginBottom: 8,
+        marginLeft: 4,
+        fontSize: 11,
+        fontWeight: '700',
+        color: INK_MUTED,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+function RowList({ children }: { children: React.ReactNode }) {
+  return (
+    <View
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: HAIRLINE,
+        overflow: 'hidden',
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function Row({
+  icon,
+  label,
+  sublabel,
+  badge,
+  onPress,
+  chevron = true,
+  last,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  sublabel?: string;
+  badge?: string;
+  onPress: () => void;
+  chevron?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: HAIRLINE,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 9,
+          backgroundColor: BONE,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 12,
+        }}
+      >
+        <Ionicons name={icon} size={16} color={INK_SOFT} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13.5, fontWeight: '600', color: INK }}>
+          {label}
+        </Text>
+        {sublabel ? (
+          <Text
+            style={{ marginTop: 1, fontSize: 11, color: INK_MUTED }}
+            numberOfLines={1}
+          >
+            {sublabel}
+          </Text>
+        ) : null}
+      </View>
+      {badge ? (
+        <View
+          style={{
+            backgroundColor: BRAND,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 99,
+            marginRight: chevron ? 6 : 0,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+            {badge}
+          </Text>
+        </View>
+      ) : null}
+      {chevron ? (
+        <Ionicons name="chevron-forward" size={16} color={INK_MUTED} />
+      ) : null}
+    </Pressable>
+  );
+}
+
 function VersionRow({
   label,
   onUnlock,
@@ -289,12 +610,9 @@ function VersionRow({
 }) {
   const taps = useRef(0);
   const lastTap = useRef(0);
-
   const handle = () => {
     const now = Date.now();
-    if (now - lastTap.current > 3000) {
-      taps.current = 0;
-    }
+    if (now - lastTap.current > 3000) taps.current = 0;
     lastTap.current = now;
     taps.current += 1;
     if (taps.current >= 7) {
@@ -302,13 +620,13 @@ function VersionRow({
       onUnlock();
     }
   };
-
   return (
-    <SettingsRow
+    <Row
       icon="information-circle-outline"
       label={label}
-      showChevron={false}
+      chevron={false}
       onPress={handle}
+      last
     />
   );
 }
@@ -348,14 +666,13 @@ function DebugInfoModal({
             padding: 20,
             width: '100%',
             maxWidth: 360,
-            gap: 8,
           }}
         >
           <Text
             style={{
               fontSize: 17,
               fontWeight: '700',
-              color: '#18181B',
+              color: INK,
               marginBottom: 8,
             }}
           >
@@ -402,18 +719,19 @@ function DebugRow({ label, value }: { label: string; value: string }) {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 12,
+        marginVertical: 4,
       }}
     >
-      <Text style={{ fontSize: 13, color: '#71717A' }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: INK_MUTED }}>{label}</Text>
       <Text
         selectable
         numberOfLines={1}
         style={{
           fontSize: 13,
-          color: '#27272A',
+          color: INK,
           fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
           flexShrink: 1,
+          marginLeft: 8,
         }}
       >
         {value}

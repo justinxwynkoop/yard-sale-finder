@@ -16,8 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
  * delete-account row.
  */
 
-const BRAND = '#2D5F3E';
-const BRAND_TINT = '#FFEDD5';
+const BRAND = '#1F4D3A';
+const BRAND_TINT = '#EFE8D6';
 const DESTRUCTIVE = '#DC2626';
 const DESTRUCTIVE_TINT = '#FEE2E2';
 const DIVIDER = '#F4F4F5';

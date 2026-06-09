@@ -60,6 +60,38 @@ export interface Profile {
   birthdate: string | null;   // ISO date  YYYY-MM-DD
   terms_accepted_at: string | null;
   terms_version: string | null;
+  bio: string | null;
+  phone: string | null;
+  // Notification prefs — discrete booleans, mutated directly from the
+  // Notifications screen via an `update profiles` call.
+  notify_sales_nearby?: boolean;
+  notify_saved_reminders?: boolean;
+  notify_messages?: boolean;
+  notify_offers?: boolean;
+  notify_weekly_digest?: boolean;
+  notify_tips?: boolean;
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  subject_user_id: string;
+  author_user_id: string;
+  sale_id: string | null;
+  stars: number;
+  body: string | null;
+  created_at: string;
+  author?: Profile;
+}
+
+export interface ReviewSummary {
+  avg_stars: number;
+  review_count: number;
+}
+
+export interface Follow {
+  follower_id: string;
+  followed_id: string;
   created_at: string;
 }
 
@@ -77,6 +109,8 @@ export interface Sale {
   end_time: string;
   status: SaleStatus;
   categories: ItemCategory[];
+  /** Host-supplied descriptors ("early_bird", "cash_only", etc). Empty array if unset. */
+  vibe_tags: string[];
   pricing_notes: string | null;
   created_at: string;
   updated_at: string;
@@ -119,6 +153,8 @@ export interface Listing {
   pickup_lat: number;
   pickup_lng: number;
   status: ListingStatus;
+  /** Optional link to a yard sale this listing will be sold at. */
+  sale_id: string | null;
   created_at: string;
   updated_at: string;
   profile?: Profile;
@@ -151,16 +187,17 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Map: undefined;
   Listings: undefined;
-  // Slot previously occupied by "Saved" -- saved sales now live as a
-  // pushed route inside the Listings stack (accessed via a heart icon
-  // in the ListingsScreen header).
-  Messages: undefined;
+  // Center "+" tab. Never navigates — the tab button intercepts the
+  // press and opens the navigator-level PostMenu sheet.
+  Post: undefined;
+  Inbox: undefined;
   Profile: undefined;
 };
 
 export type MessagesStackParamList = {
-  Inbox: undefined;
+  InboxHome: undefined;
   Conversation: { conversationId: string };
+  PublicProfile: { userId: string; self?: boolean };
 };
 
 export type ListingsStackParamList = {
@@ -168,16 +205,24 @@ export type ListingsStackParamList = {
   ListingDetail: { listingId: string };
   CreateListing: undefined;
   EditListing: { listingId: string };
-  // SavedHome = favorited yard sales (map + list view)
-  // SavedListings = favorited listings (list only)
-  SavedHome: undefined;
+  // Saved yard sales are no longer a standalone route — they're
+  // accessed via the "Saved · N" chip on the Map. SavedListings
+  // (listing favorites) is still a useful pushed route from Profile.
   SavedListings: undefined;
   SaleDetail: { saleId: string };
+  ListingsFilter: undefined;
+  Search: undefined;
+  PublicProfile: { userId: string; self?: boolean };
 };
 
 export type MapStackParamList = {
   MapHome: { focusLat?: number; focusLng?: number } | undefined;
   SaleDetail: { saleId: string };
+  FilterSheet: undefined;
+  RoutePlanner: undefined;
+  ActiveRoute: { saleIds: string[] };
+  Search: undefined;
+  PublicProfile: { userId: string; self?: boolean };
 };
 
 export type SaleStackParamList = {
@@ -205,6 +250,16 @@ export type ProfileStackParamList = {
   Capture: { max?: number } | undefined;
   CreateListing: undefined;
   EditListing: { listingId: string };
+  // v3 redesign — Profile expansion
+  MySales: undefined;
+  MyListings: undefined;
+  Saved: undefined;
+  Account: undefined;
+  Notifications: undefined;
+  Blocked: undefined;
+  PublicProfile: { userId: string; self?: boolean };
+  SaleDetail: { saleId: string };
+  ListingDetail: { listingId: string };
 };
 
 export type ReportTargetType = 'sale' | 'listing' | 'profile';
