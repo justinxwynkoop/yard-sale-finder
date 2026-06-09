@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
-import { Button } from '../../components/ui';
+import { Button, HeaderButton } from '../../components/ui';
 
 type Route = RouteProp<SaleStackParamList, 'Capture'>;
 
@@ -112,9 +112,7 @@ export default function CaptureSaleScreen() {
         style={[styles.topBar, { top: Math.max(insets.top, 12) }]}
         pointerEvents="box-none"
       >
-        <Pressable onPress={cancel} style={styles.topBtn}>
-          <Ionicons name="close" size={22} color="#fff" />
-        </Pressable>
+        <HeaderButton onPress={cancel} icon="close" variant="glass" accessibilityLabel="Close" />
         <View style={styles.counter}>
           <Ionicons name="camera" size={14} color="#fff" />
           <Text style={styles.counterText}>

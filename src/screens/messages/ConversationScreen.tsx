@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { HeaderButton } from '../../components/ui';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useConversation } from '../../hooks/useConversation';
@@ -288,7 +289,7 @@ export default function ConversationScreen() {
       // white-on-bone). Keeps the visual language consistent across
       // the app's chrome.
       headerLeft: () => (
-        <Pressable
+        <HeaderButton
           onPress={() => {
             if (navigation.canGoBack()) {
               navigation.goBack();
@@ -296,23 +297,8 @@ export default function ConversationScreen() {
               (navigation as any).navigate('InboxHome');
             }
           }}
-          hitSlop={8}
-          accessibilityRole="button"
           accessibilityLabel="Back"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            backgroundColor: '#F7F2E8',
-            borderWidth: 1,
-            borderColor: '#E5DECC',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginLeft: 4,
-          }}
-        >
-          <Ionicons name="chevron-back" size={20} color="#171513" />
-        </Pressable>
+        />
       ),
     });
   }, [navigation, otherProfile]);

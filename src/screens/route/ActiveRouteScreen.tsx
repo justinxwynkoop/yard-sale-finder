@@ -38,6 +38,7 @@ import {
   nowMinutes,
   regionForCoords,
 } from '../../lib/routeItinerary';
+import { HeaderButton } from '../../components/ui';
 
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
@@ -269,26 +270,12 @@ export default function ActiveRouteScreen() {
             gap: 10,
           }}
         >
-          <Pressable
+          <HeaderButton
             onPress={() => navigation.goBack()}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              backgroundColor: 'rgba(255,255,255,0.95)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOpacity: 0.12,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 3,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Exit route"
-          >
-            <Ionicons name="close" size={18} color={INK} />
-          </Pressable>
+            icon="close"
+            variant="glass"
+            accessibilityLabel="Close"
+          />
           <View
             style={{
               flex: 1,

@@ -10,6 +10,7 @@ export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 export { IconButton } from './IconButton';
 export type { IconButtonProps } from './IconButton';
+export { HeaderButton } from './HeaderButton';
 export { Avatar } from './Avatar';
 export type { AvatarProps } from './Avatar';
 export { EmptyState } from './EmptyState';

@@ -13,6 +13,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { HeaderButton } from '../../components/ui';
 import { RootStackParamList } from '../../types';
 
 const BONE = '#F7F2E8';
@@ -63,23 +64,11 @@ export default function CheckEmailScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
       <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
-        <Pressable
+        <HeaderButton
           onPress={() => navigation.goBack()}
-          accessibilityRole="button"
+          variant="tile"
           accessibilityLabel="Back"
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 12,
-            backgroundColor: '#fff',
-            borderWidth: 1,
-            borderColor: HAIRLINE,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="chevron-back" size={18} color={INK} />
-        </Pressable>
+        />
       </View>
 
       <View

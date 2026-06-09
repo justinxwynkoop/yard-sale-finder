@@ -53,7 +53,6 @@ import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
-import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
 import BlockedScreen from '../screens/profile/BlockedScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 import AccountScreen from '../screens/profile/AccountScreen';
@@ -172,15 +171,7 @@ function ListingsNavigator() {
       <ListingsStack.Screen
         name="SavedListings"
         component={SavedListingsScreen}
-        options={{
-          headerShown: true,
-          title: 'Saved Listings',
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: false,
-          headerTintColor: '#18181B',
-          headerBackTitle: 'Back',
-        }}
+        options={{ headerShown: false }}
       />
       <ListingsStack.Screen
         name="SaleDetail"
@@ -222,7 +213,6 @@ function MessagesNavigator() {
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
         headerShadowVisible: false,
         headerTintColor: '#18181B',
-        headerBackTitle: 'Back',
       }}
     >
       <MessagesStack.Screen
@@ -248,7 +238,6 @@ function ProfileNavigator() {
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
         headerShadowVisible: false,
         headerTintColor: '#18181B',
-        headerBackTitle: 'Back',
       }}
     >
       <ProfileStack.Screen
@@ -259,17 +248,14 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Edit Profile' }}
+        options={{ headerShown: false }}
       />
-      <ProfileStack.Screen
-        name="BlockedUsers"
-        component={BlockedUsersScreen}
-        options={{ title: 'Blocked Users' }}
-      />
+      {/* 'BlockedUsers' (legacy native-header screen) was removed — the
+          live route is 'Blocked' (BlockedScreen, SubHeader). */}
       <ProfileStack.Screen
         name="DeleteAccount"
         component={DeleteAccountScreen}
-        options={{ title: 'Delete Account' }}
+        options={{ headerShown: false }}
       />
       <ProfileStack.Screen
         name="MySalesHome"
@@ -284,7 +270,7 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="EditSale"
         component={EditSaleScreen}
-        options={{ title: 'Edit Sale', headerBackTitle: 'Back' }}
+        options={{ headerShown: false }}
       />
       <ProfileStack.Screen
         name="Capture"
@@ -303,7 +289,7 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="EditListing"
         component={EditListingScreen as any}
-        options={{ title: 'Edit Listing', headerBackTitle: 'Back' }}
+        options={{ headerShown: false }}
       />
       {/* v3 Profile expansion — all push screens hide the default
           header because they ship their own SubHeader component. */}

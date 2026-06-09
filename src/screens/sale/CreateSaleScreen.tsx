@@ -29,6 +29,7 @@ import {
   CategoryPicker,
   DateRangePresets,
   DateTimeField,
+  HeaderButton,
   IconButton,
   Input,
 } from '../../components/ui';
@@ -409,15 +410,12 @@ export default function CreateSaleScreen() {
             paddingVertical: 10,
           }}
         >
-          <Pressable
+          <HeaderButton
             onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="close" size={24} color="#171513" />
-          </Pressable>
+            icon="close"
+            variant="tile"
+            accessibilityLabel="Cancel"
+          />
           <Text
             style={{
               flex: 1,

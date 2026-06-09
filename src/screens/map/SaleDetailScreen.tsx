@@ -43,7 +43,7 @@ import {
 } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
-import { Avatar } from '../../components/ui';
+import { Avatar, HeaderButton } from '../../components/ui';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 
@@ -364,11 +364,9 @@ export default function SaleDetailScreen() {
               alignItems: 'center',
             }}
           >
-            <GlassButton
-              icon="chevron-back"
-              size={38}
-              iconSize={20}
+            <HeaderButton
               onPress={() => navigation.goBack()}
+              variant="glass"
               accessibilityLabel="Back"
             />
             <View style={{ flex: 1 }} />

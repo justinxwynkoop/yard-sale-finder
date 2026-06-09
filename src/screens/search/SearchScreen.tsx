@@ -24,6 +24,7 @@ import {
   saleDisplayLocation,
   approximateAreaLabel,
 } from '../../lib/locationPrivacy';
+import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -222,15 +223,14 @@ export default function SearchScreen() {
             </Pressable>
           )}
         </View>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={{ marginTop: 8, alignSelf: 'flex-end' }}
-          hitSlop={10}
-        >
-          <Text style={{ fontSize: 13, fontWeight: '600', color: BRAND }}>
-            Cancel
-          </Text>
-        </Pressable>
+        <View style={{ marginTop: 8, alignSelf: 'flex-end' }}>
+          <HeaderButton
+            onPress={() => navigation.goBack()}
+            icon="close"
+            variant="tile"
+            accessibilityLabel="Cancel"
+          />
+        </View>
       </View>
 
       {/* Results */}

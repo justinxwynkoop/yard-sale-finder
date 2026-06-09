@@ -24,7 +24,7 @@ import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
+import { Button, CategoryPicker, HeaderButton, IconButton, Input } from '../../components/ui';
 import { PostSection, PostProgressBar } from '../../components/PostFormShell';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'CreateListing'>;
@@ -328,15 +328,12 @@ export default function CreateListingScreen() {
             paddingVertical: 10,
           }}
         >
-          <Pressable
+          <HeaderButton
             onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="close" size={24} color="#171513" />
-          </Pressable>
+            icon="close"
+            variant="tile"
+            accessibilityLabel="Cancel"
+          />
           <Text
             style={{
               flex: 1,

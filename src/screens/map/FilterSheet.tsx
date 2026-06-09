@@ -22,6 +22,7 @@ import { CATEGORY_GROUPS } from '../../lib/categories';
 import { ItemCategory } from '../../types';
 import { useSales } from '../../hooks/useSales';
 import { isOpenNow } from '../../utils/saleStatus';
+import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -119,14 +120,12 @@ export default function FilterSheet() {
           alignItems: 'center',
         }}
       >
-        <Pressable
+        <HeaderButton
           onPress={() => navigation.goBack()}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Close filters"
-        >
-          <Ionicons name="close" size={24} color={INK} />
-        </Pressable>
+          icon="close"
+          variant="tile"
+          accessibilityLabel="Close"
+        />
         <Text
           style={{
             flex: 1,

@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { HeaderButton } from './ui';
 
 const INK = '#171513';
 const HAIRLINE = '#E5DECC';
@@ -39,24 +39,7 @@ export function SubHeader({
         gap: 6,
       }}
     >
-      <Pressable
-        onPress={handleBack}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 12,
-          backgroundColor: '#F7F2E8',
-          borderWidth: 1,
-          borderColor: HAIRLINE,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons name="chevron-back" size={20} color={INK} />
-      </Pressable>
+      <HeaderButton onPress={handleBack} accessibilityLabel="Back" />
       <Text
         style={{
           flex: 1,

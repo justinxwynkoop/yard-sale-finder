@@ -15,7 +15,7 @@ import {
   RouteProp,
 } from '@react-navigation/native';
 
-import { Avatar } from '../../components/ui';
+import { Avatar, HeaderButton } from '../../components/ui';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useReviews } from '../../hooks/useReviews';
@@ -141,13 +141,15 @@ export default function PublicProfileScreen() {
               justifyContent: 'space-between',
             }}
           >
-            <CircleButton
+            <HeaderButton
+              variant="glass"
               icon="chevron-back"
               onPress={() => navigation.goBack()}
               accessibilityLabel="Back"
             />
             {!self ? (
-              <CircleButton
+              <HeaderButton
+                variant="glass"
                 icon="ellipsis-horizontal"
                 onPress={() => {
                   /* report / block menu — wire to existing ReportSheet later */
@@ -670,34 +672,6 @@ export default function PublicProfileScreen() {
         </View>
       ) : null}
     </View>
-  );
-}
-
-function CircleButton({
-  icon,
-  onPress,
-  accessibilityLabel,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  onPress: () => void;
-  accessibilityLabel: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 99,
-        backgroundColor: 'rgba(255,255,255,0.18)',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      <Ionicons name={icon} size={18} color="#fff" />
-    </Pressable>
   );
 }
 
