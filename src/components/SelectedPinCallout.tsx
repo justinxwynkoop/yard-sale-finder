@@ -5,6 +5,8 @@ import { Sale } from '../types';
 import { isOpenNow } from '../utils/saleStatus';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
+import { saleDisplayLocation } from '../lib/locationPrivacy';
+import { useAuth } from '../hooks/useAuth';
 
 const BRAND = '#1F4D3A';
 
@@ -21,6 +23,7 @@ type Props = {
  * Fabric layer and crash. See MapPin.tsx for the history note.
  */
 export function SelectedPinCallout({ sale, userLat, userLng, onPress }: Props) {
+  const { user } = useAuth();
   const open = isOpenNow(sale);
   const firstImage = sale.media?.find((m) => m.type === 'image');
   const thumb = transformedImageUrl(firstImage?.url, {
@@ -29,9 +32,10 @@ export function SelectedPinCallout({ sale, userLat, userLng, onPress }: Props) {
     resize: 'cover',
     quality: 75,
   });
+  const loc = saleDisplayLocation(sale, { isOwner: !!user && sale.user_id === user.id });
   const dist =
     userLat != null && userLng != null
-      ? haversineMeters(userLat, userLng, sale.latitude, sale.longitude)
+      ? haversineMeters(userLat, userLng, loc.latitude, loc.longitude)
       : null;
   const distLabel = dist != null ? formatDistanceMiles(dist) : '';
 

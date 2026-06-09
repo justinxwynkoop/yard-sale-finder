@@ -75,15 +75,15 @@ export default function MyListingsScreen() {
         right={
           <Pressable
             onPress={() => navigation.navigate('CreateListing')}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
               paddingVertical: 7,
               paddingHorizontal: 12,
-              backgroundColor: pressed ? '#163828' : BRAND,
+              backgroundColor: BRAND,
               borderRadius: 99,
-            })}
+            }}
             accessibilityRole="button"
             accessibilityLabel="New listing"
           >
@@ -290,14 +290,14 @@ function PillButton({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         paddingVertical: 5,
         paddingHorizontal: 11,
         borderWidth: 1,
         borderColor: HAIRLINE,
         borderRadius: 99,
-        backgroundColor: pressed ? '#F7F2E8' : '#fff',
-      })}
+        backgroundColor: '#fff',
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
     >

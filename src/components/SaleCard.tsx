@@ -7,7 +7,9 @@ import { formatSaleTime } from '../utils/format';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
 import { isOpenNow } from '../utils/saleStatus';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
+import { saleDisplayLocation, approximateAreaLabel } from '../lib/locationPrivacy';
 import { useFavorites } from '../hooks/useFavorites';
+import { useAuth } from '../hooks/useAuth';
 
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
@@ -38,12 +40,18 @@ function SaleCardInner({
   onPress,
 }: Props) {
   const { isFavorited, toggle } = useFavorites();
+  const { user } = useAuth();
   const saved = isFavorited(sale.id);
   const open = isOpenNow(sale);
 
+  const loc = saleDisplayLocation(sale, {
+    isOwner: !!user && sale.user_id === user.id,
+  });
+  const addressLabel = loc.showExactAddress ? sale.address : approximateAreaLabel(sale);
+
   const distance =
     userLat != null && userLng != null
-      ? haversineMeters(userLat, userLng, sale.latitude, sale.longitude)
+      ? haversineMeters(userLat, userLng, loc.latitude, loc.longitude)
       : null;
   const distLabel = distance != null ? formatDistanceMiles(distance) : '';
   const driveLabel = distance != null ? `${Math.max(1, Math.round(distance / 805))} min` : '';
@@ -115,7 +123,7 @@ function SaleCardInner({
             }}
           >
             <Text numberOfLines={1} style={{ fontSize: 11, color: INK_SOFT, flexShrink: 1 }}>
-              {sale.address}
+              {addressLabel}
             </Text>
             <View
               style={{
@@ -404,7 +412,7 @@ function SaleCardInner({
           numberOfLines={1}
           style={{ fontSize: 11, color: INK_MUTED, marginTop: 3 }}
         >
-          {sale.address}
+          {addressLabel}
         </Text>
         {driveLabel || distLabel ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>

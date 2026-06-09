@@ -15,10 +15,15 @@ import { Image } from 'expo-image';
 import { useSales } from '../../hooks/useSales';
 import { useListings } from '../../hooks/useListings';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import { useAuth } from '../../hooks/useAuth';
 import { Sale, Listing } from '../../types';
 import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
+import {
+  saleDisplayLocation,
+  approximateAreaLabel,
+} from '../../lib/locationPrivacy';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -57,6 +62,7 @@ export default function SearchScreen() {
     priceMax: null,
   });
   const userLocation = useUserLocation();
+  const { user } = useAuth();
 
   const [query, setQuery] = useState('');
 
@@ -113,17 +119,23 @@ export default function SearchScreen() {
 
     return [...saleResults, ...listingResults].sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
+      const saleDist = (sale: Sale) => {
+        const loc = saleDisplayLocation(sale, {
+          isOwner: !!user && sale.user_id === user.id,
+        });
+        return dist(loc.latitude, loc.longitude);
+      };
       const da =
         a.kind === 'sale'
-          ? dist(a.data.latitude, a.data.longitude)
+          ? saleDist(a.data)
           : dist(a.data.pickup_lat, a.data.pickup_lng);
       const db =
         b.kind === 'sale'
-          ? dist(b.data.latitude, b.data.longitude)
+          ? saleDist(b.data)
           : dist(b.data.pickup_lat, b.data.pickup_lng);
       return da - db;
     });
-  }, [query, sales, listings, userLocation]);
+  }, [query, sales, listings, userLocation, user]);
 
   const handleSelect = (r: Result) => {
     Keyboard.dismiss();
@@ -262,9 +274,13 @@ function ResultRow({
   userLng?: number;
   onPress: () => void;
 }) {
+  const { user } = useAuth();
   if (result.kind === 'sale') {
     const sale = result.data;
     const open = isOpenNow(sale);
+    const loc = saleDisplayLocation(sale, {
+      isOwner: !!user && sale.user_id === user.id,
+    });
     const firstImage = sale.media?.find((m) => m.type === 'image');
     const thumb = transformedImageUrl(firstImage?.url, {
       width: 120,
@@ -274,7 +290,7 @@ function ResultRow({
     });
     const dist =
       userLat != null && userLng != null
-        ? haversineMeters(userLat, userLng, sale.latitude, sale.longitude)
+        ? haversineMeters(userLat, userLng, loc.latitude, loc.longitude)
         : null;
     return (
       <Pressable onPress={onPress} style={rowStyle}>
@@ -300,7 +316,7 @@ function ResultRow({
             {sale.title}
           </Text>
           <Text numberOfLines={1} style={metaStyle}>
-            {sale.address ?? ''}
+            {loc.showExactAddress ? sale.address ?? '' : approximateAreaLabel(sale)}
             {dist != null ? ` · ${formatDistanceMiles(dist)}` : ''}
           </Text>
         </View>

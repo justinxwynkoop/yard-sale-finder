@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
 import { Image } from 'expo-image';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Circle } from 'react-native-maps';
 import {
   useRoute,
   RouteProp,
@@ -32,10 +32,15 @@ import {
 import { formatHM, formatSaleDate } from '../../utils/format';
 import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useVisited } from '../../hooks/useVisited';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
 import { navigateToConversation } from '../../lib/navigationRef';
+import {
+  saleDisplayLocation,
+  approximateAreaLabel,
+} from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
 import { Avatar } from '../../components/ui';
@@ -88,6 +93,7 @@ export default function SaleDetailScreen() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const { isFavorited, toggle: toggleFavorite } = useFavorites();
+  const { isVisited, toggle: toggleVisited } = useVisited();
   const { user } = useAuth();
   const { block } = useBlockedUsers();
   const { start: startConversation } = useStartConversation();
@@ -95,7 +101,16 @@ export default function SaleDetailScreen() {
   const userLocation = useUserLocation();
 
   const isOwnSale = sale?.user_id === user?.id;
+  // Address-privacy resolution. exactUnlocked is true for the owner; the
+  // automated "unlocks once the host replies to this buyer" path needs
+  // per-conversation reply tracking and is a scoped follow-up — until
+  // then a 'reply'-mode sale stays approximate for non-owners, with a
+  // note explaining how the exact address is shared.
+  const loc = sale
+    ? saleDisplayLocation(sale, { isOwner: isOwnSale })
+    : null;
   const saved = sale ? isFavorited(sale.id) : false;
+  const visited = sale ? isVisited(sale.id) : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -197,6 +212,19 @@ export default function SaleDetailScreen() {
 
   const openDirections = () => {
     if (!sale) return;
+    // When the address is still approximate (reply-mode, not unlocked),
+    // route to the blurred coordinates rather than the exact street
+    // address so directions don't leak what the map is hiding.
+    if (loc && !loc.showExactAddress) {
+      const q = `${loc.latitude},${loc.longitude}`;
+      const url = Platform.select({
+        ios: `maps:?q=${q}`,
+        android: `geo:0,0?q=${q}`,
+        default: `https://www.google.com/maps/search/?api=1&query=${q}`,
+      });
+      Linking.openURL(url!);
+      return;
+    }
     const encoded = encodeURIComponent(sale.address);
     const url = Platform.select({
       ios: `maps:?q=${encoded}`,
@@ -354,10 +382,13 @@ export default function SaleDetailScreen() {
               iconSize={18}
               onPress={async () => {
                 const url = ExpoLinking.createURL(`sale/${sale.id}`);
+                const locationLine = loc?.showExactAddress
+                  ? sale.address
+                  : approximateAreaLabel(sale);
                 try {
                   await Share.share({
                     title: sale.title,
-                    message: `${sale.title}\n${sale.address}\n${url}`,
+                    message: `${sale.title}\n${locationLine}\n${url}`,
                     url,
                   });
                 } catch {
@@ -443,7 +474,11 @@ export default function SaleDetailScreen() {
               flexWrap: 'wrap',
             }}
           >
-            <Ionicons name="location-outline" size={13} color={INK_MUTED} />
+            <Ionicons
+              name={loc?.showExactAddress ? 'location-outline' : 'navigate-circle-outline'}
+              size={13}
+              color={INK_MUTED}
+            />
             <Text
               style={{
                 marginLeft: 4,
@@ -452,7 +487,7 @@ export default function SaleDetailScreen() {
                 flexShrink: 1,
               }}
             >
-              {sale.address}
+              {loc?.showExactAddress ? sale.address : approximateAreaLabel(sale)}
             </Text>
             {distance != null && (
               <Text
@@ -472,6 +507,30 @@ export default function SaleDetailScreen() {
               </Text>
             )}
           </View>
+
+          {/* Address-privacy note — only when the exact address is hidden */}
+          {loc && !loc.showExactAddress && (
+            <View
+              style={{
+                marginTop: 8,
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 6,
+                backgroundColor: '#FBEFD6',
+                borderRadius: 10,
+                paddingVertical: 8,
+                paddingHorizontal: 10,
+              }}
+            >
+              <Ionicons name="lock-closed-outline" size={13} color="#6B4318" />
+              <Text
+                style={{ flex: 1, fontSize: 12, color: '#6B4318', lineHeight: 17 }}
+              >
+                The host shares their exact address after they reply to your
+                message. Until then the map shows an approximate area.
+              </Text>
+            </View>
+          )}
 
           {/* Stat strip */}
           <StatStrip sale={sale} />
@@ -792,14 +851,16 @@ export default function SaleDetailScreen() {
                 backgroundColor: '#E1ECDF',
               }}
             >
-              {miniMapMounted ? (
+              {miniMapMounted && loc ? (
                 <MapView
                   style={{ flex: 1 }}
                   initialRegion={{
-                    latitude: sale.latitude,
-                    longitude: sale.longitude,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    // Zoom out a touch for approximate sales so the whole
+                    // blur circle is comfortably in frame.
+                    latitudeDelta: loc.approximate ? 0.04 : 0.02,
+                    longitudeDelta: loc.approximate ? 0.04 : 0.02,
                   }}
                   scrollEnabled={false}
                   zoomEnabled={false}
@@ -807,31 +868,45 @@ export default function SaleDetailScreen() {
                   rotateEnabled={false}
                   showsUserLocation
                 >
-                  {/* Custom child view rather than `pinColor` — the
-                      default native pin requires no React subview, but
-                      AIRMap under Fabric crashes during subview insert
-                      when the React-side child count is 0. A 16pt brand
-                      dot is also a closer match to the design language. */}
-                  <Marker
-                    key={`mini-${sale.id}`}
-                    coordinate={{
-                      latitude: sale.latitude,
-                      longitude: sale.longitude,
-                    }}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                    tracksViewChanges={false}
-                  >
-                    <View
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: 8,
-                        backgroundColor: BRAND,
-                        borderWidth: 2,
-                        borderColor: '#fff',
+                  {loc.approximate ? (
+                    // Approximate: a translucent brand circle instead of a
+                    // precise pin, so the exact address isn't inferable.
+                    <Circle
+                      center={{
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
                       }}
+                      radius={loc.radiusMeters}
+                      strokeColor="rgba(31,77,58,0.5)"
+                      fillColor="rgba(31,77,58,0.14)"
+                      strokeWidth={2}
                     />
-                  </Marker>
+                  ) : (
+                    // Exact: custom child view rather than `pinColor` — the
+                    // default native pin requires no React subview, but
+                    // AIRMap under Fabric crashes during subview insert
+                    // when the React-side child count is 0.
+                    <Marker
+                      key={`mini-${sale.id}`}
+                      coordinate={{
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
+                      }}
+                      anchor={{ x: 0.5, y: 0.5 }}
+                      tracksViewChanges={false}
+                    >
+                      <View
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          backgroundColor: BRAND,
+                          borderWidth: 2,
+                          borderColor: '#fff',
+                        }}
+                      />
+                    </Marker>
+                  )}
                 </MapView>
               ) : null}
             </View>
@@ -869,11 +944,50 @@ export default function SaleDetailScreen() {
           paddingHorizontal: 14,
           paddingTop: 12,
           paddingBottom: Math.max(insets.bottom, 14) + 14,
-          flexDirection: 'row',
         }}
       >
-        <Pressable
-          onPress={() => toggleFavorite(sale.id)}
+        {/* Mark visited — the standalone primitive behind the (currently
+            hidden) route planner's "Visited" action. Full-width toggle so
+            it reads as the primary affordance. */}
+        {!isOwnSale && (
+          <Pressable
+            onPress={() => toggleVisited(sale.id)}
+            style={{
+              borderRadius: 12,
+              paddingVertical: 11,
+              marginBottom: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              backgroundColor: visited ? BRAND_SOFT : '#fff',
+              borderWidth: 1,
+              borderColor: visited ? BRAND : HAIRLINE,
+            }}
+            accessibilityRole="button"
+            accessibilityState={{ checked: visited }}
+            accessibilityLabel={visited ? 'Visited' : 'Mark visited'}
+          >
+            <Ionicons
+              name={visited ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={18}
+              color={visited ? BRAND : INK_SOFT}
+            />
+            <Text
+              style={{
+                fontSize: 13.5,
+                fontWeight: '700',
+                color: visited ? BRAND : INK,
+              }}
+            >
+              {visited ? 'Visited' : 'Mark visited'}
+            </Text>
+          </Pressable>
+        )}
+
+        <View style={{ flexDirection: 'row' }}>
+          <Pressable
+            onPress={() => toggleFavorite(sale.id)}
           style={{
             borderWidth: 1,
             borderColor: HAIRLINE,
@@ -940,6 +1054,7 @@ export default function SaleDetailScreen() {
             style={{ marginLeft: 8 }}
           />
         </Pressable>
+        </View>
       </View>
     </View>
   );

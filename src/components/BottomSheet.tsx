@@ -28,9 +28,18 @@ export function BottomSheet({
 }: Props) {
   const ref = useRef<GorhomBottomSheet>(null);
   const insets = useSafeAreaInsets();
+  // Tracks the index gorhom has actually settled at. Used to break the
+  // feedback loop: a user drag fires onChange → onStateChange → parent
+  // sets `state` → this effect runs. Without the guard the effect would
+  // call snapToIndex again for the index gorhom is ALREADY at, which
+  // re-triggers the spring and makes the sheet feel like it "fights"
+  // the drag. We only programmatically snap when the requested state
+  // genuinely differs from where the sheet already is (i.e. a header
+  // tap, not a drag).
+  const currentIndex = useRef(0);
 
-  // Gorhom takes snap points as strings/numbers. We translate the
-  // two named states into indices: 0 = peek, 1 = open.
+  // Gorhom takes snap points as numbers (heights from the bottom).
+  // index 0 = peek, 1 = open.
   const snapPoints = useMemo(
     () => [peekHeight, openHeight + insets.bottom],
     [peekHeight, openHeight, insets.bottom],
@@ -38,11 +47,13 @@ export function BottomSheet({
 
   useEffect(() => {
     const idx = state === 'open' ? 1 : 0;
+    if (currentIndex.current === idx) return;
     ref.current?.snapToIndex(idx);
   }, [state]);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
+      currentIndex.current = index;
       const next: SheetState = index === 1 ? 'open' : 'peek';
       onStateChange(next);
     },
@@ -55,6 +66,14 @@ export function BottomSheet({
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
+      // Button-only control. Dragging the sheet (via the handle OR by
+      // panning the content) is disabled — it repeatedly fought the
+      // horizontal carousel and the external snap state, making the
+      // map↔list switch feel quirky. The sheet now moves ONLY when the
+      // header toggle calls snapToIndex, which still animates smoothly.
+      // Internal scrolling of the carousel / list is unaffected.
+      enableContentPanningGesture={false}
+      enableHandlePanningGesture={false}
       enablePanDownToClose={false}
       handleIndicatorStyle={{
         width: 38,

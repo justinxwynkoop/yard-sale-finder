@@ -129,11 +129,11 @@ export function AvatarEditor({
       accessibilityLabel={`${name ?? 'Profile'} photo, tap to change`}
       accessibilityHint="Opens a menu to take a photo, pick from library, or remove the current photo"
       hitSlop={8}
-      style={({ pressed }) => ({
+      style={{
         width: SIZE,
         height: SIZE,
-        opacity: pressed && !uploading ? 0.85 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       {/* Avatar surface: either the picked/saved image or a
           brand-colored circle with the initial. Sized explicitly via

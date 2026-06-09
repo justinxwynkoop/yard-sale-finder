@@ -20,7 +20,12 @@ import { Image } from 'expo-image';
 
 import { useSales } from '../../hooks/useSales';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useAuth } from '../../hooks/useAuth';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import {
+  saleDisplayLocation,
+  approximateAreaLabel,
+} from '../../lib/locationPrivacy';
 import { toast } from '../../lib/toast';
 import { MapStackParamList, Sale } from '../../types';
 import {
@@ -71,6 +76,7 @@ export default function ActiveRouteScreen() {
   // we fall back to them here. Without this an ended stop would just
   // silently vanish from the timeline instead of getting its skip CTA.
   const { favorites } = useFavorites();
+  const { user } = useAuth();
   const userLocation = useUserLocation();
 
   const stops = useMemo<Sale[]>(() => {
@@ -81,8 +87,25 @@ export default function ActiveRouteScreen() {
           sales.find((s) => s.id === id) ??
           favorites.find((f) => f.id === id),
       )
-      .filter((s): s is Sale => !!s);
-  }, [route.params?.saleIds, sales, favorites]);
+      .filter((s): s is Sale => !!s)
+      // Bake address privacy into the routed sale (offset coords +
+      // approximate address) for non-owner 'reply'-mode stops. This
+      // closes the leak across markers, polyline, itinerary math, the
+      // stop cards, AND the navigateLeg() external-maps hand-off, which
+      // would otherwise send the user to the exact door.
+      .map((s) => {
+        const loc = saleDisplayLocation(s, {
+          isOwner: !!user && s.user_id === user.id,
+        });
+        if (loc.showExactAddress) return s;
+        return {
+          ...s,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          address: approximateAreaLabel(s),
+        };
+      });
+  }, [route.params?.saleIds, sales, favorites, user]);
 
   // Refetch sales on app foreground + on focus so a sale that flips to
   // `ended` mid-route gets surfaced as soon as the user looks at the
@@ -248,11 +271,11 @@ export default function ActiveRouteScreen() {
         >
           <Pressable
             onPress={() => navigation.goBack()}
-            style={({ pressed }) => ({
+            style={{
               width: 38,
               height: 38,
               borderRadius: 12,
-              backgroundColor: pressed ? '#F7F2E8' : 'rgba(255,255,255,0.95)',
+              backgroundColor: 'rgba(255,255,255,0.95)',
               alignItems: 'center',
               justifyContent: 'center',
               shadowColor: '#000',
@@ -260,7 +283,7 @@ export default function ActiveRouteScreen() {
               shadowRadius: 8,
               shadowOffset: { width: 0, height: 2 },
               elevation: 3,
-            })}
+            }}
             accessibilityRole="button"
             accessibilityLabel="Exit route"
           >
@@ -364,14 +387,14 @@ export default function ActiveRouteScreen() {
             </Text>
             <Pressable
               onPress={() => navigation.popToTop()}
-              style={({ pressed }) => ({
+              style={{
                 marginTop: 16,
                 alignSelf: 'stretch',
                 paddingVertical: 13,
-                backgroundColor: pressed ? '#163828' : BRAND,
+                backgroundColor: BRAND,
                 borderRadius: 14,
                 alignItems: 'center',
-              })}
+              }}
               accessibilityRole="button"
               accessibilityLabel="Back to map"
             >
@@ -447,7 +470,7 @@ export default function ActiveRouteScreen() {
                 onPress={() =>
                   navigation.navigate('SaleDetail', { saleId: current.id })
                 }
-                style={({ pressed }) => ({
+                style={{
                   width: 52,
                   paddingVertical: 13,
                   borderWidth: 1,
@@ -455,8 +478,8 @@ export default function ActiveRouteScreen() {
                   borderRadius: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: pressed ? BONE : '#fff',
-                })}
+                  backgroundColor: '#fff',
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="See sale detail"
               >
@@ -464,16 +487,16 @@ export default function ActiveRouteScreen() {
               </Pressable>
               <Pressable
                 onPress={navigateLeg}
-                style={({ pressed }) => ({
+                style={{
                   flex: 1,
                   paddingVertical: 13,
-                  backgroundColor: pressed ? '#163828' : BRAND,
+                  backgroundColor: BRAND,
                   borderRadius: 12,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 7,
-                })}
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Navigate"
               >
@@ -486,22 +509,16 @@ export default function ActiveRouteScreen() {
               </Pressable>
               <Pressable
                 onPress={markVisited}
-                style={({ pressed }) => ({
+                style={{
                   flex: 1,
                   paddingVertical: 13,
-                  backgroundColor: currentFlagged
-                    ? pressed
-                      ? '#E8C9C2'
-                      : ROSE_SOFT
-                    : pressed
-                    ? '#D7E6DA'
-                    : BRAND_SOFT,
+                  backgroundColor: currentFlagged ? ROSE_SOFT : BRAND_SOFT,
                   borderRadius: 12,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 6,
-                })}
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={currentFlagged ? 'Skip' : 'Mark visited'}
               >

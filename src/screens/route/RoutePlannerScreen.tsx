@@ -16,7 +16,12 @@ import { Image } from 'expo-image';
 import { SubHeader } from '../../components/SubHeader';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useSales } from '../../hooks/useSales';
+import { useAuth } from '../../hooks/useAuth';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import {
+  saleDisplayLocation,
+  approximateAreaLabel,
+} from '../../lib/locationPrivacy';
 import { toast } from '../../lib/toast';
 import { Sale } from '../../types';
 import {
@@ -72,6 +77,7 @@ export default function RoutePlannerScreen() {
 
   const { favorites, toggle: toggleFavorite } = useFavorites();
   const { sales } = useSales();
+  const { user } = useAuth();
   const userLocation = useUserLocation();
 
   // Seed pool: saved sales if any, otherwise the 4 nearest open sales.
@@ -134,9 +140,31 @@ export default function RoutePlannerScreen() {
   // below.
   const stops = useMemo<Sale[]>(() => {
     return order
-      .map((id) => sales.find((s) => s.id === id) ?? favorites.find((f) => f.id === id))
-      .filter((s): s is Sale => !!s);
-  }, [order, sales, favorites]);
+      .map(
+        (id) =>
+          sales.find((s) => s.id === id) ?? favorites.find((f) => f.id === id),
+      )
+      .filter((s): s is Sale => !!s)
+      // Bake address privacy into the routed sale: a non-owner routing
+      // through someone's 'reply'-mode sale gets offset coords AND an
+      // approximate address label. Because every downstream consumer
+      // (map markers, polyline, computeItinerary ordering/drive-time,
+      // the timeline address text, and ActiveRoute's external-maps
+      // hand-off) reads these fields off the sale, this single swap
+      // closes the leak everywhere without per-site changes.
+      .map((s) => {
+        const loc = saleDisplayLocation(s, {
+          isOwner: !!user && s.user_id === user.id,
+        });
+        if (loc.showExactAddress) return s;
+        return {
+          ...s,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          address: approximateAreaLabel(s),
+        };
+      });
+  }, [order, sales, favorites, user]);
 
   const endedStops = useMemo(
     () => stops.filter((s) => s.status === 'ended'),
@@ -577,7 +605,7 @@ export default function RoutePlannerScreen() {
             onPress={() => setAddOpen(true)}
             accessibilityRole="button"
             accessibilityLabel="Add a stop"
-            style={({ pressed }) => ({
+            style={{
               flex: 1,
               borderWidth: 1.5,
               borderColor: HAIRLINE,
@@ -588,8 +616,8 @@ export default function RoutePlannerScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              backgroundColor: pressed ? '#fff' : 'transparent',
-            })}
+              backgroundColor: 'transparent',
+            }}
           >
             <Ionicons name="add" size={15} color={INK_SOFT} />
             <Text
@@ -621,15 +649,15 @@ export default function RoutePlannerScreen() {
             onPress={handleStart}
             accessibilityRole="button"
             accessibilityLabel={`Start route, ${totalSpan} minutes`}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? '#163828' : BRAND,
+            style={{
+              backgroundColor: BRAND,
               borderRadius: 14,
               paddingVertical: 14,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-            })}
+            }}
           >
             <Ionicons name="car-outline" size={16} color="#fff" />
             <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
@@ -1053,16 +1081,16 @@ function StopTimelineRow({
           accessibilityRole="button"
           accessibilityLabel={`Remove stop ${index + 1}`}
           hitSlop={10}
-          style={({ pressed }) => ({
+          style={{
             alignSelf: 'flex-start',
             paddingVertical: 6,
             paddingHorizontal: 10,
             borderRadius: 8,
-            backgroundColor: pressed ? '#F5DDD7' : 'transparent',
+            backgroundColor: 'transparent',
             flexDirection: 'row',
             alignItems: 'center',
             gap: 4,
-          })}
+          }}
         >
           <Ionicons name="close-circle-outline" size={12} color={ROSE} />
           <Text
@@ -1095,22 +1123,29 @@ function AddStopRow({
     quality: 75,
   });
   const open = isOpenNow(sale);
+  // Add-stop candidates are raw sales (not yet privacy-baked), so derive
+  // the distance from the display location to avoid leaking exact
+  // proximity for a non-owner's 'reply'-mode sale.
+  const { user } = useAuth();
+  const dloc = saleDisplayLocation(sale, {
+    isOwner: !!user && sale.user_id === user.id,
+  });
   const dist =
     userLat != null && userLng != null
-      ? haversineMeters(userLat, userLng, sale.latitude, sale.longitude)
+      ? haversineMeters(userLat, userLng, dloc.latitude, dloc.longitude)
       : null;
   return (
     <Pressable
       onPress={() => onAdd(sale)}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 11,
         paddingVertical: 9,
         borderBottomWidth: 1,
         borderBottomColor: HAIRLINE,
-        backgroundColor: pressed ? BONE : 'transparent',
-      })}
+        backgroundColor: 'transparent',
+      }}
       accessibilityRole="button"
       accessibilityLabel={`Add ${sale.title}`}
     >

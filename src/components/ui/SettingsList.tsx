@@ -111,9 +111,9 @@ export function SettingsRow({
     <Pressable
       onPress={onPress}
       android_ripple={{ color: '#F4F4F5' }}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? '#FAFAFA' : 'transparent',
-      })}
+      style={{
+        backgroundColor: 'transparent',
+      }}
     >
       {Body}
     </Pressable>

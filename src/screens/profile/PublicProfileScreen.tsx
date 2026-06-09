@@ -16,6 +16,7 @@ import {
 } from '@react-navigation/native';
 
 import { Avatar } from '../../components/ui';
+import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useReviews } from '../../hooks/useReviews';
 import { useFollow } from '../../hooks/useFollow';
@@ -27,6 +28,10 @@ import {
   transformedImageUrl,
 } from '../../lib/imageUrl';
 import { isOpenNow } from '../../utils/saleStatus';
+import {
+  saleDisplayLocation,
+  approximateAreaLabel,
+} from '../../lib/locationPrivacy';
 
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
@@ -68,6 +73,7 @@ export default function PublicProfileScreen() {
   const { reviews, summary } = useReviews(userId);
   const { following, toggle: toggleFollow, isSelf } = useFollow(userId);
   const { start: startConversation } = useStartConversation();
+  const { user } = useAuth();
 
   // Babel's parser refuses mixed ?? / || expressions even when fully
   // parenthesized; resolve them in steps to stay portable.
@@ -312,6 +318,9 @@ export default function PublicProfileScreen() {
                   quality: 75,
                 });
                 const open = isOpenNow(sale);
+                const isOwner =
+                  !!self || (!!user && sale.user_id === user.id);
+                const loc = saleDisplayLocation(sale, { isOwner });
                 return (
                   <Pressable
                     key={sale.id}
@@ -419,7 +428,9 @@ export default function PublicProfileScreen() {
                         }}
                         numberOfLines={1}
                       >
-                        {sale.address}
+                        {loc.showExactAddress
+                          ? sale.address
+                          : approximateAreaLabel(sale)}
                       </Text>
                     </View>
                   </Pressable>
@@ -580,7 +591,7 @@ export default function PublicProfileScreen() {
         >
           <Pressable
             onPress={toggleFollow}
-            style={({ pressed }) => ({
+            style={{
               paddingVertical: 12,
               paddingHorizontal: 16,
               borderWidth: 1,
@@ -589,12 +600,8 @@ export default function PublicProfileScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: pressed
-                ? '#F7F2E8'
-                : following
-                ? BRAND_SOFT
-                : '#fff',
-            })}
+              backgroundColor: following ? BRAND_SOFT : '#fff',
+            }}
             accessibilityRole="button"
             accessibilityLabel={following ? 'Unfollow' : 'Follow'}
           >
@@ -615,17 +622,17 @@ export default function PublicProfileScreen() {
           </Pressable>
           <Pressable
             onPress={handleMessage}
-            style={({ pressed }) => ({
+            style={{
               flex: 1,
               paddingVertical: 12,
               paddingHorizontal: 14,
-              backgroundColor: pressed ? '#163828' : BRAND,
+              backgroundColor: BRAND,
               borderRadius: 12,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 7,
-            })}
+            }}
             accessibilityRole="button"
             accessibilityLabel={`Message ${firstName}`}
           >
@@ -678,16 +685,14 @@ function CircleButton({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         width: 36,
         height: 36,
         borderRadius: 99,
-        backgroundColor: pressed
-          ? 'rgba(255,255,255,0.28)'
-          : 'rgba(255,255,255,0.18)',
+        backgroundColor: 'rgba(255,255,255,0.18)',
         alignItems: 'center',
         justifyContent: 'center',
-      })}
+      }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >

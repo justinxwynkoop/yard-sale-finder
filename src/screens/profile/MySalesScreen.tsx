@@ -121,15 +121,15 @@ export default function MySalesScreen() {
         right={
           <Pressable
             onPress={() => navigation.navigate('CreateSale')}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
               paddingVertical: 7,
               paddingHorizontal: 12,
-              backgroundColor: pressed ? '#163828' : BRAND,
+              backgroundColor: BRAND,
               borderRadius: 99,
-            })}
+            }}
             accessibilityRole="button"
             accessibilityLabel="New sale"
           >
@@ -501,23 +501,28 @@ function ActionButton({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         flex: 1,
+        minWidth: 0,
+        minHeight: 44,
         paddingVertical: 10,
+        paddingHorizontal: 4,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 5,
-        backgroundColor: pressed ? '#F7F2E8' : 'transparent',
+        backgroundColor: 'transparent',
         borderLeftWidth: first ? 0 : 1,
         borderLeftColor: HAIRLINE,
-      })}
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
       <Ionicons name={icon} size={13} color={destructive ? ROSE : INK_SOFT} />
       <Text
+        numberOfLines={1}
         style={{
+          flexShrink: 1,
           fontSize: 12,
           fontWeight: '600',
           color: destructive ? ROSE : INK,

@@ -70,8 +70,32 @@ export interface Profile {
   notify_offers?: boolean;
   notify_weekly_digest?: boolean;
   notify_tips?: boolean;
+  // Account v7 — verification + payment + address-privacy.
+  email_verified?: boolean;
+  phone_verified?: boolean;
+  /** Methods the host accepts (Cash, Venmo, Zelle, PayPal, Apple Pay, CashApp). */
+  accepted_payments?: string[];
+  location_privacy?: LocationPrivacy;
+  /** Approximate blur radius in blocks for 'reply' mode (1/2/3/5). */
+  blur_radius_blocks?: number;
   created_at: string;
 }
+
+/**
+ * How a host's exact address is exposed when they run a sale.
+ * - 'reply': approximate (blurred) until the host messages a buyer back.
+ * - 'live':  exact while the sale is open, hidden after it ends.
+ */
+export type LocationPrivacy = 'reply' | 'live';
+
+export const PAYMENT_METHODS = [
+  'Cash',
+  'Venmo',
+  'Zelle',
+  'PayPal',
+  'Apple Pay',
+  'CashApp',
+] as const;
 
 export interface Review {
   id: string;
@@ -112,6 +136,9 @@ export interface Sale {
   /** Host-supplied descriptors ("early_bird", "cash_only", etc). Empty array if unset. */
   vibe_tags: string[];
   pricing_notes: string | null;
+  /** Snapshot of the host's address-privacy preference at post time. */
+  location_privacy?: LocationPrivacy | null;
+  blur_radius_blocks?: number | null;
   created_at: string;
   updated_at: string;
   profile?: Profile;

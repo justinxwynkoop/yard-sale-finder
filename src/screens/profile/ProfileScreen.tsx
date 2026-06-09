@@ -23,6 +23,7 @@ import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useReviews } from '../../hooks/useReviews';
+import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 import { ProfileStackParamList } from '../../types';
 import { Avatar, Button } from '../../components/ui';
 
@@ -337,11 +338,11 @@ export default function ProfileScreen() {
           />
           <Row
             icon="heart-outline"
-            label="Saved & routes"
+            label={ROUTE_PLANNER_ENABLED ? 'Saved & routes' : 'Saved sales'}
             sublabel={
               favorites.length > 0
-                ? `${favorites.length} ${favorites.length === 1 ? 'save' : 'saves'} · 0 routes`
-                : 'Save sales to plan a route'
+                ? `${favorites.length} ${favorites.length === 1 ? 'sale' : 'sales'} saved`
+                : 'Sales you heart show up here'
             }
             onPress={() => navigation.navigate('Saved')}
             last

@@ -138,14 +138,14 @@ export default function BlockedScreen() {
                   </View>
                   <Pressable
                     onPress={() => handleUnblock(b.blocked_id, name)}
-                    style={({ pressed }) => ({
+                    style={{
                       paddingVertical: 6,
                       paddingHorizontal: 12,
                       borderWidth: 1,
                       borderColor: HAIRLINE,
                       borderRadius: 99,
-                      backgroundColor: pressed ? '#F7F2E8' : '#fff',
-                    })}
+                      backgroundColor: '#fff',
+                    }}
                     accessibilityRole="button"
                     accessibilityLabel={`Unblock ${name}`}
                   >

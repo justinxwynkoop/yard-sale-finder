@@ -9,6 +9,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { haversineMeters } from '../../utils/distance';
 import { toast } from '../../lib/toast';
+import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -77,32 +78,35 @@ export default function SavedScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BONE }}>
-      <SubHeader title="Saved & routes" />
+      <SubHeader title={ROUTE_PLANNER_ENABLED ? 'Saved & routes' : 'Saved sales'} />
 
-      {/* Segmented control */}
-      <View
-        style={{
-          backgroundColor: '#fff',
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: HAIRLINE,
-          padding: 4,
-          flexDirection: 'row',
-          marginHorizontal: 16,
-          marginTop: 12,
-        }}
-      >
-        <SegmentButton
-          label={`Saved sales · ${favorites.length}`}
-          active={segment === 'sales'}
-          onPress={() => setSegment('sales')}
-        />
-        <SegmentButton
-          label={`Routes · 0`}
-          active={segment === 'routes'}
-          onPress={() => setSegment('routes')}
-        />
-      </View>
+      {/* Segmented control — only when the route planner is enabled.
+          With it parked, this screen is just the saved-sales list. */}
+      {ROUTE_PLANNER_ENABLED ? (
+        <View
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+            padding: 4,
+            flexDirection: 'row',
+            marginHorizontal: 16,
+            marginTop: 12,
+          }}
+        >
+          <SegmentButton
+            label={`Saved sales · ${favorites.length}`}
+            active={segment === 'sales'}
+            onPress={() => setSegment('sales')}
+          />
+          <SegmentButton
+            label={`Routes · 0`}
+            active={segment === 'routes'}
+            onPress={() => setSegment('routes')}
+          />
+        </View>
+      ) : null}
 
       {segment === 'sales' ? (
         <FlatList
@@ -161,6 +165,7 @@ export default function SavedScreen() {
                     </Pressable>
                   </View>
                 ) : null}
+                {ROUTE_PLANNER_ENABLED ? (
                 <Pressable
                   onPress={openRoutePlanner}
                   accessibilityRole="button"
@@ -212,6 +217,7 @@ export default function SavedScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#fff" />
               </Pressable>
+                ) : null}
               </View>
             ) : null
           }

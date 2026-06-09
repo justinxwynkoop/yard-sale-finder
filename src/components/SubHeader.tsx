@@ -44,16 +44,16 @@ export function SubHeader({
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Back"
-        style={({ pressed }) => ({
+        style={{
           width: 36,
           height: 36,
           borderRadius: 12,
-          backgroundColor: pressed ? '#EFE8D6' : '#F7F2E8',
+          backgroundColor: '#F7F2E8',
           borderWidth: 1,
           borderColor: HAIRLINE,
           alignItems: 'center',
           justifyContent: 'center',
-        })}
+        }}
       >
         <Ionicons name="chevron-back" size={20} color={INK} />
       </Pressable>

@@ -21,6 +21,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useSales } from '../../hooks/useSales';
+import { useAuth } from '../../hooks/useAuth';
+import {
+  saleDisplayLocation,
+  approximateAreaLabel,
+} from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLocationLabel } from '../../hooks/useLocationLabel';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
@@ -33,23 +38,13 @@ import SaleCard from '../../components/SaleCard';
 import { Chip } from '../../components/ui';
 import { haversineMeters, formatDistanceMiles } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
-import { formatSaleTime } from '../../utils/format';
-import {
-  PLACEHOLDER_BLURHASH,
-  transformedImageUrl,
-} from '../../lib/imageUrl';
-import { Image } from 'expo-image';
-import { BottomSheetFlatList, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import {
-  PanGestureHandler,
-  State as GestureState,
-  PanGestureHandlerStateChangeEvent,
-} from 'react-native-gesture-handler';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import {
   countActiveFilters,
   setMapFilters,
   useMapFilters,
 } from '../../lib/mapFilters';
+import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 
 type Nav = NativeStackNavigationProp<MapStackParamList, 'MapHome'>;
 type Route = RouteProp<MapStackParamList, 'MapHome'>;
@@ -61,11 +56,15 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.1,
 };
 
-const SHEET_PEEK = 240;
+// Peek is now just the slim header bar (count + "List" toggle) — no
+// carousel — so it only needs ~the header height. The map gets the
+// rest of the screen until the user expands to the list.
+const SHEET_PEEK = 100;
 const SHEET_OPEN = 420;
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
+const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
@@ -77,17 +76,13 @@ export default function MapHomeScreen() {
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
-  const initialPanDone = useRef(false);
 
   const { sales, loading } = useSales();
+  const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const userLocation = useUserLocation();
   const locationLabel = useLocationLabel(userLocation);
-  const {
-    region: lastRegion,
-    save: saveLastRegion,
-    ready: regionReady,
-  } = useLastMapRegion();
+  const { region: lastRegion, save: saveLastRegion } = useLastMapRegion();
 
   // Filter state — driven by the shared mapFilters store so the
   // FilterSheet modal can read/write the same object.
@@ -106,32 +101,42 @@ export default function MapHomeScreen() {
   const [sheetState, setSheetState] = useState<SheetState>('peek');
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
 
+  const focusLat = route.params?.focusLat;
+  const focusLng = route.params?.focusLng;
+
+  // In-session pan memory. Survives MapView remounts (returning from a
+  // sale detail, switching tabs) but NOT a cold launch — so each app
+  // start re-centers on the user's *current* location instead of
+  // wherever they last panned. This is the deliberate fix for "the map
+  // opens far from me": the persisted disk region is no longer the
+  // priority, only a last-resort fallback when GPS is unavailable.
+  const sessionRegionRef = useRef<Region | null>(null);
+
+  // If GPS is denied or never resolves, fall back after a short wait so
+  // the map isn't a permanent spinner.
+  const [gpsTimedOut, setGpsTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGpsTimedOut(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+
   // Region to seed the MapView with. We can't pass null — react-native-maps
-  // will fall back to (0,0) — so we defer rendering until we have a real
-  // region from one of three sources, in priority order:
-  //   1. focus param (deep link / navigated push)
-  //   2. lastRegion from disk (returning user)
-  //   3. userLocation (first-time / cleared storage)
-  // While none of those is available we render a bone-colored placeholder
-  // instead of flashing the geographic center of the US (Kansas) for a
-  // second while permissions resolve.
+  // falls back to (0,0) — so we keep a bone placeholder until we have a
+  // real region, in priority order:
+  //   1. focus param (deep link / "show on map")
+  //   2. where the user was looking earlier THIS session
+  //   3. current GPS location  ← the default on every fresh launch
+  //   4. (only if GPS is unavailable after a wait) last disk region / US view
   const initialRegion: Region | null = useMemo(() => {
-    if (route.params?.focusLat != null && route.params?.focusLng != null) {
+    if (focusLat != null && focusLng != null) {
       return {
-        latitude: route.params.focusLat,
-        longitude: route.params.focusLng,
+        latitude: focusLat,
+        longitude: focusLng,
         latitudeDelta: 0.02,
         longitudeDelta: 0.02,
       };
     }
-    if (lastRegion) {
-      // Treat the cached default-region marker as "no real history" so we
-      // wait for GPS instead of flashing Kansas to the user.
-      const isStale =
-        Math.abs(lastRegion.latitude - DEFAULT_REGION.latitude) < 1 &&
-        Math.abs(lastRegion.longitude - DEFAULT_REGION.longitude) < 1;
-      if (!isStale) return lastRegion;
-    }
+    if (sessionRegionRef.current) return sessionRegionRef.current;
     if (userLocation) {
       return {
         latitude: userLocation.latitude,
@@ -140,14 +145,18 @@ export default function MapHomeScreen() {
         longitudeDelta: 0.05,
       };
     }
+    if (gpsTimedOut) {
+      if (lastRegion) {
+        const isStale =
+          Math.abs(lastRegion.latitude - DEFAULT_REGION.latitude) < 1 &&
+          Math.abs(lastRegion.longitude - DEFAULT_REGION.longitude) < 1;
+        if (!isStale) return lastRegion;
+      }
+      return DEFAULT_REGION;
+    }
     return null;
-  }, [
-    route.params?.focusLat,
-    route.params?.focusLng,
-    lastRegion,
-    userLocation,
-  ]);
-  const mapReady = regionReady && initialRegion != null;
+  }, [focusLat, focusLng, userLocation, gpsTimedOut, lastRegion]);
+  const mapReady = initialRegion != null;
   // Only one AIRMap instance can safely exist at a time under the new
   // architecture. Push transitions to SaleDetail / RoutePlanner mount
   // an additional MapView; if this one stays alive in the background
@@ -166,97 +175,28 @@ export default function MapHomeScreen() {
     }, [refetchFavorites]),
   );
 
-  // Initial pan: focus param > last region > user location.
-  const focusLat = route.params?.focusLat;
-  const focusLng = route.params?.focusLng;
+  // A focus target ("show on map" / deep link) is consumed by
+  // initialRegion seeding on the next MapView mount. If the map is
+  // already mounted, animate to it (the seed only applies to a fresh
+  // mount). Then clear the param so a later return to the Map tab
+  // re-centers normally rather than snapping back to the old target.
   useEffect(() => {
-    if (!regionReady) return;
-    if (initialPanDone.current) return;
-
-    if (focusLat != null && focusLng != null) {
-      initialPanDone.current = true;
-      setTimeout(() => {
-        mapRef.current?.animateToRegion(
-          {
-            latitude: focusLat,
-            longitude: focusLng,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          },
-          800,
-        );
-      }, 250);
-      navigation.setParams({ focusLat: undefined, focusLng: undefined });
-      return;
-    }
-
-    if (lastRegion) {
-      const isStale =
-        Math.abs(lastRegion.latitude - DEFAULT_REGION.latitude) < 1 &&
-        Math.abs(lastRegion.longitude - DEFAULT_REGION.longitude) < 1;
-      if (!isStale) {
-        initialPanDone.current = true;
-        return;
-      }
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (cancelled || status !== 'granted') return;
-        const last = await Location.getLastKnownPositionAsync({});
-        if (!cancelled && last) {
-          initialPanDone.current = true;
-          mapRef.current?.animateToRegion(
-            {
-              latitude: last.coords.latitude,
-              longitude: last.coords.longitude,
-              latitudeDelta: 0.05,
-              longitudeDelta: 0.05,
-            },
-            500,
-          );
-        }
-        const fresh = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        if (cancelled) return;
-        initialPanDone.current = true;
-        mapRef.current?.animateToRegion(
-          {
-            latitude: fresh.coords.latitude,
-            longitude: fresh.coords.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          },
-          800,
-        );
-      } catch {
-        // swallow
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [focusLat, focusLng, navigation, regionReady, lastRegion]);
-
-  useEffect(() => {
-    if (!userLocation) return;
-    if (initialPanDone.current) return;
-    if (focusLat != null && focusLng != null) return;
-    if (lastRegion) return;
-    initialPanDone.current = true;
+    if (focusLat == null || focusLng == null) return;
     mapRef.current?.animateToRegion(
       {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
+        latitude: focusLat,
+        longitude: focusLng,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
       },
-      800,
+      600,
     );
-  }, [userLocation, focusLat, focusLng, lastRegion]);
+    const t = setTimeout(
+      () => navigation.setParams({ focusLat: undefined, focusLng: undefined }),
+      700,
+    );
+    return () => clearTimeout(t);
+  }, [focusLat, focusLng, navigation]);
 
   // Filtered + distance-sorted list. The pin numbers (1..N) reflect this order.
   const sortedSales = useMemo(() => {
@@ -342,10 +282,15 @@ export default function MapHomeScreen() {
 
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
+      // Remember the pan for THIS session so returning from a detail
+      // screen restores the view (initialRegion reads this ref).
+      sessionRegionRef.current = region;
       const isDefault =
         Math.abs(region.latitude - DEFAULT_REGION.latitude) < 1 &&
         Math.abs(region.longitude - DEFAULT_REGION.longitude) < 1;
       if (isDefault) return;
+      // Also persist to disk — used only as the GPS-denied fallback on a
+      // future launch, never as the primary center.
       saveLastRegion(region);
     },
     [saveLastRegion],
@@ -400,6 +345,12 @@ export default function MapHomeScreen() {
       >
         {sortedSales.map((sale, idx) => {
           const selected = sale.id === selectedSaleId;
+          // Honor the host's address privacy: a 'reply'-mode sale shows a
+          // deterministically-offset pin (near, not on, the real address)
+          // to anyone but the owner. 'live'/legacy sales show exact.
+          const loc = saleDisplayLocation(sale, {
+            isOwner: !!user && sale.user_id === user.id,
+          });
           // Single Marker per sale, single stable key. Earlier we keyed
           // on the selection state to force a fresh native marker (so a
           // stale onPress closure wouldn't fire), but rapid mount /
@@ -417,8 +368,8 @@ export default function MapHomeScreen() {
             <Marker
               key={sale.id}
               coordinate={{
-                latitude: sale.latitude,
-                longitude: sale.longitude,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
               }}
               anchor={selected ? { x: 0.5, y: 1 } : undefined}
               onPress={(e) => {
@@ -523,13 +474,10 @@ export default function MapHomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Route planner pill — only when at least one saved sale.
-          Anchored just below the chip row baseline. The prototype
-          spec places it at top: 168 measured from the top of the
-          visible area (which already accounts for the iOS notch);
-          adding insets.top + 168 here would double-count the safe
-          area and drop the pill into the middle of the map. */}
-      {savedCount > 0 && (
+      {/* Route planner pill — hidden behind ROUTE_PLANNER_ENABLED while
+          the planner is parked. Anchored just below the chip row
+          baseline when shown. */}
+      {ROUTE_PLANNER_ENABLED && savedCount > 0 && (
         <Pressable
           onPress={handleRoutePlanner}
           style={{
@@ -578,27 +526,25 @@ export default function MapHomeScreen() {
         </Pressable>
       )}
 
-      {/* My-location FAB. Anchored 12pt above whichever snap point
-          the sheet is at. The gorhom snap-point math already accounts
-          for `insets.bottom` on the open snap only (see BottomSheet.tsx),
-          so we mirror that here -- peek = SHEET_PEEK, open = SHEET_OPEN
-          + insets.bottom. Adding insets.bottom to both pushes the FAB
-          ~40pt above the peek sheet on notched devices, which leaves
-          it floating in the middle of the map. */}
+      {/* My-location FAB — FIXED just above the peek sheet, never moves.
+          Rendered BEFORE <BottomSheet/> in the tree, so when the sheet
+          expands to the open snap it slides up and over the FAB,
+          hiding it cleanly (no point offering "locate" while the list
+          covers the map). Previously the FAB animated its own `bottom`
+          between two values to track the sheet, which jumped instantly
+          while the sheet eased over ~300ms — that mismatch was the
+          jank. A fixed anchor + natural occlusion removes it entirely. */}
       <Pressable
         onPress={goToUserLocation}
         accessibilityRole="button"
         accessibilityLabel="My location"
         style={{
           position: 'absolute',
-          right: 14,
-          bottom:
-            (sheetState === 'open'
-              ? SHEET_OPEN + insets.bottom
-              : SHEET_PEEK) + 12,
-          width: 42,
-          height: 42,
-          borderRadius: 14,
+          right: 16,
+          bottom: SHEET_PEEK + 14,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
           backgroundColor: '#fff',
           alignItems: 'center',
           justifyContent: 'center',
@@ -609,7 +555,7 @@ export default function MapHomeScreen() {
           elevation: 5,
         }}
       >
-        <Ionicons name="locate-outline" size={18} color={INK} />
+        <Ionicons name="locate" size={20} color={BRAND} />
       </Pressable>
 
       {/* Bottom sheet */}
@@ -619,116 +565,62 @@ export default function MapHomeScreen() {
         peekHeight={SHEET_PEEK}
         openHeight={SHEET_OPEN}
       >
-        {/* Explicit pan handler wrapping the ENTIRE sheet content — header
-            AND carousel. Gorhom's built-in content-panning gesture is
-            blocked by the horizontal scroll wrapper around the carousel,
-            so swipes that start over a peek card never propagate to the
-            sheet's snap logic. With activeOffsetY={[-10, 10]} +
-            failOffsetX={[-15, 15]} we get:
-            - vertical drag ≥10pt activates this handler and the sheet
-              snaps to the other state on release,
-            - horizontal drag ≥15pt fails this handler and falls through
-              to the inner ScrollView so the carousel still scrolls,
-            - taps still register on PeekCard / SaleCard since they
-              never cross the activeOffset threshold. */}
-        <PanGestureHandler
-          activeOffsetY={[-10, 10]}
-          failOffsetX={[-15, 15]}
-          onHandlerStateChange={(e: PanGestureHandlerStateChangeEvent) => {
-            if (e.nativeEvent.oldState !== GestureState.ACTIVE) return;
-            const { translationY, velocityY } = e.nativeEvent;
-            if (translationY < -30 || velocityY < -500) {
-              setSheetState('open');
-            } else if (translationY > 30 || velocityY > 500) {
-              setSheetState('peek');
-            }
-          }}
-        >
-          {/* collapsable={false} so RN keeps this view as a real native
-              node — required for the gesture handler to attach. */}
-          <View collapsable={false} style={{ flex: 1 }}>
-            <SheetHeader
-              state={sheetState}
-              count={sortedSales.length}
-              onToggle={() =>
-                setSheetState((s) => (s === 'open' ? 'peek' : 'open'))
-              }
-            />
-            {sheetState === 'peek' ? (
-              <BottomSheetScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: 12,
-                  paddingBottom: 12,
-                }}
-              >
-                {sortedSales.slice(0, 12).map((sale, idx) => (
-                  <PeekCard
-                    key={sale.id}
-                    sale={sale}
-                    index={idx}
-                    userLat={userLocation?.latitude}
-                    userLng={userLocation?.longitude}
-                    onPress={() => handleSaleTap(sale.id)}
-                  />
-                ))}
-                {loading && sortedSales.length === 0 ? (
-                  <View
-                    style={{
-                      width: 220,
-                      height: 200,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <ActivityIndicator color={BRAND} />
-                  </View>
-                ) : null}
-              </BottomSheetScrollView>
-            ) : (
-              <BottomSheetFlatList
-                data={sortedSales}
-                keyExtractor={(s) => s.id}
-                contentContainerStyle={{
-                  paddingHorizontal: 12,
-                  paddingBottom: insets.bottom + 12,
-                }}
-                renderItem={({ item, index }) => (
-                  <SaleCard
-                    sale={item}
-                    index={index}
-                    density="comfy"
-                    userLat={userLocation?.latitude}
-                    userLng={userLocation?.longitude}
-                    onPress={() => handleSaleTap(item.id)}
-                  />
-                )}
-                ListEmptyComponent={
-                  loading ? (
-                    <View
-                      style={{ alignItems: 'center', paddingVertical: 40 }}
-                    >
-                      <ActivityIndicator color={BRAND} />
-                    </View>
-                  ) : (
-                    <View
-                      style={{
-                        alignItems: 'center',
-                        paddingVertical: 40,
-                        paddingHorizontal: 20,
-                      }}
-                    >
-                      <Text style={{ color: INK_SOFT, textAlign: 'center' }}>
-                        No sales match your filters.
-                      </Text>
-                    </View>
-                  )
-                }
+        {/* Gorhom owns ALL dragging: the grabber handle drags from
+            anywhere, and BottomSheetFlatList coordinates vertical
+            scroll ↔ sheet collapse natively in the open state. We do
+            NOT layer our own PanGestureHandler on top — doing so made
+            two gesture systems set sheetState in the same frame and
+            the sheet "fought" the drag. The header's List/Map pill is
+            the explicit tap-to-toggle. */}
+        <SheetHeader
+          state={sheetState}
+          count={sortedSales.length}
+          onToggle={() =>
+            setSheetState((s) => (s === 'open' ? 'peek' : 'open'))
+          }
+        />
+        {/* Peek shows only the slim header bar — no cards. The map gets
+            the space, and tapping the header expands to the full list.
+            (Carousel cards were getting clipped by the peek height.) */}
+        {sheetState === 'open' ? (
+          <BottomSheetFlatList
+            data={sortedSales}
+            keyExtractor={(s) => s.id}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: insets.bottom + 12,
+            }}
+            renderItem={({ item, index }) => (
+              <SaleCard
+                sale={item}
+                index={index}
+                density="comfy"
+                userLat={userLocation?.latitude}
+                userLng={userLocation?.longitude}
+                onPress={() => handleSaleTap(item.id)}
               />
             )}
-          </View>
-        </PanGestureHandler>
+            ListEmptyComponent={
+              loading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                  <ActivityIndicator color={BRAND} />
+                </View>
+              ) : (
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 40,
+                    paddingHorizontal: 20,
+                  }}
+                >
+                  <Text style={{ color: INK_SOFT, textAlign: 'center' }}>
+                    No sales match your filters.
+                  </Text>
+                </View>
+              )
+            }
+          />
+        ) : null}
       </BottomSheet>
     </View>
   );
@@ -824,12 +716,15 @@ function SheetHeader({
   count: number;
   onToggle: () => void;
 }) {
-  // The header container is a plain View so gorhom's pan-up gesture can
-  // capture vertical drags over the title area — a Pressable here would
-  // swallow the touch and break the swipe-to-open interaction. The toggle
-  // affordance is its own small Pressable on the right so taps still work.
+  // Dragging is disabled (see BottomSheet.tsx), so the ENTIRE header is
+  // a single tap target that toggles peek ↔ open — a big, unambiguous
+  // button. The "List/Map" pill on the right is the explicit visual
+  // affordance.
   return (
-    <View
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityLabel={state === 'open' ? 'Show map' : 'Show full list'}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -846,20 +741,16 @@ function SheetHeader({
           Sorted by distance
         </Text>
       </View>
-      <Pressable
-        onPress={onToggle}
-        hitSlop={10}
-        accessibilityRole="button"
-        accessibilityLabel={state === 'open' ? 'Show map' : 'Show full list'}
-        style={({ pressed }) => ({
+      <View
+        style={{
           flexDirection: 'row',
           alignItems: 'center',
           paddingVertical: 6,
-          paddingLeft: 10,
-          paddingRight: 8,
-          borderRadius: 10,
-          backgroundColor: pressed ? '#E1ECDF' : 'transparent',
-        })}
+          paddingLeft: 12,
+          paddingRight: 10,
+          borderRadius: 99,
+          backgroundColor: BRAND_SOFT,
+        }}
       >
         <Text style={{ fontSize: 13, fontWeight: '700', color: BRAND }}>
           {state === 'open' ? 'Map' : 'List'}
@@ -868,156 +759,8 @@ function SheetHeader({
           name={state === 'open' ? 'chevron-down' : 'chevron-up'}
           size={16}
           color={BRAND}
-          style={{ marginLeft: 2 }}
+          style={{ marginLeft: 3 }}
         />
-      </Pressable>
-    </View>
-  );
-}
-
-function PeekCard({
-  sale,
-  index,
-  userLat,
-  userLng,
-  onPress,
-}: {
-  sale: Sale;
-  index: number;
-  userLat?: number;
-  userLng?: number;
-  onPress: () => void;
-}) {
-  const open = isOpenNow(sale);
-  // Sales sometimes have media records pointing at deleted / RLS-blocked
-  // storage objects. The Image's blurhash placeholder hides the failure
-  // silently — the card just looks broken. Track explicit error state
-  // and swap in the icon fallback when expo-image reports a load error.
-  const [imgFailed, setImgFailed] = useState(false);
-  const firstImage = sale.media?.find((m) => m.type === 'image');
-  const thumb = transformedImageUrl(firstImage?.url, {
-    width: 440,
-    height: 220,
-    resize: 'cover',
-    quality: 75,
-  });
-  const dist =
-    userLat != null && userLng != null
-      ? haversineMeters(userLat, userLng, sale.latitude, sale.longitude)
-      : null;
-  const driveMin = dist != null ? Math.max(1, Math.round(dist / 805)) : null;
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        width: 220,
-        marginRight: 10,
-        borderRadius: 14,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#E5DECC',
-        overflow: 'hidden',
-      }}
-    >
-      <View style={{ height: 102, backgroundColor: '#E1ECDF' }}>
-        {thumb && !imgFailed ? (
-          <Image
-            source={{ uri: thumb }}
-            placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
-            style={{ width: '100%', height: '100%' }}
-            contentFit="cover"
-            transition={120}
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="image-outline" size={28} color={BRAND} />
-          </View>
-        )}
-        <View
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            backgroundColor: BRAND,
-            paddingHorizontal: 7,
-            paddingVertical: 2,
-            borderRadius: 99,
-          }}
-        >
-          <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>
-            {index + 1}
-          </Text>
-        </View>
-      </View>
-      <View style={{ padding: 10 }}>
-        <Text
-          numberOfLines={1}
-          style={{
-            fontSize: 13.5,
-            fontWeight: '700',
-            color: INK,
-            letterSpacing: -0.2,
-          }}
-        >
-          {sale.title}
-        </Text>
-        <Text
-          numberOfLines={1}
-          style={{ fontSize: 11, color: INK_MUTED, marginTop: 3 }}
-        >
-          {sale.address}
-          {dist != null ? ` · ${formatDistanceMiles(dist)}` : ''}
-        </Text>
-        <View
-          style={{
-            marginTop: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <Ionicons name="time-outline" size={11} color={INK_MUTED} />
-          <Text style={{ fontSize: 11, color: INK_SOFT, marginLeft: 4 }}>
-            {formatSaleTime(sale.start_time, sale.end_time)}
-          </Text>
-          {driveMin != null && (
-            <>
-              <Ionicons
-                name="car-outline"
-                size={11}
-                color={BRAND}
-                style={{ marginLeft: 8 }}
-              />
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: INK,
-                  marginLeft: 4,
-                  fontWeight: '600',
-                }}
-              >
-                {driveMin} min
-              </Text>
-            </>
-          )}
-          <View style={{ flex: 1 }} />
-          {open && (
-            <View
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 99,
-                backgroundColor: BRAND,
-              }}
-            />
-          )}
-        </View>
       </View>
     </Pressable>
   );

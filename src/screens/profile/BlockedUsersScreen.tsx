@@ -115,14 +115,14 @@ export default function BlockedUsersScreen() {
                 handleUnblock(item.blocked_id, item.blocked?.display_name)
               }
               hitSlop={8}
-              style={({ pressed }) => ({
+              style={{
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 999,
-                backgroundColor: pressed ? '#EFE8D6' : '#F7F2E8',
+                backgroundColor: '#F7F2E8',
                 borderWidth: 1,
                 borderColor: '#F4F4F5',
-              })}
+              }}
             >
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#18181B' }}>
                 Unblock

@@ -84,6 +84,28 @@ export function useProfile() {
   return { ...state, refetch: fetchProfile };
 }
 
+/**
+ * Update arbitrary columns on the current user's profile row, then
+ * broadcast so every mounted useProfile() refetches. Returns the
+ * Supabase error (or null). Used by the Account screen's FieldEditor
+ * commits and the Notifications toggles.
+ */
+export function useUpdateProfile() {
+  const { user } = useAuth();
+  return useCallback(
+    async (patch: Partial<Profile>) => {
+      if (!user) return { error: new Error('Not signed in') };
+      const { error } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('id', user.id);
+      if (!error) invalidateProfile();
+      return { error };
+    },
+    [user],
+  );
+}
+
 export function isProfileComplete(profile: Profile | null): boolean {
   if (!profile) return false;
   return (
