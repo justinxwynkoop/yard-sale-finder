@@ -198,6 +198,32 @@ export default function MapHomeScreen() {
     return () => clearTimeout(t);
   }, [focusLat, focusLng, navigation]);
 
+  // Center on the user's location the moment GPS resolves. This is the
+  // safety net for the slow-GPS case: if the fix takes longer than the
+  // fallback timeout, the map may have already mounted on the US-center
+  // default (initialRegion is frozen after mount, so re-seeding can't
+  // move it) — so we animate here instead. Fires once per session, and
+  // only while there's no explicit focus target. We deliberately don't
+  // guard on sessionRegionRef: onRegionChangeComplete sets it from the
+  // initial settle too, so guarding on it would wrongly suppress the
+  // very first centering.
+  const didAutoCenterRef = useRef(false);
+  useEffect(() => {
+    if (!userLocation) return;
+    if (didAutoCenterRef.current) return;
+    if (focusLat != null && focusLng != null) return;
+    didAutoCenterRef.current = true;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      },
+      600,
+    );
+  }, [userLocation, focusLat, focusLng]);
+
   // Filtered + distance-sorted list. The pin numbers (1..N) reflect this order.
   const sortedSales = useMemo(() => {
     let result = sales;
