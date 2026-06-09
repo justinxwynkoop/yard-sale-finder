@@ -235,16 +235,16 @@ export default function AuthScreen() {
           }
           accessibilityRole="button"
           accessibilityLabel="Back"
-          style={({ pressed }) => ({
+          style={{
             width: 38,
             height: 38,
             borderRadius: 12,
-            backgroundColor: pressed ? CREAM : '#fff',
+            backgroundColor: '#fff',
             borderWidth: 1,
             borderColor: HAIRLINE,
             alignItems: 'center',
             justifyContent: 'center',
-          })}
+          }}
         >
           <Ionicons name="chevron-back" size={18} color={INK} />
         </Pressable>
@@ -427,14 +427,14 @@ export default function AuthScreen() {
           <Pressable
             onPress={submitEmail}
             disabled={busy !== null}
-            style={({ pressed }) => ({
+            style={{
               marginTop: isSignIn ? 14 : 18,
               paddingVertical: 15,
               borderRadius: 14,
               alignItems: 'center',
-              backgroundColor: pressed ? '#163828' : BRAND,
+              backgroundColor: BRAND,
               opacity: busy !== null && busy !== 'email' ? 0.6 : 1,
-            })}
+            }}
             accessibilityRole="button"
           >
             {busy === 'email' ? (

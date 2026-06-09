@@ -109,12 +109,12 @@ export default function WelcomeScreen() {
       <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
         <Pressable
           onPress={() => navigation.navigate('Auth', { mode: 'signup' })}
-          style={({ pressed }) => ({
+          style={{
             paddingVertical: 15,
             borderRadius: 14,
             alignItems: 'center',
-            backgroundColor: pressed ? '#163828' : BRAND,
-          })}
+            backgroundColor: BRAND,
+          }}
           accessibilityRole="button"
           accessibilityLabel="Create account"
         >
@@ -124,15 +124,15 @@ export default function WelcomeScreen() {
         </Pressable>
         <Pressable
           onPress={() => navigation.navigate('Auth', { mode: 'signin' })}
-          style={({ pressed }) => ({
+          style={{
             marginTop: 10,
             paddingVertical: 14,
             borderRadius: 14,
             alignItems: 'center',
-            backgroundColor: pressed ? '#EFE8D6' : '#fff',
+            backgroundColor: '#fff',
             borderWidth: 1,
             borderColor: HAIRLINE,
-          })}
+          }}
           accessibilityRole="button"
           accessibilityLabel="I already have an account"
         >

@@ -67,16 +67,16 @@ export default function CheckEmailScreen() {
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel="Back"
-          style={({ pressed }) => ({
+          style={{
             width: 38,
             height: 38,
             borderRadius: 12,
-            backgroundColor: pressed ? CREAM : '#fff',
+            backgroundColor: '#fff',
             borderWidth: 1,
             borderColor: HAIRLINE,
             alignItems: 'center',
             justifyContent: 'center',
-          })}
+          }}
         >
           <Ionicons name="chevron-back" size={18} color={INK} />
         </Pressable>
@@ -129,14 +129,14 @@ export default function CheckEmailScreen() {
 
         <Pressable
           onPress={openMail}
-          style={({ pressed }) => ({
+          style={{
             marginTop: 28,
             alignSelf: 'stretch',
             paddingVertical: 15,
             borderRadius: 14,
             alignItems: 'center',
-            backgroundColor: pressed ? '#163828' : BRAND,
-          })}
+            backgroundColor: BRAND,
+          }}
           accessibilityRole="button"
           accessibilityLabel="Open email app"
         >

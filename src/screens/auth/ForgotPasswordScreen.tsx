@@ -78,16 +78,16 @@ export default function ForgotPasswordScreen() {
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel="Back"
-          style={({ pressed }) => ({
+          style={{
             width: 36,
             height: 36,
             borderRadius: 12,
-            backgroundColor: pressed ? CREAM : BONE,
+            backgroundColor: BONE,
             borderWidth: 1,
             borderColor: HAIRLINE,
             alignItems: 'center',
             justifyContent: 'center',
-          })}
+          }}
         >
           <Ionicons name="chevron-back" size={20} color={INK} />
         </Pressable>
@@ -171,13 +171,13 @@ export default function ForgotPasswordScreen() {
               <Pressable
                 onPress={submit}
                 disabled={sending}
-                style={({ pressed }) => ({
+                style={{
                   marginTop: 18,
                   paddingVertical: 15,
                   borderRadius: 14,
                   alignItems: 'center',
-                  backgroundColor: pressed ? '#163828' : BRAND,
-                })}
+                  backgroundColor: BRAND,
+                }}
                 accessibilityRole="button"
               >
                 {sending ? (
@@ -222,14 +222,14 @@ export default function ForgotPasswordScreen() {
               </Text>
               <Pressable
                 onPress={() => navigation.goBack()}
-                style={({ pressed }) => ({
+                style={{
                   marginTop: 22,
                   alignSelf: 'stretch',
                   paddingVertical: 14,
                   borderRadius: 14,
                   alignItems: 'center',
-                  backgroundColor: pressed ? '#163828' : BRAND,
-                })}
+                  backgroundColor: BRAND,
+                }}
                 accessibilityRole="button"
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
