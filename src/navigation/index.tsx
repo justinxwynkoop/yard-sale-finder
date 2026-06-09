@@ -474,15 +474,18 @@ function MainTabs() {
         },
       })}
     >
+      {/* popToTopOnBlur: leaving a tab resets its nested stack to the
+          root, so returning to a tab shows its home (the list/map) rather
+          than a stale detail screen you'd pushed earlier. */}
       <Tab.Screen
         name="Map"
         component={MapNavigator}
-        options={{ tabBarLabel: 'Discover' }}
+        options={{ tabBarLabel: 'Discover', popToTopOnBlur: true }}
       />
       <Tab.Screen
         name="Listings"
         component={ListingsNavigator}
-        options={{ tabBarLabel: 'Listings' }}
+        options={{ tabBarLabel: 'Listings', popToTopOnBlur: true }}
       />
       <Tab.Screen
         name="Post"
@@ -500,12 +503,12 @@ function MainTabs() {
       <Tab.Screen
         name="Inbox"
         component={MessagesNavigator}
-        options={{ tabBarLabel: 'Inbox' }}
+        options={{ tabBarLabel: 'Inbox', popToTopOnBlur: true }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileNavigator}
-        options={{ tabBarLabel: 'Profile' }}
+        options={{ tabBarLabel: 'Profile', popToTopOnBlur: true }}
       />
     </Tab.Navigator>
 
