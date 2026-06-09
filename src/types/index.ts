@@ -201,7 +201,8 @@ export type RootStackParamList = {
   // Boot state
   Loading: undefined;
   // Signed-out flows
-  Auth: undefined;
+  Welcome: undefined;
+  Auth: { mode?: 'signin' | 'signup' } | undefined;
   ForgotPassword: undefined;
   CheckEmail: { email: string };
   ResetPassword: undefined;

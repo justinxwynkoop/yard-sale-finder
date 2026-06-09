@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Alert,
+  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -14,10 +17,22 @@ import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { RootStackParamList } from '../../types';
-import { Button, IconButton, Input } from '../../components/ui';
+
+const BONE = '#F7F2E8';
+const BRAND = '#1F4D3A';
+const BRAND_SOFT = '#E1ECDF';
+const CREAM = '#EFE8D6';
+const INK = '#171513';
+const INK_SOFT = '#54504A';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
+/**
+ * Open House reskin. Preserves resetPasswordForEmail logic. Success
+ * state uses non-enumeration copy ("If an account exists …").
+ */
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<Nav>();
   const [email, setEmail] = useState('');
@@ -46,76 +61,181 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <View className="px-4 py-2">
-        <IconButton
-          variant="ghost"
-          size="md"
+    <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 10,
+          paddingVertical: 8,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: HAIRLINE,
+        }}
+      >
+        <Pressable
           onPress={() => navigation.goBack()}
-          icon={<Ionicons name="chevron-back" size={22} color="#18181B" />}
-        />
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 12,
+            backgroundColor: pressed ? CREAM : BONE,
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Ionicons name="chevron-back" size={20} color={INK} />
+        </Pressable>
+        <Text
+          style={{
+            flex: 1,
+            marginLeft: 6,
+            fontSize: 17,
+            fontWeight: '700',
+            color: INK,
+            letterSpacing: -0.3,
+          }}
+        >
+          Reset password
+        </Text>
       </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingHorizontal: 24,
-            paddingBottom: 32,
-          }}
+          contentContainerStyle={{ padding: 24 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="mb-8 mt-4 items-center">
-            <View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-brand-50">
-              <Ionicons name="lock-open-outline" size={28} color="#1F4D3A" />
-            </View>
-            <Text className="text-center text-2xl font-extrabold text-zinc-900">
-              {sent ? 'Check your email' : 'Reset your password'}
-            </Text>
-            <Text className="mt-2 text-center text-sm text-zinc-500">
-              {sent
-                ? `We sent a reset link to ${email.trim().toLowerCase()}. Tap it from this device to set a new password.`
-                : "Enter your email and we'll send you a link to set a new password."}
-            </Text>
-          </View>
-
-          {!sent && (
+          {!sent ? (
             <>
-              <Input
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="email"
-                leftIcon={
-                  <Ionicons name="mail-outline" size={18} color="#71717A" />
-                }
-              />
-              <View style={{ marginTop: 16 }}>
-                <Button size="lg" onPress={submit} loading={sending}>
-                  Send reset link
-                </Button>
-              </View>
-            </>
-          )}
-
-          {sent && (
-            <View style={{ gap: 10, marginTop: 8 }}>
-              <Button
-                size="lg"
-                variant="outline"
-                onPress={() => setSent(false)}
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: INK_SOFT,
+                  lineHeight: 22,
+                  marginBottom: 20,
+                }}
               >
-                Send another link
-              </Button>
-              <Button size="lg" onPress={() => navigation.goBack()}>
-                Back to sign in
-              </Button>
+                Enter the email on your account and we&rsquo;ll send a link to
+                reset your password.
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: INK_SOFT,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 7,
+                }}
+              >
+                Email
+              </Text>
+              <View style={{ position: 'relative' }}>
+                <Ionicons
+                  name="mail-outline"
+                  size={16}
+                  color={INK_MUTED}
+                  style={{ position: 'absolute', left: 13, top: 15 }}
+                />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@email.com"
+                  placeholderTextColor={INK_MUTED}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  style={{
+                    width: '100%',
+                    borderWidth: 1,
+                    borderColor: HAIRLINE,
+                    borderRadius: 13,
+                    paddingVertical: 13,
+                    paddingLeft: 40,
+                    paddingRight: 14,
+                    fontSize: 15,
+                    color: INK,
+                    backgroundColor: '#fff',
+                  }}
+                />
+              </View>
+              <Pressable
+                onPress={submit}
+                disabled={sending}
+                style={({ pressed }) => ({
+                  marginTop: 18,
+                  paddingVertical: 15,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  backgroundColor: pressed ? '#163828' : BRAND,
+                })}
+                accessibilityRole="button"
+              >
+                {sending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
+                    Send reset link
+                  </Text>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <View style={{ alignItems: 'center', paddingTop: 30 }}>
+              <View
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 22,
+                  backgroundColor: BRAND_SOFT,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 18,
+                }}
+              >
+                <Ionicons name="checkmark" size={32} color={BRAND} />
+              </View>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: INK }}>
+                Check your inbox
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13.5,
+                  color: INK_SOFT,
+                  marginTop: 8,
+                  lineHeight: 20,
+                  textAlign: 'center',
+                }}
+              >
+                If an account exists for{' '}
+                {email.trim().toLowerCase() || 'that email'}, a reset link is on
+                its way.
+              </Text>
+              <Pressable
+                onPress={() => navigation.goBack()}
+                style={({ pressed }) => ({
+                  marginTop: 22,
+                  alignSelf: 'stretch',
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  backgroundColor: pressed ? '#163828' : BRAND,
+                })}
+                accessibilityRole="button"
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
+                  Back to sign in
+                </Text>
+              </Pressable>
             </View>
           )}
         </ScrollView>

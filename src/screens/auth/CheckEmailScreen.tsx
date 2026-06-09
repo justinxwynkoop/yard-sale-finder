@@ -1,16 +1,36 @@
 import React, { useState } from 'react';
-import { View, Text, Alert, ScrollView, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  Alert,
+  Pressable,
+  Linking,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { RootStackParamList } from '../../types';
-import { Button, IconButton } from '../../components/ui';
+
+const BONE = '#F7F2E8';
+const BRAND = '#1F4D3A';
+const BRAND_SOFT = '#E1ECDF';
+const CREAM = '#EFE8D6';
+const INK = '#171513';
+const INK_SOFT = '#54504A';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CheckEmail'>;
 type Route = RouteProp<RootStackParamList, 'CheckEmail'>;
 
+/**
+ * Post-signup confirmation. Open House reskin; preserves the resend
+ * logic. "Open email app" launches the device mail client best-effort.
+ */
 export default function CheckEmailScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
@@ -20,10 +40,7 @@ export default function CheckEmailScreen() {
   const resend = async () => {
     setResending(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-      });
+      const { error } = await supabase.auth.resend({ type: 'signup', email });
       if (error) throw error;
       Alert.alert('Sent', `We sent another link to ${email}.`);
     } catch (e: any) {
@@ -33,68 +50,130 @@ export default function CheckEmailScreen() {
     }
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <View className="px-4 py-2">
-        <IconButton
-          variant="ghost"
-          size="md"
-          onPress={() => navigation.goBack()}
-          icon={<Ionicons name="chevron-back" size={22} color="#18181B" />}
-        />
-      </View>
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 24,
-          paddingBottom: 32,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="mb-8 mt-4 items-center">
-          <View className="mb-4 h-20 w-20 items-center justify-center rounded-3xl bg-brand-50">
-            <Ionicons name="mail-unread-outline" size={36} color="#1F4D3A" />
-          </View>
-          <Text className="text-center text-2xl font-extrabold text-zinc-900">
-            Check your email
-          </Text>
-          <Text className="mt-2 text-center text-sm leading-5 text-zinc-500">
-            We sent a confirmation link to
-          </Text>
-          <Text className="mt-1 text-center text-base font-semibold text-zinc-900">
-            {email}
-          </Text>
-          <Text className="mt-3 text-center text-sm leading-5 text-zinc-500">
-            Tap the link in the email on this device to finish creating your
-            account.
-          </Text>
-        </View>
+  const openMail = async () => {
+    // iOS: message:// opens Mail's inbox. Android: mailto: launches the
+    // default mail client. Best-effort — swallow if no handler.
+    try {
+      await Linking.openURL(Platform.OS === 'ios' ? 'message://' : 'mailto:');
+    } catch {
+      /* no mail app */
+    }
+  };
 
-        <View style={{ gap: 12 }}>
-          <Button size="lg" variant="outline" onPress={resend} loading={resending}>
-            Resend email
-          </Button>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            className="items-center py-3"
-          >
-            <Text className="text-sm font-semibold text-brand">
-              Use a different email
-            </Text>
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={({ pressed }) => ({
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            backgroundColor: pressed ? CREAM : '#fff',
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Ionicons name="chevron-back" size={18} color={INK} />
+        </Pressable>
+      </View>
+
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 32,
+        }}
+      >
+        <View
+          style={{
+            width: 88,
+            height: 88,
+            borderRadius: 26,
+            backgroundColor: BRAND_SOFT,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 22,
+          }}
+        >
+          <Ionicons name="mail-outline" size={40} color={BRAND} />
+        </View>
+        <Text
+          style={{
+            fontSize: 23,
+            fontWeight: '800',
+            color: INK,
+            letterSpacing: -0.4,
+          }}
+        >
+          Check your email
+        </Text>
+        <Text
+          style={{
+            fontSize: 14,
+            color: INK_SOFT,
+            marginTop: 10,
+            lineHeight: 22,
+            textAlign: 'center',
+          }}
+        >
+          We sent a confirmation link to{'\n'}
+          <Text style={{ fontWeight: '700', color: INK }}>{email}</Text>. Tap it
+          to finish setting up your account.
+        </Text>
+
+        <Pressable
+          onPress={openMail}
+          style={({ pressed }) => ({
+            marginTop: 28,
+            alignSelf: 'stretch',
+            paddingVertical: 15,
+            borderRadius: 14,
+            alignItems: 'center',
+            backgroundColor: pressed ? '#163828' : BRAND,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel="Open email app"
+        >
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
+            Open email app
+          </Text>
+        </Pressable>
+
+        <View
+          style={{
+            marginTop: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 13, color: INK_SOFT }}>Didn&rsquo;t get it? </Text>
+          <Pressable onPress={resend} disabled={resending} hitSlop={6}>
+            {resending ? (
+              <ActivityIndicator size="small" color={BRAND} />
+            ) : (
+              <Text style={{ fontSize: 13, fontWeight: '700', color: BRAND }}>
+                Resend link
+              </Text>
+            )}
           </Pressable>
         </View>
 
-        <View className="mt-10 rounded-2xl bg-zinc-50 p-4">
-          <View className="flex-row items-start">
-            <Ionicons name="information-circle-outline" size={18} color="#71717A" />
-            <Text className="ml-2 flex-1 text-xs leading-5 text-zinc-600">
-              Can't find the email? Check your spam folder. If you're testing
-              locally and want to skip confirmation, turn off "Confirm email" in
-              your Supabase dashboard under Authentication → Providers → Email.
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={6}
+          style={{ marginTop: 12 }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: '600', color: INK_MUTED }}>
+            Wrong email? Go back
+          </Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }

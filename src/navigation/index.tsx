@@ -27,6 +27,7 @@ import {
   MessagesStackParamList,
 } from '../types';
 
+import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import AuthScreen from '../screens/auth/AuthScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import CheckEmailScreen from '../screens/auth/CheckEmailScreen';
@@ -696,6 +697,9 @@ export default function Navigation() {
           <RootStack.Screen name="Main" component={MainGate} />
         ) : (
           <>
+            {/* Welcome is the signed-out landing; its CTAs push Auth in
+                the matching mode. */}
+            <RootStack.Screen name="Welcome" component={WelcomeScreen} />
             <RootStack.Screen name="Auth" component={AuthScreen} />
             <RootStack.Screen
               name="ForgotPassword"
