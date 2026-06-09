@@ -100,6 +100,18 @@ export default function MapHomeScreen() {
 
   const [sheetState, setSheetState] = useState<SheetState>('peek');
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
+  // Screen-space position of the selected pin's callout. We render the
+  // callout as a plain overlay (not a Marker child) because swapping a
+  // Marker's child to a wide custom view mispositions it to the map's
+  // top-left corner on iOS — and forcing a fresh marker to fix that
+  // reintroduces the AIRMap subview-insert crash. An overlay sidesteps
+  // both: pins stay static, the callout is ordinary RN positioned at
+  // the pin's screen point via pointForCoordinate.
+  const [calloutPoint, setCalloutPoint] = useState<{ x: number; y: number } | null>(null);
+  const [calloutSize, setCalloutSize] = useState<{ w: number; h: number }>({
+    w: 0,
+    h: 0,
+  });
 
   const focusLat = route.params?.focusLat;
   const focusLng = route.params?.focusLng;
@@ -281,6 +293,36 @@ export default function MapHomeScreen() {
     [navigation],
   );
 
+  // Compute the on-screen point for a coordinate so the callout overlay
+  // can sit above that pin. pointForCoordinate is async on iOS.
+  const positionCalloutFor = useCallback(
+    async (latitude: number, longitude: number) => {
+      if (!mapRef.current) return;
+      try {
+        const pt = await mapRef.current.pointForCoordinate({
+          latitude,
+          longitude,
+        });
+        setCalloutPoint(pt);
+      } catch {
+        setCalloutPoint(null);
+      }
+    },
+    [],
+  );
+
+  const selectPin = useCallback(
+    (sale: Sale) => {
+      const l = saleDisplayLocation(sale, {
+        isOwner: !!user && sale.user_id === user.id,
+      });
+      setSelectedSaleId(sale.id);
+      setCalloutSize({ w: 0, h: 0 });
+      positionCalloutFor(l.latitude, l.longitude);
+    },
+    [user, positionCalloutFor],
+  );
+
   const toggleQuickCat = useCallback(
     (cat: QuickCat) => {
       const cur = new Set(filters.categories);
@@ -365,31 +407,34 @@ export default function MapHomeScreen() {
         ]}
         initialRegion={initialRegion ?? DEFAULT_REGION}
         onRegionChangeComplete={onRegionChangeComplete}
+        onPanDrag={() => {
+          // Dismiss the callout when the user starts panning so it never
+          // drifts off its pin. (Selecting a pin doesn't move the region,
+          // so this only fires on a real drag.)
+          if (selectedSaleId) {
+            setSelectedSaleId(null);
+            setCalloutPoint(null);
+          }
+        }}
         showsUserLocation
         showsMyLocationButton={false}
-        onPress={() => setSelectedSaleId(null)}
+        onPress={() => {
+          setSelectedSaleId(null);
+          setCalloutPoint(null);
+        }}
       >
         {sortedSales.map((sale, idx) => {
-          const selected = sale.id === selectedSaleId;
           // Honor the host's address privacy: a 'reply'-mode sale shows a
           // deterministically-offset pin (near, not on, the real address)
           // to anyone but the owner. 'live'/legacy sales show exact.
           const loc = saleDisplayLocation(sale, {
             isOwner: !!user && sale.user_id === user.id,
           });
-          // Single Marker per sale, single stable key. Earlier we keyed
-          // on the selection state to force a fresh native marker (so a
-          // stale onPress closure wouldn't fire), but rapid mount /
-          // unmount inside AIRMap under Fabric races RCTLegacyView
-          // ManagerInteropComponentView.finalizeUpdates and crashes
-          // with `-[__NSArrayM insertObject:atIndex:]: object cannot
-          // be nil`. See MapPin.tsx for the original incident report.
-          // The reused-marker approach avoids the race entirely:
-          // - the Marker instance stays mounted, only its child swaps,
-          // - the onPress prop is a fresh closure on every render so it
-          //   always reads the current selection,
-          // - tracksViewChanges toggles to true only while showing the
-          //   wider callout so iOS re-sizes the annotation view.
+          // Pins NEVER swap their child or change key — they stay static
+          // MapPins. The selected callout is a separate overlay (see
+          // below). Swapping a Marker's child to a wide custom view
+          // mispositions it to the map's top-left on iOS, and changing
+          // the key to fix that reintroduces the AIRMap subview crash.
           return (
             <Marker
               key={sale.id}
@@ -397,36 +442,65 @@ export default function MapHomeScreen() {
                 latitude: loc.latitude,
                 longitude: loc.longitude,
               }}
-              anchor={selected ? { x: 0.5, y: 1 } : undefined}
               onPress={(e) => {
                 e.stopPropagation?.();
-                if (selected) {
+                if (sale.id === selectedSaleId) {
                   handleSaleTap(sale.id);
                 } else {
-                  setSelectedSaleId(sale.id);
+                  selectPin(sale);
                 }
               }}
-              tracksViewChanges={selected}
+              tracksViewChanges={false}
             >
-              {selected ? (
-                <SelectedPinCallout
-                  sale={sale}
-                  userLat={userLocation?.latitude}
-                  userLng={userLocation?.longitude}
-                  onPress={() => handleSaleTap(sale.id)}
-                />
-              ) : (
-                <MapPin
-                  status={sale.status}
-                  favorited={isFavorited(sale.id)}
-                  num={idx + 1}
-                  openNow={isOpenNow(sale)}
-                />
-              )}
+              <MapPin
+                status={sale.status}
+                favorited={isFavorited(sale.id)}
+                num={idx + 1}
+                openNow={isOpenNow(sale)}
+              />
             </Marker>
           );
         })}
       </MapView>
+      ) : null}
+
+      {/* Selected-pin callout — plain overlay positioned at the pin's
+          screen point. Hidden until measured (calloutSize) to avoid a
+          one-frame flash at the wrong spot. Tapping it opens the sale. */}
+      {selectedSale && calloutPoint ? (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            left: calloutPoint.x,
+            top: calloutPoint.y,
+          }}
+        >
+          <Pressable
+            onPress={() => handleSaleTap(selectedSale.id)}
+            onLayout={(e) =>
+              setCalloutSize({
+                w: e.nativeEvent.layout.width,
+                h: e.nativeEvent.layout.height,
+              })
+            }
+            style={{
+              position: 'absolute',
+              // Center horizontally on the pin; sit the tail tip ~16pt
+              // above the pin's center (pins are ~30pt tall).
+              left: -calloutSize.w / 2,
+              top: -calloutSize.h - 16,
+              opacity: calloutSize.h > 0 ? 1 : 0,
+            }}
+          >
+            <SelectedPinCallout
+              sale={selectedSale}
+              userLat={userLocation?.latitude}
+              userLng={userLocation?.longitude}
+              onPress={() => handleSaleTap(selectedSale.id)}
+            />
+          </Pressable>
+        </View>
       ) : null}
 
       {/* Top: Search/location card */}
