@@ -601,7 +601,11 @@ function MainGate() {
   const { loading: onboardingLoading, completed: onboardingCompleted } =
     useOnboarding();
 
-  if (profileLoading || onboardingLoading) {
+  // Only block on profileLoading before we have ANY profile (first load).
+  // Once a profile exists, a background refetch must never swap MainTabs
+  // for the spinner — that remount resets the tab navigator to Discover
+  // and bounces the user out of whatever tab/stack they were in.
+  if ((profileLoading && !profile) || onboardingLoading) {
     return (
       <View
         style={{

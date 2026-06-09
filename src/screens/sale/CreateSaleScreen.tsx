@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
@@ -350,9 +351,14 @@ export default function CreateSaleScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(sale.id);
 
-      // Go straight to My Sales so the user can review or quickly edit
-      // the new post without any extra taps.
-      navigation.navigate('MySalesHome', { initialTab: 'sales' });
+      // Pop this screen off the stack. Previously we navigate()'d to
+      // 'MySalesHome', but that route isn't in the stack, so navigate
+      // PUSHED it and left CreateSale lingering underneath — tapping the
+      // Profile tab then resurfaced the Create screen. goBack() removes
+      // CreateSale from whichever stack hosted it (Profile or the Post
+      // flow); the realtime My Sales list shows the new post.
+      toast.success('Sale posted');
+      navigation.goBack();
     } catch (e: any) {
       // Surface full PostgREST error context (code + table) so RLS
       // rejections aren't a mystery -- the bare e.message often

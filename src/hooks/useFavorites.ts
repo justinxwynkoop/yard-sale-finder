@@ -87,7 +87,9 @@ export function useFavorites() {
       .filter(Boolean);
     _setFavorites(sales);
     _setLoading(false);
-  }, [user]);
+    // Stable user id, not the churning user object (see useAuth).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Fetch once on mount (or when the signed-in user changes). Guard against
   // re-fetching when a second component mounts mid-session — _userId tracks
@@ -100,7 +102,8 @@ export function useFavorites() {
     if (_userId === user.id) return; // already loaded for this user
     _userId = user.id;
     fetchFavorites();
-  }, [user, fetchFavorites]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, fetchFavorites]);
 
   // Immediate optimistic toggle — updates the shared store synchronously so
   // every subscriber re-renders before the Supabase round-trip completes.
