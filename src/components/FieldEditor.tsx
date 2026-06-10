@@ -300,11 +300,11 @@ function EditorBody({
                     lineHeight: 18,
                   }}
                 >
-                  We&rsquo;ll text a 6-digit code to verify it&rsquo;s you.
-                  Verified numbers get a trust badge.
+                  Saved to your account and never shown publicly. Phone
+                  verification (with a trust badge) is coming soon.
                 </Text>
                 <PrimaryButton
-                  label="Send code"
+                  label="Save number"
                   onPress={() => onSave(editor.key, text)}
                 />
               </>

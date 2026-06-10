@@ -10,6 +10,7 @@ import { Avatar } from '../../components/ui';
 import { FieldEditor, FieldEditorConfig } from '../../components/FieldEditor';
 import { useProfile, useUpdateProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../lib/supabase';
 import { useMySales } from '../../hooks/useSales';
 import { uploadAvatar, deleteAvatar } from '../../lib/avatarUpload';
 import { LocationPrivacy, PAYMENT_METHODS, Profile } from '../../types';
@@ -81,6 +82,34 @@ export default function AccountScreen() {
     } else {
       flash();
     }
+  };
+
+  // Real password change. Supabase's updateUser doesn't verify the old
+  // password, so re-authenticate with it first — otherwise anyone with
+  // the unlocked phone could silently take over the account.
+  const changePassword = async (current: string, next: string) => {
+    const email = user?.email;
+    if (!email) {
+      Alert.alert('Not signed in', 'Sign in again and retry.');
+      return;
+    }
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email,
+      password: current,
+    });
+    if (reauthError) {
+      Alert.alert(
+        'Wrong current password',
+        'The current password you entered didn\u2019t match.',
+      );
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: next });
+    if (error) {
+      Alert.alert('Could not update password', error.message);
+      return;
+    }
+    flash();
   };
 
   const pickAvatar = async (source: 'camera' | 'library') => {
@@ -285,7 +314,7 @@ export default function AccountScreen() {
             value={phoneMasked}
             muted={!profile?.phone}
             last
-            badge={profile?.phone_verified ? <VerifiedPill /> : <VerifyPill />}
+            badge={profile?.phone_verified ? <VerifiedPill /> : null}
             onPress={() =>
               setEditor({
                 type: 'verifyPhone',
@@ -297,8 +326,8 @@ export default function AccountScreen() {
           />
         </Card>
         <Caption top>
-          A verified phone earns a badge on your profile and unlocks
-          higher-trust sales. Contact info is never shown publicly.
+          Your phone number helps coordinate pickups if you choose to
+          share it in chat. Contact info is never shown publicly.
         </Caption>
 
         {/* Payment accepted */}
@@ -535,7 +564,7 @@ export default function AccountScreen() {
         onClose={() => setEditor(null)}
         onSave={commit}
         onDelete={handleDelete}
-        onPassword={() => flash()}
+        onPassword={changePassword}
       />
     </View>
   );

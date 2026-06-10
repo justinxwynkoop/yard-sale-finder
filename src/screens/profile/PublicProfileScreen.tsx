@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -16,11 +17,15 @@ import {
 } from '@react-navigation/native';
 
 import { Avatar, HeaderButton } from '../../components/ui';
+import { ReportSheet } from '../../components/ReportSheet';
+import { ReviewSheet } from '../../components/ReviewSheet';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
-import { useReviews } from '../../hooks/useReviews';
+import { useReviews, useCanReview } from '../../hooks/useReviews';
 import { useFollow } from '../../hooks/useFollow';
+import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
+import { toast } from '../../lib/toast';
 import { navigateToConversation } from '../../lib/navigationRef';
 import { ProfileStackParamList, Review } from '../../types';
 import {
@@ -51,10 +56,10 @@ type Route = RouteProp<ProfileStackParamList, 'PublicProfile'>;
  *
  * Backend gaps that are surfaced cleanly:
  * - Replies-in: no message-timing analytics yet → label hidden.
- * - Verification badges: phone/email verification flags don't exist
- *   on profiles; we surface Email verified (always true since auth
- *   requires email) and "Local to {city}" when available. Phone
- *   verification only renders if profile.phone is set.
+ * - Verification badges key off profiles.email_verified /
+ *   phone_verified. phone_verified stays false until a real OTP flow
+ *   ships, so that badge is effectively hidden for now (deliberate —
+ *   no fake trust signals).
  */
 export default function PublicProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -70,10 +75,18 @@ export default function PublicProfileScreen() {
     itemsSoldTotal,
     loading,
   } = useUserProfile(userId);
-  const { reviews, summary } = useReviews(userId);
+  const { reviews, summary, refetch: refetchReviews } = useReviews(userId);
+  const {
+    eligible: canReview,
+    alreadyReviewed,
+    refetch: refetchCanReview,
+  } = useCanReview(userId);
   const { following, toggle: toggleFollow, isSelf } = useFollow(userId);
+  const { block } = useBlockedUsers();
   const { start: startConversation } = useStartConversation();
   const { user } = useAuth();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Babel's parser refuses mixed ?? / || expressions even when fully
   // parenthesized; resolve them in steps to stay portable.
@@ -101,6 +114,38 @@ export default function PublicProfileScreen() {
     }
     const { id } = await startConversation('sale', fallback.id);
     if (id) navigateToConversation(id);
+  };
+
+  const handleBlock = () => {
+    Alert.alert(
+      `Block ${firstName}?`,
+      'You won’t see their sales, listings, or messages, and they won’t be able to message you.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            if (!userId) return;
+            const { error } = await block(userId);
+            if (error) {
+              toast.error('Could not block — try again.');
+              return;
+            }
+            toast.success(`${firstName} blocked`);
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  };
+
+  const handleMore = () => {
+    Alert.alert(displayName, undefined, [
+      { text: 'Report user', onPress: () => setReportOpen(true) },
+      { text: 'Block user', style: 'destructive', onPress: handleBlock },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   if (loading && !profile) {
@@ -151,9 +196,7 @@ export default function PublicProfileScreen() {
               <HeaderButton
                 variant="glass"
                 icon="ellipsis-horizontal"
-                onPress={() => {
-                  /* report / block menu — wire to existing ReportSheet later */
-                }}
+                onPress={handleMore}
                 accessibilityLabel="More"
               />
             ) : null}
@@ -269,10 +312,14 @@ export default function PublicProfileScreen() {
             paddingTop: 14,
           }}
         >
-          {profile?.email ? (
+          {/* Verified badges key off the REAL verification flags, not
+              mere field presence — a typed-in phone number is not a
+              trust signal. phone_verified stays false until a real OTP
+              flow ships, so that badge simply won't render yet. */}
+          {profile?.email_verified ? (
             <Badge icon="checkmark" label="Email verified" />
           ) : null}
-          {profile?.phone ? (
+          {profile?.phone_verified ? (
             <Badge icon="checkmark" label="Phone verified" />
           ) : null}
           {profile?.city ? (
@@ -522,8 +569,10 @@ export default function PublicProfileScreen() {
           </View>
         ) : null}
 
-        {/* Reviews */}
-        {reviews.length > 0 ? (
+        {/* Reviews — also shown (sans list) when the viewer is eligible
+            to leave the first one, so the entry point exists. */}
+        {reviews.length > 0 ||
+        (!self && !isSelf && canReview && !alreadyReviewed) ? (
           <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
             <View
               style={{
@@ -542,23 +591,25 @@ export default function PublicProfileScreen() {
               >
                 Reviews
               </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <Ionicons name="star" size={13} color={AMBER} />
-                <Text
-                  style={{ fontSize: 13, fontWeight: '700', color: INK }}
+              {summary.review_count > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
                 >
-                  {summary.avg_stars.toFixed(1)}
-                </Text>
-                <Text style={{ fontSize: 12, color: INK_MUTED }}>
-                  · {summary.review_count}
-                </Text>
-              </View>
+                  <Ionicons name="star" size={13} color={AMBER} />
+                  <Text
+                    style={{ fontSize: 13, fontWeight: '700', color: INK }}
+                  >
+                    {summary.avg_stars.toFixed(1)}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: INK_MUTED }}>
+                    · {summary.review_count}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <View style={{ marginTop: 10 }}>
               {reviews.slice(0, 3).map((r, i) => (
@@ -569,6 +620,32 @@ export default function PublicProfileScreen() {
                 />
               ))}
             </View>
+            {!self && !isSelf && canReview && !alreadyReviewed ? (
+              <Pressable
+                onPress={() => setReviewOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Rate ${firstName}`}
+                style={{
+                  marginTop: reviews.length > 0 ? 4 : 0,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 12,
+                  borderRadius: 13,
+                  borderWidth: 1,
+                  borderColor: HAIRLINE,
+                  backgroundColor: '#fff',
+                }}
+              >
+                <Ionicons name="star-outline" size={15} color={BRAND} />
+                <Text
+                  style={{ fontSize: 13.5, fontWeight: '700', color: BRAND }}
+                >
+                  Rate {firstName}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
@@ -672,6 +749,31 @@ export default function PublicProfileScreen() {
             👁 This is how others see you
           </Text>
         </View>
+      ) : null}
+
+      {/* Rate + moderation sheets */}
+      {userId ? (
+        <ReviewSheet
+          visible={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          subjectUserId={userId}
+          subjectName={firstName}
+          onSubmitted={() => {
+            refetchReviews();
+            refetchCanReview();
+          }}
+        />
+      ) : null}
+      {userId ? (
+        <ReportSheet
+          visible={reportOpen}
+          onClose={() => setReportOpen(false)}
+          targetType="profile"
+          targetId={userId}
+          ownerUserId={userId}
+          ownerName={displayName}
+          onSubmitted={() => navigation.goBack()}
+        />
       ) : null}
     </View>
   );

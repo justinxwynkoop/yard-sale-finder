@@ -53,9 +53,37 @@ export function useReviews(userId: string | undefined) {
 }
 
 /**
- * Single-shot review submission. Used by the (future) "Leave a review"
- * flow on a finished sale. Keeps the surface tiny — the screens that
- * need this can wire it up without a dedicated hook each time.
+ * "May I review this user, and have I already?" Backed by the
+ * `can_review` RPC, which mirrors the reviews INSERT policy's
+ * interaction gate (a conversation with the subject, or a visited mark
+ * on one of their sales) so the UI shows the entry point only when the
+ * server would actually accept the write.
+ */
+export function useCanReview(subjectUserId: string | undefined) {
+  const [eligible, setEligible] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+
+  const refetch = useCallback(async () => {
+    if (!subjectUserId) return;
+    const { data } = await supabase.rpc('can_review', {
+      p_subject: subjectUserId,
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    setEligible(!!row?.eligible);
+    setAlreadyReviewed(!!row?.already_reviewed);
+  }, [subjectUserId]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { eligible, alreadyReviewed, refetch };
+}
+
+/**
+ * Single-shot review submission — the write half of the loop, used by
+ * ReviewSheet. Keeps the surface tiny — the screens that need this can
+ * wire it up without a dedicated hook each time.
  */
 export async function submitReview(input: {
   subjectUserId: string;
