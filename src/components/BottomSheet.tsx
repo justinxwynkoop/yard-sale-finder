@@ -66,16 +66,13 @@ export function BottomSheet({
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      // Content panning MUST stay enabled — gorhom couples the inner
-      // BottomSheetFlatList's scroll to this gesture, so disabling it
-      // (which we briefly did to kill drag-quirkiness) also froze the
-      // list. The original quirk came from a horizontal carousel fighting
-      // the vertical drag; that carousel is gone, so panning is clean now.
-      // The header pill is still the primary open/close control; this just
-      // also lets the list scroll and pull-down-to-collapse from the top.
-      enableContentPanningGesture
-      // Handle isn't a drag affordance — the pill toggles. (Keeps the
-      // grabber decorative so there's one obvious control.)
+      // Dragging the sheet is DISABLED — the header pill is the only
+      // open/close control. With content panning enabled, gorhom routed
+      // the list's upward scroll into a sheet-drag and collapsed it. The
+      // consumer pairs this with a PLAIN RN FlatList (not gorhom's), which
+      // then scrolls natively with no gesture competing. Net: button
+      // toggles the sheet, the list scrolls — no fighting.
+      enableContentPanningGesture={false}
       enableHandlePanningGesture={false}
       enablePanDownToClose={false}
       handleIndicatorStyle={{
