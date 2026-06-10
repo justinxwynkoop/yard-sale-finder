@@ -1091,14 +1091,18 @@ function GlassButton({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: 'rgba(255,255,255,0.92)',
+        backgroundColor: 'rgba(255,255,255,0.94)',
+        borderWidth: 1,
+        borderColor: 'rgba(20,18,15,0.08)',
         alignItems: 'center',
         justifyContent: 'center',
+        // Tight low shadow (match HeaderButton glass) — defined edge does
+        // the work, so it doesn't float over light photos.
         shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+        elevation: 2,
       }}
     >
       <Ionicons name={icon} size={iconSize} color={iconColor} />

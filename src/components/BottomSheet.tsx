@@ -66,13 +66,16 @@ export function BottomSheet({
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      // Button-only control. Dragging the sheet (via the handle OR by
-      // panning the content) is disabled — it repeatedly fought the
-      // horizontal carousel and the external snap state, making the
-      // map↔list switch feel quirky. The sheet now moves ONLY when the
-      // header toggle calls snapToIndex, which still animates smoothly.
-      // Internal scrolling of the carousel / list is unaffected.
-      enableContentPanningGesture={false}
+      // Content panning MUST stay enabled — gorhom couples the inner
+      // BottomSheetFlatList's scroll to this gesture, so disabling it
+      // (which we briefly did to kill drag-quirkiness) also froze the
+      // list. The original quirk came from a horizontal carousel fighting
+      // the vertical drag; that carousel is gone, so panning is clean now.
+      // The header pill is still the primary open/close control; this just
+      // also lets the list scroll and pull-down-to-collapse from the top.
+      enableContentPanningGesture
+      // Handle isn't a drag affordance — the pill toggles. (Keeps the
+      // grabber decorative so there's one obvious control.)
       enableHandlePanningGesture={false}
       enablePanDownToClose={false}
       handleIndicatorStyle={{

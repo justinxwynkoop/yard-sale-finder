@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -60,7 +61,10 @@ const DEFAULT_REGION: Region = {
 // carousel — so it only needs ~the header height. The map gets the
 // rest of the screen until the user expands to the list.
 const SHEET_PEEK = 100;
-const SHEET_OPEN = 420;
+// Open list fills most of the screen (leaving the search card + chips
+// visible up top) so you can actually browse the whole list, not a
+// 420pt window of it. Adapts to the device height.
+const SHEET_OPEN = Math.round(Dimensions.get('window').height * 0.66);
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';

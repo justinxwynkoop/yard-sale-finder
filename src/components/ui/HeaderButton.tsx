@@ -4,6 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 const HAIRLINE = '#E5DECC';
 const INK = '#171513';
+// Subtle dark edge so the glass button is DEFINED over light photos
+// (a white-on-light button with only a shadow reads as floaty).
+const GLASS_EDGE = 'rgba(20,18,15,0.08)';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -48,14 +51,16 @@ export function HeaderButton({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: glass ? 999 : 12,
-        backgroundColor: glass ? 'rgba(255,255,255,0.92)' : '#fff',
-        borderWidth: glass ? 0 : 1,
-        borderColor: HAIRLINE,
+        backgroundColor: glass ? 'rgba(255,255,255,0.94)' : '#fff',
+        borderWidth: 1,
+        borderColor: glass ? GLASS_EDGE : HAIRLINE,
+        // Tight, low shadow — enough to lift off a busy photo, not so
+        // much that the button looks like it's floating above the page.
         shadowColor: '#000',
-        shadowOpacity: glass ? 0.18 : 0.06,
-        shadowRadius: glass ? 6 : 4,
-        shadowOffset: { width: 0, height: glass ? 2 : 1 },
-        elevation: glass ? 3 : 1,
+        shadowOpacity: glass ? 0.1 : 0.04,
+        shadowRadius: glass ? 4 : 3,
+        shadowOffset: { width: 0, height: 1 },
+        elevation: glass ? 2 : 1,
       }}
     >
       <Ionicons name={icon} size={20} color={INK} />
