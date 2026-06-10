@@ -10,7 +10,9 @@
 set -eu
 
 PROJECT_REF="dxahcamntwtuzftxbxgx"
-SQL_FILE="supabase/scripts/seed_test_data.sql"
+# Optional arg picks a different seed file:
+#   npm run db:seed -- supabase/scripts/seed_test_data_v2.sql
+SQL_FILE="${1:-supabase/scripts/seed_test_data.sql}"
 
 if [ ! -f "$SQL_FILE" ]; then
   echo "Seed file not found at $SQL_FILE"
