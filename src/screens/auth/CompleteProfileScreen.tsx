@@ -260,8 +260,9 @@ function Step1({
   bdMonth: string;   setBdMonth:   (v: string) => void;
   bdDay: string;     setBdDay:     (v: string) => void;
   bdYear: string;    setBdYear:    (v: string) => void;
-  dayRef: React.RefObject<TextInput>;
-  yearRef: React.RefObject<TextInput>;
+  // React 19 / @types/react typings: useRef<T>(null) is RefObject<T | null>.
+  dayRef: React.RefObject<TextInput | null>;
+  yearRef: React.RefObject<TextInput | null>;
   email: string;
 }) {
   return (
