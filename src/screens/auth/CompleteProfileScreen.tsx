@@ -401,7 +401,7 @@ function Step2({
       <View className="mb-2">
         <Text className="text-2xl font-extrabold text-zinc-900">Your location</Text>
         <Text className="mt-1 text-sm text-zinc-500">
-          Enter your ZIP code and we'll fill in your city and state automatically.
+          Enter your ZIP code and we&rsquo;ll fill in your city and state automatically.
         </Text>
       </View>
 

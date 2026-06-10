@@ -1,9 +1,8 @@
 name: CI
 
-# Quality gate on every PR into main. Typecheck + tests must pass to
-# merge; lint runs informationally until the ESLint rules are flipped
-# from `warn` to `error` (see docs/PIPELINE.md §6), at which point drop
-# the `continue-on-error` below to make it a hard gate too.
+# Quality gate on every PR into main. Typecheck, lint, and tests must all
+# pass to merge. (Lint is a hard gate now that the config is ESLint-9 flat
+# and the codebase is at 0 errors — see docs/PIPELINE.md §6.)
 on:
   pull_request:
     branches: [main]
@@ -33,6 +32,5 @@ jobs:
       - name: Tests (jest)
         run: npm test -- --ci
 
-      - name: Lint (informational until rules are errors)
+      - name: Lint (eslint)
         run: npm run lint
-        continue-on-error: true

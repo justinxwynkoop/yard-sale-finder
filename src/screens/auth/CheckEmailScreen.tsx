@@ -19,11 +19,9 @@ import { RootStackParamList } from '../../types';
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
-const CREAM = '#EFE8D6';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
-const HAIRLINE = '#E5DECC';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CheckEmail'>;
 type Route = RouteProp<RootStackParamList, 'CheckEmail'>;

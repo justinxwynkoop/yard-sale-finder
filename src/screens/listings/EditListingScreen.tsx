@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { File } from 'expo-file-system';
@@ -25,7 +25,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, Listing, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
+import { Button, CategoryPicker, Input } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'EditListing'>;
 type Route = RouteProp<SaleStackParamList, 'EditListing'>;

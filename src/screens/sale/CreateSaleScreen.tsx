@@ -25,7 +25,6 @@ import { ItemCategory, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
 import { compressImage } from '../../lib/imageCompression';
 import {
-  Button,
   CategoryPicker,
   DateRangePresets,
   DateTimeField,

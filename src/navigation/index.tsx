@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState , useEffect } from 'react';
 import { View, ActivityIndicator, Image, Pressable, Text } from 'react-native';
 import {
   NavigationContainer,
@@ -10,7 +10,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/useProfile';

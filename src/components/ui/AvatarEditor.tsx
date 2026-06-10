@@ -53,11 +53,11 @@ export function AvatarEditor({
   onChange,
 }: AvatarEditorProps) {
   const open = () => {
-    const buttons: Array<{
+    const buttons: {
       text: string;
       style?: 'destructive' | 'cancel';
       onPress?: () => void;
-    }> = [
+    }[] = [
       { text: 'Take Photo', onPress: () => void handle('camera') },
       { text: 'Choose from Library', onPress: () => void handle('library') },
     ];

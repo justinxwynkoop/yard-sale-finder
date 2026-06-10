@@ -24,10 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useSales } from '../../hooks/useSales';
 import { useAuth } from '../../hooks/useAuth';
-import {
-  saleDisplayLocation,
-  approximateAreaLabel,
-} from '../../lib/locationPrivacy';
+import { saleDisplayLocation } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLocationLabel } from '../../hooks/useLocationLabel';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
@@ -41,7 +38,6 @@ import { Chip } from '../../components/ui';
 import { haversineMeters, formatDistanceMiles } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
 import {
-  countActiveFilters,
   setMapFilters,
   useMapFilters,
 } from '../../lib/mapFilters';
@@ -100,7 +96,6 @@ export default function MapHomeScreen() {
     () => new Set(filters.categories.filter((c) => c === 'furniture' || c === 'tools') as QuickCat[]),
     [filters.categories],
   );
-  const activeFilterCount = countActiveFilters(filters);
 
   const [sheetState, setSheetState] = useState<SheetState>('peek');
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);

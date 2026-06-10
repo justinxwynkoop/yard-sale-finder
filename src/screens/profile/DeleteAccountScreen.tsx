@@ -6,10 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
-  Platform,
 } from 'react-native';
-
-const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SubHeader } from '../../components/SubHeader';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { Button, Input, Card } from '../../components/ui';
+
+const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 
 /**
  * Self-service account deletion. Required by Apple App Store

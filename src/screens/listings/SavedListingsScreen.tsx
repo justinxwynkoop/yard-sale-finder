@@ -13,12 +13,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { ListingsStackParamList, Listing } from '../../types';
+import { EmptyState } from '../../components/ui';
+import { SubHeader } from '../../components/SubHeader';
 
 function isNew(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
 }
-import { EmptyState } from '../../components/ui';
-import { SubHeader } from '../../components/SubHeader';
 
 type Nav = NativeStackNavigationProp<ListingsStackParamList, 'SavedListings'>;
 

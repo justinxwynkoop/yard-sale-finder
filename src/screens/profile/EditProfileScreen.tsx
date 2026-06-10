@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -266,7 +266,7 @@ export default function EditProfileScreen() {
                 {profile?.email ?? user?.email ?? ''}
               </Text>
               <Text style={{ fontSize: 12, color: '#A1A1AA', marginTop: 2 }}>
-                Can't be changed here.
+                Can&rsquo;t be changed here.
               </Text>
             </View>
           </View>

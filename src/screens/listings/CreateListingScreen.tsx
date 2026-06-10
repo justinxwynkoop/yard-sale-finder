@@ -24,7 +24,7 @@ import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, CategoryPicker, HeaderButton, IconButton, Input } from '../../components/ui';
+import { CategoryPicker, HeaderButton, Input } from '../../components/ui';
 import { PostSection, PostProgressBar } from '../../components/PostFormShell';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'CreateListing'>;
