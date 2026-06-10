@@ -586,7 +586,9 @@ export default function PublicProfileScreen() {
             borderTopColor: HAIRLINE,
             paddingTop: 12,
             paddingHorizontal: 16,
-            paddingBottom: Math.max(insets.bottom, 12) + 14,
+            // Sits above the tab bar (which clears the home indicator) —
+            // no safe-area inset needed; it only made a big gap.
+            paddingBottom: 16,
             flexDirection: 'row',
             gap: 8,
           }}

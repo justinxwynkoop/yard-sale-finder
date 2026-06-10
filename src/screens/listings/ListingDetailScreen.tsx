@@ -610,7 +610,9 @@ export default function ListingDetailScreen() {
             borderTopColor: HAIRLINE,
             paddingHorizontal: 14,
             paddingTop: 12,
-            paddingBottom: Math.max(insets.bottom, 14) + 14,
+            // Sits above the tab bar (which clears the home indicator) —
+            // no safe-area inset needed; it only made a big gap.
+            paddingBottom: 16,
             flexDirection: 'row',
           }}
         >

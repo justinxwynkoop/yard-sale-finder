@@ -769,7 +769,8 @@ export default function CreateSaleScreen() {
             borderTopColor: '#E5DECC',
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+            // Sits above the tab bar (which clears the home indicator).
+            paddingBottom: 16,
           }}
         >
           {validationError ? (

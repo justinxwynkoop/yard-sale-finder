@@ -947,7 +947,10 @@ export default function SaleDetailScreen() {
           borderTopColor: HAIRLINE,
           paddingHorizontal: 14,
           paddingTop: 12,
-          paddingBottom: Math.max(insets.bottom, 14) + 14,
+          // No insets.bottom here: this bar sits ABOVE the bottom tab bar,
+          // which already clears the home indicator. Adding the inset just
+          // created a big dead gap between the buttons and the tabs.
+          paddingBottom: 16,
         }}
       >
         {/* Mark visited — the standalone primitive behind the (currently
