@@ -136,7 +136,13 @@ function EditorBody({
   const [pwConfirm, setPwConfirm] = useState('');
 
   return (
-    <View style={{ flex: 1 }}>
+    // KeyboardAvoidingView must own the full modal height (flex: 1) so
+    // its `padding` behavior lifts the whole sheet above the keyboard.
+    // The scrim is a flex: 1 child that pushes the sheet to the bottom.
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Scrim */}
       <Pressable
         onPress={onClose}
@@ -144,20 +150,17 @@ function EditorBody({
         accessibilityRole="button"
         accessibilityLabel="Close"
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <View
+        style={{
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          paddingHorizontal: 18,
+          paddingTop: 12,
+          paddingBottom: insets.bottom + 16,
+          maxHeight: '85%',
+        }}
       >
-        <View
-          style={{
-            backgroundColor: '#fff',
-            borderTopLeftRadius: 22,
-            borderTopRightRadius: 22,
-            paddingHorizontal: 18,
-            paddingTop: 12,
-            paddingBottom: insets.bottom + 24,
-            maxHeight: '88%',
-          }}
-        >
           <View
             style={{
               width: 38,
@@ -192,7 +195,15 @@ function EditorBody({
             </Text>
           ) : null}
 
-          <ScrollView keyboardShouldPersistTaps="handled">
+          {/* flexShrink lets the list shrink within the sheet's maxHeight
+              and become scrollable when the content is taller than the
+              space above the keyboard (e.g. the 3-field password form). */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 4 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {editor.type === 'text' ? (
               <>
                 <TextInput
@@ -425,7 +436,6 @@ function EditorBody({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-    </View>
   );
 }
 
