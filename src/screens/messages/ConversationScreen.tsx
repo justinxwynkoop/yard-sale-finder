@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { uploadMessageImage } from '../../lib/messageImageUpload';
 import { SubHeader } from '../../components/SubHeader';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useConversation } from '../../hooks/useConversation';
@@ -53,8 +55,9 @@ function MessageBubble({
       <View
         style={{
           maxWidth: '78%',
-          paddingHorizontal: 13,
-          paddingVertical: 8,
+          // Image bubbles get a thin frame; text bubbles normal padding.
+          paddingHorizontal: message.image_url ? 4 : 13,
+          paddingVertical: message.image_url ? 4 : 8,
           borderRadius: 16,
           backgroundColor: isMine ? '#1F4D3A' : '#FFFFFF',
           borderBottomRightRadius: isMine && isTail ? 4 : 16,
@@ -63,16 +66,34 @@ function MessageBubble({
           borderColor: '#E5DECC',
         }}
       >
-        <Text
-          selectable
-          style={{
-            fontSize: 13.5,
-            color: isMine ? '#FFFFFF' : '#171513',
-            lineHeight: 19,
-          }}
-        >
-          {message.body}
-        </Text>
+        {message.image_url ? (
+          <Image
+            source={{ uri: message.image_url }}
+            style={{
+              width: 220,
+              height: 220,
+              borderRadius: 12,
+              backgroundColor: '#EFE8D6',
+              marginBottom: message.body ? 6 : 0,
+            }}
+            contentFit="cover"
+            transition={120}
+          />
+        ) : null}
+        {message.body ? (
+          <Text
+            selectable
+            style={{
+              fontSize: 13.5,
+              color: isMine ? '#FFFFFF' : '#171513',
+              lineHeight: 19,
+              paddingHorizontal: message.image_url ? 6 : 0,
+              paddingBottom: message.image_url ? 2 : 0,
+            }}
+          >
+            {message.body}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -228,6 +249,7 @@ export default function ConversationScreen() {
   // can't clobber what the user is typing.
   const [draft, setDraft] = useState(initialDraft ?? '');
   const [refreshing, setRefreshing] = useState(false);
+  const [attaching, setAttaching] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -337,6 +359,52 @@ export default function ConversationScreen() {
         'Could not send',
         sendErr.message ?? 'Please try again.',
       );
+    }
+  };
+
+  // Pick photo(s) from the library and send each as its own image
+  // message. Compress + upload happens in the helper; we send '' body
+  // so the row is image-only.
+  const handleAttach = async () => {
+    if (attaching || !user) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Photos permission needed',
+        'Allow photo access to send pictures.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: 6,
+      quality: 0.9,
+    });
+    if (result.canceled) return;
+    setAttaching(true);
+    try {
+      for (let i = 0; i < result.assets.length; i++) {
+        let url: string;
+        try {
+          url = await uploadMessageImage(
+            result.assets[i].uri,
+            user.id,
+            conversationId,
+            `${Date.now()}-${i}`,
+          );
+        } catch (e: any) {
+          Alert.alert('Upload failed', e?.message ?? 'Could not upload photo.');
+          break;
+        }
+        const { error: sendErr } = await send('', url);
+        if (sendErr) {
+          Alert.alert('Could not send', sendErr.message ?? 'Please try again.');
+          break;
+        }
+      }
+    } finally {
+      setAttaching(false);
     }
   };
 
@@ -477,9 +545,30 @@ export default function ConversationScreen() {
             borderTopColor: '#E5DECC',
           }}
         >
-          {/* No attach button: messages are text-only (the messages table
-              has no media). A decorative "+" that did nothing was removed
-              rather than implying an attachment feature that doesn't exist. */}
+          {/* Attach a photo. Opens the library, uploads to message-media,
+              and sends each pick as its own image message. */}
+          <Pressable
+            onPress={handleAttach}
+            disabled={attaching}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Add a photo"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: '#F7F2E8',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 8,
+            }}
+          >
+            {attaching ? (
+              <ActivityIndicator size="small" color="#54504A" />
+            ) : (
+              <Ionicons name="image-outline" size={18} color="#54504A" />
+            )}
+          </Pressable>
           <TextInput
             ref={inputRef}
             value={draft}

@@ -334,6 +334,9 @@ export interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
-  body: string;
+  /** Null for image-only messages. */
+  body: string | null;
+  /** Attached photo (message-media bucket public URL), if any. */
+  image_url?: string | null;
   created_at: string;
 }
