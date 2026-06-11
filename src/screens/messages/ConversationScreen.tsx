@@ -477,19 +477,9 @@ export default function ConversationScreen() {
             borderTopColor: '#E5DECC',
           }}
         >
-          <View
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 17,
-              backgroundColor: '#F7F2E8',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 8,
-            }}
-          >
-            <Ionicons name="add" size={18} color="#54504A" />
-          </View>
+          {/* No attach button: messages are text-only (the messages table
+              has no media). A decorative "+" that did nothing was removed
+              rather than implying an attachment feature that doesn't exist. */}
           <TextInput
             ref={inputRef}
             value={draft}
