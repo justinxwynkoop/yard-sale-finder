@@ -92,7 +92,7 @@ export default function ListingDetailScreen() {
       });
   }, [listingId]);
 
-  const handleMessageSeller = async () => {
+  const openConversation = async (initialDraft?: string) => {
     if (!listing) return;
     setStartingConversation(true);
     const { id, error: convErr } = await startConversation(
@@ -112,14 +112,47 @@ export default function ListingDetailScreen() {
       // initialized with InboxHome below Conversation. Otherwise React
       // Navigation lands Conversation as the stack root with no back
       // button. See navigationRef.ts for the rationale.
-      navigateToConversation(id);
+      navigateToConversation(id, { initialDraft });
     }
   };
 
-  const handleMakeOffer = async () => {
-    // Pre-fills the message composer with an offer template. For now,
-    // identical to Ask seller; richer offer UX can layer on later.
-    handleMessageSeller();
+  const handleMessageSeller = () => openConversation();
+
+  // "Make offer" = the same conversation thread, but with the composer
+  // pre-filled with an offer the buyer can edit before sending. On iOS
+  // we prompt for the amount (number pad); Android's Alert has no text
+  // prompt, so it falls back to a fill-in-the-amount template.
+  const handleMakeOffer = () => {
+    if (!listing) return;
+    const asking =
+      listing.price === 0 ? 'free' : `$${listing.price}`;
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Make an offer',
+        `Asking price is ${asking}. What would you like to offer?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Next',
+            onPress: (amount?: string) => {
+              const clean = (amount ?? '').replace(/[^0-9.]/g, '');
+              openConversation(
+                clean
+                  ? `Hi! Would you take $${clean} for "${listing.title}"?`
+                  : `Hi! Is the price on "${listing.title}" flexible? I'd like to make an offer.`,
+              );
+            },
+          },
+        ],
+        'plain-text',
+        '',
+        'decimal-pad',
+      );
+    } else {
+      openConversation(
+        `Hi! I'd like to make an offer on "${listing.title}". Would you take $`,
+      );
+    }
   };
 
   const handleMoreMenu = () => {
