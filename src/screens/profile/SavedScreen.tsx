@@ -1,5 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
@@ -33,7 +40,12 @@ type Segment = 'sales' | 'routes';
 export default function SavedScreen() {
   const navigation = useNavigation<any>();
   const [segment, setSegment] = useState<Segment>('sales');
-  const { favorites, toggle: toggleFavorite, refetch } = useFavorites();
+  const {
+    favorites,
+    toggle: toggleFavorite,
+    refetch,
+    loading,
+  } = useFavorites();
   const userLocation = useUserLocation();
 
   // Pull fresh saves whenever this screen is focused so the list always
@@ -242,10 +254,16 @@ export default function SavedScreen() {
             />
           )}
           ListEmptyComponent={
-            <EmptyState
-              title="Nothing saved yet"
-              description="Heart sales you want to revisit. They'll all live here."
-            />
+            loading ? (
+              <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+                <ActivityIndicator color={BRAND} />
+              </View>
+            ) : (
+              <EmptyState
+                title="Nothing saved yet"
+                description="Heart sales you want to revisit. They'll all live here."
+              />
+            )
           }
         />
       ) : (
