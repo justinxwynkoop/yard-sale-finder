@@ -1,8 +1,15 @@
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,7 +18,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { HeaderButton } from '../../components/ui';
@@ -235,6 +242,32 @@ export default function ConversationScreen() {
     setRefreshing(false);
   }, [refetch]);
   const inputRef = useRef<TextInput>(null);
+  const insets = useSafeAreaInsets();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Open the keyboard as soon as the thread opens — the user came here
+  // to type. Delayed so the push animation finishes first; focusing
+  // mid-transition is janky on iOS.
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 350);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Track the keyboard so the composer can fill the home-indicator area
+  // in white when it's DOWN (no weird bone gap under the input bar),
+  // without leaving a gap above the keyboard when it's UP.
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const h = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      s.remove();
+      h.remove();
+    };
+  }, []);
   // Exact pixel height of React Navigation's header, including the
   // safe-area top inset. Pass to KeyboardAvoidingView as the vertical
   // offset so the avoidance math is correct -- a hardcoded guess
@@ -365,36 +398,29 @@ export default function ConversationScreen() {
 
   if (error) {
     return (
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: '#F7F2E8' }}
-        edges={['bottom']}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#F7F2E8',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          gap: 8,
+        }}
       >
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
-            gap: 8,
-          }}
-        >
-          <Ionicons name="cloud-offline-outline" size={36} color="#A1A1AA" />
-          <Text style={{ fontSize: 17, fontWeight: '600', color: '#18181B' }}>
-            Couldn&rsquo;t load this conversation
-          </Text>
-          <Text style={{ fontSize: 13, color: '#71717A', textAlign: 'center' }}>
-            {error}
-          </Text>
-        </View>
-      </SafeAreaView>
+        <Ionicons name="cloud-offline-outline" size={36} color="#A1A1AA" />
+        <Text style={{ fontSize: 17, fontWeight: '600', color: '#18181B' }}>
+          Couldn&rsquo;t load this conversation
+        </Text>
+        <Text style={{ fontSize: 13, color: '#71717A', textAlign: 'center' }}>
+          {error}
+        </Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: '#F7F2E8' }}
-      edges={['bottom']}
-    >
+    <View style={{ flex: 1, backgroundColor: '#F7F2E8' }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -475,7 +501,12 @@ export default function ConversationScreen() {
             alignItems: 'center',
             backgroundColor: '#FFFFFF',
             paddingHorizontal: 12,
-            paddingVertical: 10,
+            paddingTop: 10,
+            // When the keyboard is down, extend the white bar through the
+            // home-indicator inset so it fills to the screen edge instead
+            // of floating above a bone strip. When it's up, the keyboard
+            // covers that area, so just a normal 10.
+            paddingBottom: keyboardOpen ? 10 : Math.max(insets.bottom, 10),
             borderTopWidth: 1,
             borderTopColor: '#E5DECC',
           }}
@@ -534,7 +565,7 @@ export default function ConversationScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
