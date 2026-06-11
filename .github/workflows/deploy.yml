@@ -1,0 +1,39 @@
+name: Deploy preview OTA
+
+# Every merge to main publishes an OTA update to the `preview` channel,
+# so internal testers on a preview build pick up the change on next app
+# open. PRODUCTION is deliberately NOT auto-shipped — a maintainer cuts
+# prod releases by hand (`npm run ota` / `npm run ship:beta`) after
+# pushing any pending DB migrations. See docs/PIPELINE.md §6.
+#
+# Env note: `eas update` bundles JS using the committed .env (same as a
+# local `npm run ota:preview`), so the update points at whichever
+# Supabase project .env names — staging, once Phase 2 lands.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-preview
+  cancel-in-progress: true
+
+jobs:
+  ota-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish OTA to preview channel
+        run: npx eas update --branch preview --non-interactive --message "${COMMIT_MESSAGE}"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Pass via env var to avoid shell-injection from commit text.
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
