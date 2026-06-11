@@ -8,9 +8,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { usePhoneVerification } from '../hooks/usePhoneVerification';
 
 const BRAND = '#1F4D3A';
 const INK = '#171513';
@@ -132,6 +134,44 @@ function EditorBody({
   const [pwCurrent, setPwCurrent] = useState('');
   const [pwNext, setPwNext] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
+
+  // Phone-verification (OTP) state.
+  const { sendCode, verifyCode } = usePhoneVerification();
+  const [phStep, setPhStep] = useState<'enter' | 'code'>('enter');
+  const [phE164, setPhE164] = useState('');
+  const [phCode, setPhCode] = useState('');
+  const [phBusy, setPhBusy] = useState(false);
+  const [phErr, setPhErr] = useState<string | null>(null);
+
+  const onSendCode = async () => {
+    setPhBusy(true);
+    setPhErr(null);
+    const { phone, error } = await sendCode(text);
+    setPhBusy(false);
+    if (error) {
+      const m = (error.message ?? '').toLowerCase();
+      setPhErr(
+        /provider|sms|unsupported|not enabled|disabled/.test(m)
+          ? 'Phone verification isn’t available yet — please try again later.'
+          : error.message ?? 'Could not send a code.',
+      );
+      return;
+    }
+    setPhE164(phone);
+    setPhStep('code');
+  };
+
+  const onVerifyCode = async () => {
+    setPhBusy(true);
+    setPhErr(null);
+    const { error } = await verifyCode(phE164, phCode);
+    setPhBusy(false);
+    if (error) {
+      setPhErr('That code didn’t work. Double-check it and try again.');
+      return;
+    }
+    onClose(); // hook already updated the profile + invalidated it
+  };
 
   return (
     // KeyboardAvoidingView must own the full modal height (flex: 1) so
@@ -292,30 +332,124 @@ function EditorBody({
 
             {editor.type === 'verifyPhone' ? (
               <>
-                <TextInput
-                  autoFocus
-                  value={text}
-                  onChangeText={setText}
-                  placeholder="+1 (___) ___-____"
-                  placeholderTextColor={INK_MUTED}
-                  keyboardType="phone-pad"
-                  style={{ ...inputBase, borderColor: BRAND }}
-                />
-                <Text
+                {phStep === 'enter' ? (
+                  <>
+                    <TextInput
+                      autoFocus
+                      value={text}
+                      onChangeText={setText}
+                      placeholder="+1 (___) ___-____"
+                      placeholderTextColor={INK_MUTED}
+                      keyboardType="phone-pad"
+                      editable={!phBusy}
+                      style={{ ...inputBase, borderColor: BRAND }}
+                    />
+                    <Text
+                      style={{
+                        marginTop: 12,
+                        fontSize: 12.5,
+                        color: INK_SOFT,
+                        lineHeight: 18,
+                      }}
+                    >
+                      We’ll text a 6-digit code to confirm it’s you. Verified
+                      numbers get a trust badge; your number is never shown
+                      publicly.
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text
+                      style={{
+                        marginBottom: 10,
+                        fontSize: 13,
+                        color: INK_SOFT,
+                        lineHeight: 18,
+                      }}
+                    >
+                      Enter the code we texted to{' '}
+                      <Text style={{ fontWeight: '700', color: INK }}>
+                        {phE164}
+                      </Text>
+                      .
+                    </Text>
+                    <TextInput
+                      autoFocus
+                      value={phCode}
+                      onChangeText={setPhCode}
+                      placeholder="123456"
+                      placeholderTextColor={INK_MUTED}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      editable={!phBusy}
+                      style={{
+                        ...inputBase,
+                        borderColor: BRAND,
+                        letterSpacing: 6,
+                        fontSize: 20,
+                        textAlign: 'center',
+                      }}
+                    />
+                    <Pressable
+                      onPress={() => {
+                        setPhStep('enter');
+                        setPhCode('');
+                        setPhErr(null);
+                      }}
+                      hitSlop={6}
+                      style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                    >
+                      <Text
+                        style={{ fontSize: 12.5, fontWeight: '700', color: BRAND }}
+                      >
+                        Use a different number
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+
+                {phErr ? (
+                  <Text
+                    style={{
+                      marginTop: 10,
+                      fontSize: 12.5,
+                      color: ROSE,
+                      lineHeight: 17,
+                    }}
+                  >
+                    {phErr}
+                  </Text>
+                ) : null}
+
+                <Pressable
+                  onPress={phStep === 'enter' ? onSendCode : onVerifyCode}
+                  disabled={
+                    phBusy ||
+                    (phStep === 'enter' ? !text.trim() : phCode.length < 6)
+                  }
                   style={{
-                    marginTop: 12,
-                    fontSize: 12.5,
-                    color: INK_SOFT,
-                    lineHeight: 18,
+                    marginTop: 18,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    backgroundColor:
+                      phBusy ||
+                      (phStep === 'enter' ? !text.trim() : phCode.length < 6)
+                        ? '#C7C1B0'
+                        : BRAND,
                   }}
+                  accessibilityRole="button"
                 >
-                  Saved to your account and never shown publicly. Phone
-                  verification (with a trust badge) is coming soon.
-                </Text>
-                <PrimaryButton
-                  label="Save number"
-                  onPress={() => onSave(editor.key, text)}
-                />
+                  {phBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text
+                      style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}
+                    >
+                      {phStep === 'enter' ? 'Send code' : 'Verify'}
+                    </Text>
+                  )}
+                </Pressable>
               </>
             ) : null}
 
