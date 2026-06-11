@@ -70,6 +70,13 @@ export function usePushNotifications() {
           lightColor: '#1F4D3A',
           sound: 'default',
         });
+        // New sales from hosts you follow (notify-new-sale edge function).
+        await Notifications.setNotificationChannelAsync('sales', {
+          name: 'New sales from people you follow',
+          importance: Notifications.AndroidImportance.DEFAULT,
+          lightColor: '#1F4D3A',
+          sound: 'default',
+        });
       }
 
       // ── 4. Fetch Expo Push Token ───────────────────────────────────

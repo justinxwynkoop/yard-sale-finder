@@ -16,7 +16,11 @@ import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/usePro
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useInbox } from '../hooks/useInbox';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import { navigationRef, navigateToConversation } from '../lib/navigationRef';
+import {
+  navigationRef,
+  navigateToConversation,
+  navigateToSale,
+} from '../lib/navigationRef';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -389,14 +393,16 @@ function MainTabs() {
   useEffect(() => {
     // Cold-start: getLastNotificationResponseAsync returns the notification
     // that launched the app (or null if the user opened it normally).
+    const route = (data: any) => {
+      if (data?.conversationId) navigateToConversation(data.conversationId as string);
+      else if (data?.saleId) navigateToSale(data.saleId as string);
+    };
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      const id = response?.notification.request.content.data?.conversationId;
-      if (id) navigateToConversation(id as string);
+      route(response?.notification.request.content.data);
     });
 
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const id = response.notification.request.content.data?.conversationId;
-      if (id) navigateToConversation(id as string);
+      route(response.notification.request.content.data);
     });
     return () => sub.remove();
   }, []);

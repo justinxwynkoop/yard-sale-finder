@@ -38,3 +38,17 @@ export function navigateToConversation(
     },
   } as any);
 }
+
+/**
+ * Open a sale's detail on the Map tab — used by the "new sale from a host
+ * you follow" push-notification tap. Focus the Map tab first so SaleDetail
+ * has the map below it, then push the detail via the nested-screen form.
+ */
+export function navigateToSale(saleId: string) {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Main' as any, { screen: 'Map' } as any);
+  navigationRef.navigate('Main' as any, {
+    screen: 'Map',
+    params: { screen: 'SaleDetail', params: { saleId } },
+  } as any);
+}
