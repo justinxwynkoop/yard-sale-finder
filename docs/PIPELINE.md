@@ -29,6 +29,16 @@ staging → prod under review** instead of straight to live.
 
 ---
 
+> **STATUS (June 2026): the staging Supabase project is DEFERRED** — the
+> free-tier project limit makes it more friction than it's worth
+> pre-launch, so all environments currently share the one prod project.
+> Mitigations in place until the split happens: `npm run db:reset` and
+> `npm run ota` are gated behind a type-`prod`-to-confirm guard
+> (scripts/confirm-prod.sh), migrations only land via reviewed PRs, and
+> seed data is `[seed]`/`[seed2]`-tagged with cleanup blocks. Revisit
+> the split (§2 below) before launch or once a free slot / Pro org
+> exists.
+
 ## 2. Environments
 
 | Environment | Supabase project | EAS profile | EAS channel | Who runs it | Data |
