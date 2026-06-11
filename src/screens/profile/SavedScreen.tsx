@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { SubHeader } from '../../components/SubHeader';
 import SaleCard from '../../components/SaleCard';
@@ -33,8 +33,16 @@ type Segment = 'sales' | 'routes';
 export default function SavedScreen() {
   const navigation = useNavigation<any>();
   const [segment, setSegment] = useState<Segment>('sales');
-  const { favorites, toggle: toggleFavorite } = useFavorites();
+  const { favorites, toggle: toggleFavorite, refetch } = useFavorites();
   const userLocation = useUserLocation();
+
+  // Pull fresh saves whenever this screen is focused so the list always
+  // matches the count shown on Profile (and reaps any orphaned rows).
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   // Sort by distance, then push ended sales to the bottom — they're
   // still here for the user's reference but shouldn't crowd live ones.

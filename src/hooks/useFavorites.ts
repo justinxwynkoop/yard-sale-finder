@@ -82,11 +82,25 @@ export function useFavorites() {
       .select('sale_id, sale:sales(*, media:sale_media(*))')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
-    const sales: Sale[] = (data ?? [])
-      .map((row: any) => row.sale)
-      .filter(Boolean);
+    const rows = data ?? [];
+    const sales: Sale[] = rows.map((row: any) => row.sale).filter(Boolean);
     _setFavorites(sales);
     _setLoading(false);
+
+    // Reap orphaned favorites: rows whose sale was deleted resolve to a
+    // null `sale` here. Left in place they inflate the saved count above
+    // the visible list ("3 saved" → opens to nothing → count drops to 0).
+    // Fire-and-forget delete so the table matches what we can actually show.
+    const orphanIds = rows
+      .filter((r: any) => !r.sale)
+      .map((r: any) => r.sale_id);
+    if (orphanIds.length > 0) {
+      supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .in('sale_id', orphanIds);
+    }
     // Stable user id, not the churning user object (see useAuth).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);

@@ -288,30 +288,6 @@ export default function ProfileScreen() {
           </View>
         </Pressable>
 
-        {/* Stats row */}
-        <View style={{ marginTop: 12, flexDirection: 'row' }}>
-          <StatTile
-            value={favorites.length}
-            group="Saved"
-            sub="sales"
-            onPress={() => navigation.navigate('Saved')}
-          />
-          <View style={{ width: 8 }} />
-          <StatTile
-            value={sales.length}
-            group="Your"
-            sub="sales"
-            onPress={() => navigation.navigate('MySales')}
-          />
-          <View style={{ width: 8 }} />
-          <StatTile
-            value={listings.length}
-            group="Your"
-            sub="items"
-            onPress={() => navigation.navigate('MyListings')}
-          />
-        </View>
-
         {/* MANAGE */}
         <SectionLabel>Manage</SectionLabel>
         <RowList>
@@ -435,56 +411,6 @@ export default function ProfileScreen() {
         onClose={() => setDebugOpen(false)}
       />
     </SafeAreaView>
-  );
-}
-
-function StatTile({
-  value,
-  group,
-  sub,
-  onPress,
-}: {
-  value: number;
-  group: string;
-  sub: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        flex: 1,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: HAIRLINE,
-        padding: 12,
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={`${group} ${sub}: ${value}`}
-    >
-      <Text
-        style={{
-          fontSize: 22,
-          fontWeight: '800',
-          color: BRAND,
-          letterSpacing: -0.5,
-          lineHeight: 22,
-          fontVariant: ['tabular-nums'],
-        }}
-      >
-        {value}
-      </Text>
-      {/* Two-tone label: the group word reads darker/bolder, the sub
-          word recedes — matches the stat-tile labels in 09-profile.png. */}
-      {/* The two words differ by COLOR, not weight — the group word is
-          darker ink, the sub recedes. Matches the prototype, which does
-          not bold the group word. */}
-      <Text style={{ marginTop: 4, fontSize: 11 }}>
-        <Text style={{ color: INK_SOFT, fontWeight: '500' }}>{group}</Text>
-        <Text style={{ color: INK_MUTED, fontWeight: '500' }}>{` ${sub}`}</Text>
-      </Text>
-    </Pressable>
   );
 }
 
