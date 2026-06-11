@@ -268,6 +268,18 @@ export default function ConversationScreen() {
       h.remove();
     };
   }, []);
+
+  // When we arrive here via navigateToConversation (Message-seller button,
+  // push-notification tap), React Navigation leaves a sticky
+  // { screen: 'Conversation' } param on the Inbox TAB route — so every
+  // later tap of the Messages tab would re-open this thread. The thread
+  // is already pushed by now, so wipe that param off the parent tab route.
+  useEffect(() => {
+    navigation.getParent()?.setParams({
+      screen: undefined,
+      params: undefined,
+    } as never);
+  }, [navigation]);
   // Exact pixel height of React Navigation's header, including the
   // safe-area top inset. Pass to KeyboardAvoidingView as the vertical
   // offset so the avoidance math is correct -- a hardcoded guess

@@ -1,7 +1,4 @@
-import {
-  CommonActions,
-  createNavigationContainerRef,
-} from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 
 /**
@@ -17,18 +14,15 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
  * Safe to call at any time — no-ops silently if the nav tree isn't
  * ready yet (which can happen on cold-start from a notification).
  *
- * Two dispatches, deliberately:
- * 1. Focus the Inbox tab (mounts InboxHome as the stack root, so the
- *    thread always has a back destination).
- * 2. A BARE navigate to Conversation, which the root can't handle and
- *    passes down to the now-focused Messages stack.
+ * Two dispatches: focus the Inbox tab (so InboxHome sits below the
+ * thread, giving it a back destination), then open Conversation via the
+ * nested-screen form — the only way to reach a screen inside the
+ * Messages stack from the root container ref.
  *
- * We must NOT use the nested-screen form
- * `navigate('Main', { screen: 'Inbox', params: { screen: 'Conversation' }})`
- * — that stores `screen: 'Conversation'` as a persistent param on the
- * Inbox TAB route, and every later press of the Messages tab re-applies
- * it, bouncing the user back into the thread they already left (even
- * with popToTopOnBlur resetting the stack).
+ * The nested form leaves `screen: 'Conversation'` as a sticky param on
+ * the Inbox TAB route, which would otherwise bounce the user back into
+ * the thread every time they re-tap the Messages tab. ConversationScreen
+ * clears that param on mount (see its effect) once the thread is open.
  */
 export function navigateToConversation(
   conversationId: string,
@@ -36,10 +30,11 @@ export function navigateToConversation(
 ) {
   if (!navigationRef.isReady()) return;
   navigationRef.navigate('Main' as any, { screen: 'Inbox' } as any);
-  navigationRef.dispatch(
-    CommonActions.navigate({
-      name: 'Conversation',
+  navigationRef.navigate('Main' as any, {
+    screen: 'Inbox',
+    params: {
+      screen: 'Conversation',
       params: { conversationId, initialDraft: opts?.initialDraft },
-    }),
-  );
+    },
+  } as any);
 }
