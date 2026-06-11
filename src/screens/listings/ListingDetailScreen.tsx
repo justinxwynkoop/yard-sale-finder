@@ -92,7 +92,7 @@ export default function ListingDetailScreen() {
       });
   }, [listingId]);
 
-  const openConversation = async (initialDraft?: string) => {
+  const handleMessageSeller = async () => {
     if (!listing) return;
     setStartingConversation(true);
     const { id, error: convErr } = await startConversation(
@@ -112,46 +112,7 @@ export default function ListingDetailScreen() {
       // initialized with InboxHome below Conversation. Otherwise React
       // Navigation lands Conversation as the stack root with no back
       // button. See navigationRef.ts for the rationale.
-      navigateToConversation(id, { initialDraft });
-    }
-  };
-
-  const handleMessageSeller = () => openConversation();
-
-  // "Make offer" = the same conversation thread, but with the composer
-  // pre-filled with an offer the buyer can edit before sending. On iOS
-  // we prompt for the amount (number pad); Android's Alert has no text
-  // prompt, so it falls back to a fill-in-the-amount template.
-  const handleMakeOffer = () => {
-    if (!listing) return;
-    const asking =
-      listing.price === 0 ? 'free' : `$${listing.price}`;
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Make an offer',
-        `Asking price is ${asking}. What would you like to offer?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Next',
-            onPress: (amount?: string) => {
-              const clean = (amount ?? '').replace(/[^0-9.]/g, '');
-              openConversation(
-                clean
-                  ? `Hi! Would you take $${clean} for "${listing.title}"?`
-                  : `Hi! Is the price on "${listing.title}" flexible? I'd like to make an offer.`,
-              );
-            },
-          },
-        ],
-        'plain-text',
-        '',
-        'decimal-pad',
-      );
-    } else {
-      openConversation(
-        `Hi! I'd like to make an offer on "${listing.title}". Would you take $`,
-      );
+      navigateToConversation(id);
     }
   };
 
@@ -650,39 +611,19 @@ export default function ListingDetailScreen() {
           }}
         >
           <Pressable
-            onPress={handleMakeOffer}
-            style={{
-              flex: 1,
-              borderWidth: 2,
-              borderColor: BRAND,
-              borderRadius: 12,
-              paddingVertical: 12,
-              alignItems: 'center',
-              marginRight: 10,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Make offer"
-          >
-            <Text
-              style={{ color: BRAND, fontSize: 13, fontWeight: '700' }}
-            >
-              Make offer
-            </Text>
-          </Pressable>
-          <Pressable
             onPress={handleMessageSeller}
             disabled={startingConversation}
             style={{
               flex: 1,
               backgroundColor: BRAND,
               borderRadius: 12,
-              paddingVertical: 12,
+              paddingVertical: 14,
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
             }}
             accessibilityRole="button"
-            accessibilityLabel="Ask seller"
+            accessibilityLabel="Message seller"
           >
             {startingConversation ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -696,12 +637,12 @@ export default function ListingDetailScreen() {
                 <Text
                   style={{
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: '700',
                     marginLeft: 6,
                   }}
                 >
-                  Ask seller
+                  Message seller
                 </Text>
               </>
             )}
