@@ -378,7 +378,7 @@ export default function AuthScreen() {
             <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder={isSignIn ? 'Your password' : 'At least 6 characters'}
+              placeholder={isSignIn ? 'Enter your password' : 'At least 6 characters'}
               placeholderTextColor={INK_MUTED}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
@@ -490,14 +490,16 @@ export default function AuthScreen() {
           )}
 
           {/* Google — always shown */}
-          <SocialButton
-            label="Continue with Google"
-            iconName="logo-google"
-            iconColor="#4285F4"
-            onPress={() => signInWithProvider('google')}
-            loading={busy === 'google'}
-            disabled={busy !== null}
-          />
+          <View style={{ marginBottom: 10 }}>
+            <SocialButton
+              label="Continue with Google"
+              iconName="logo-google"
+              iconColor="#4285F4"
+              onPress={() => signInWithProvider('google')}
+              loading={busy === 'google'}
+              disabled={busy !== null}
+            />
+          </View>
 
           {/* Facebook — revealed via "More ways to sign in" */}
           {!showSocial ? (
@@ -816,22 +818,35 @@ function SocialButton({
   loading: boolean;
   disabled: boolean;
 }) {
+  // Matches the native Apple button's footprint (52h / radius 13) and
+  // centers icon+label so the three SSO buttons read as one consistent
+  // stack. White fill + bone hairline (not zinc) to fit the palette.
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={[
-        'h-14 flex-row items-center rounded-2xl border border-zinc-200 bg-white px-4 active:bg-zinc-50',
-        disabled ? 'opacity-50' : '',
-      ].join(' ')}
+      style={{
+        height: 52,
+        borderRadius: 13,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: HAIRLINE,
+        opacity: disabled ? 0.5 : 1,
+      }}
     >
-      <View className="mr-3 h-9 w-9 items-center justify-center rounded-xl bg-zinc-50">
-        <Ionicons name={iconName} size={20} color={iconColor} />
-      </View>
       {loading ? (
-        <ActivityIndicator color="#333" />
+        <ActivityIndicator color={INK} />
       ) : (
-        <Text className="text-base font-semibold text-zinc-900">{label}</Text>
+        <>
+          <Ionicons name={iconName} size={18} color={iconColor} />
+          <Text style={{ fontSize: 14.5, fontWeight: '600', color: INK }}>
+            {label}
+          </Text>
+        </>
       )}
     </Pressable>
   );
