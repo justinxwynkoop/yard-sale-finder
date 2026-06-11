@@ -246,12 +246,21 @@ export default function ConversationScreen() {
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   // Open the keyboard as soon as the thread opens — the user came here
-  // to type. Delayed so the push animation finishes first; focusing
-  // mid-transition is janky on iOS.
+  // to type. Focus on the navigation transitionEnd (focusing during the
+  // push animation is a race iOS loses — the view isn't first-responder
+  // yet), with a delayed fallback for paths that animate-less (e.g. the
+  // double-dispatch from navigateToConversation).
   useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 350);
-    return () => clearTimeout(t);
-  }, []);
+    const focusInput = () => inputRef.current?.focus();
+    const unsub = navigation.addListener('transitionEnd', (e: any) => {
+      if (!e?.data?.closing) focusInput();
+    });
+    const t = setTimeout(focusInput, 500);
+    return () => {
+      unsub();
+      clearTimeout(t);
+    };
+  }, [navigation]);
 
   // Track the keyboard so the composer can fill the home-indicator area
   // in white when it's DOWN (no weird bone gap under the input bar),
