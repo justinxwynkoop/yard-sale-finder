@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   ActivityIndicator,
   Alert,
@@ -10,17 +11,24 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { SafeAreaView as SafeAreaViewRN } from 'react-native-safe-area-context';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView as SafeAreaViewRN , SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
-import { Button, Input } from '../../components/ui';
+import { HeaderButton } from '../../components/ui';
 import { RootStackParamList } from '../../types';
+
+const BONE = '#F7F2E8';
+const CREAM = '#EFE8D6';
+const BRAND = '#1F4D3A';
+const INK = '#171513';
+const INK_SOFT = '#54504A';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -30,9 +38,11 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
 export default function AuthScreen() {
   const navigation = useNavigation<Nav>();
-  const [mode, setMode] = useState<Mode>('signup');
+  const route = useRoute<RouteProp<RootStackParamList, 'Auth'>>();
+  const [mode, setMode] = useState<Mode>(route.params?.mode ?? 'signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState<null | 'email' | Provider>(null);
   const [showSocial, setShowSocial] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -214,7 +224,20 @@ export default function AuthScreen() {
   const isSignIn = mode === 'signin';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
+      {/* Back to Welcome */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
+        <HeaderButton
+          onPress={() =>
+            navigation.canGoBack()
+              ? navigation.goBack()
+              : navigation.navigate('Welcome')
+          }
+          variant="tile"
+          accessibilityLabel="Back"
+        />
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -223,158 +246,233 @@ export default function AuthScreen() {
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: 24,
-            paddingTop: 32,
-            paddingBottom: 32,
+            paddingTop: 8,
+            paddingBottom: 28,
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero (compact) */}
-          <View className="mb-6 items-center">
-            <View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-brand">
-              <Ionicons name="pricetag" size={32} color="#fff" />
+          {/* Brand mark + title */}
+          <View style={{ alignItems: 'center', marginTop: 6, marginBottom: 20 }}>
+            <View
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 18,
+                backgroundColor: BRAND,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: BRAND,
+                shadowOpacity: 0.27,
+                shadowRadius: 20,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 6,
+              }}
+            >
+              <Ionicons name="pricetag" size={28} color="#fff" />
             </View>
-            <Text className="text-center text-2xl font-extrabold text-zinc-900">
+            <Text
+              style={{
+                fontSize: 23,
+                fontWeight: '800',
+                color: INK,
+                letterSpacing: -0.5,
+                marginTop: 14,
+              }}
+            >
               {isSignIn ? 'Welcome back' : 'Create your account'}
             </Text>
-            <Text className="mt-1 text-center text-sm text-zinc-500">
+            <Text
+              style={{
+                fontSize: 13.5,
+                color: INK_SOFT,
+                marginTop: 4,
+                textAlign: 'center',
+              }}
+            >
               {isSignIn
                 ? 'Sign in to host or save sales.'
-                : 'Sign up to start posting sales.'}
+                : 'Join your neighborhood marketplace.'}
             </Text>
           </View>
 
-          {/* Mode switcher — explicit inline styles so it can't be invisible */}
+          {/* Mode toggle */}
           <View
             style={{
               flexDirection: 'row',
-              alignSelf: 'center',
-              backgroundColor: '#F4F4F5',
+              alignSelf: 'stretch',
+              backgroundColor: CREAM,
               padding: 4,
               borderRadius: 999,
               marginBottom: 20,
             }}
           >
-            <Pressable
-              onPress={() => setMode('signin')}
-              style={{
-                paddingHorizontal: 24,
-                paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: isSignIn ? '#FFFFFF' : 'transparent',
-                shadowColor: '#000',
-                shadowOpacity: isSignIn ? 0.08 : 0,
-                shadowRadius: 4,
-                shadowOffset: { width: 0, height: 1 },
-                elevation: isSignIn ? 2 : 0,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: isSignIn ? '#18181B' : '#71717A',
-                }}
-              >
-                Sign in
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setMode('signup')}
-              style={{
-                paddingHorizontal: 24,
-                paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: !isSignIn ? '#FFFFFF' : 'transparent',
-                shadowColor: '#000',
-                shadowOpacity: !isSignIn ? 0.08 : 0,
-                shadowRadius: 4,
-                shadowOffset: { width: 0, height: 1 },
-                elevation: !isSignIn ? 2 : 0,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: !isSignIn ? '#18181B' : '#71717A',
-                }}
-              >
-                Sign up
-              </Text>
-            </Pressable>
+            {(['signin', 'signup'] as Mode[]).map((m) => {
+              const on = mode === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => setMode(m)}
+                  style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    paddingVertical: 9,
+                    borderRadius: 999,
+                    backgroundColor: on ? '#fff' : 'transparent',
+                    shadowColor: '#000',
+                    shadowOpacity: on ? 0.1 : 0,
+                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 1 },
+                    elevation: on ? 2 : 0,
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13.5,
+                      fontWeight: '700',
+                      color: on ? INK : INK_MUTED,
+                    }}
+                  >
+                    {m === 'signin' ? 'Sign in' : 'Sign up'}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          {/* Email form */}
-          <View style={{ gap: 12 }}>
-            <Input
-              label="Email"
+          {/* Email */}
+          <FieldLabel>Email</FieldLabel>
+          <View style={{ position: 'relative' }}>
+            <Ionicons
+              name="mail-outline"
+              size={16}
+              color={INK_MUTED}
+              style={{ position: 'absolute', left: 13, top: 15 }}
+            />
+            <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="you@example.com"
+              placeholder="you@email.com"
+              placeholderTextColor={INK_MUTED}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="email"
-              leftIcon={
-                <Ionicons name="mail-outline" size={18} color="#71717A" />
-              }
+              style={authInput}
             />
-            <Input
-              label="Password"
+          </View>
+
+          <View style={{ height: 14 }} />
+
+          {/* Password */}
+          <FieldLabel>Password</FieldLabel>
+          <View style={{ position: 'relative' }}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={16}
+              color={INK_MUTED}
+              style={{ position: 'absolute', left: 13, top: 15 }}
+            />
+            <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 6 characters"
-              secureTextEntry
+              placeholder={isSignIn ? 'Your password' : 'At least 6 characters'}
+              placeholderTextColor={INK_MUTED}
+              secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
-              autoComplete={
-                mode === 'signup' ? 'new-password' : 'current-password'
-              }
-              leftIcon={
-                <Ionicons name="lock-closed-outline" size={18} color="#71717A" />
-              }
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              style={{ ...authInput, paddingRight: 56 }}
             />
-            {isSignIn && (
-              <Pressable
-                onPress={() => navigation.navigate('ForgotPassword')}
-                hitSlop={8}
-              >
-                <Text className="text-right text-sm font-semibold text-brand">
-                  Forgot password?
-                </Text>
-              </Pressable>
-            )}
-            <Button
-              size="lg"
-              onPress={submitEmail}
-              loading={busy === 'email'}
-              disabled={busy !== null}
+            <Pressable
+              onPress={() => setShowPassword((s) => !s)}
+              hitSlop={8}
+              style={{ position: 'absolute', right: 13, top: 14 }}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
             >
-              {isSignIn ? 'Sign in' : 'Create account'}
-            </Button>
-
-            {/* Helpful inline link to opposite mode */}
-            <Pressable onPress={() => setMode(isSignIn ? 'signup' : 'signin')}>
-              <Text className="text-center text-sm text-zinc-500">
-                {isSignIn ? "Don't have an account? " : 'Already have one? '}
-                <Text className="font-semibold text-brand">
-                  {isSignIn ? 'Sign up' : 'Sign in'}
-                </Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: BRAND }}>
+                {showPassword ? 'Hide' : 'Show'}
               </Text>
             </Pressable>
           </View>
 
+          {isSignIn && (
+            <Pressable
+              onPress={() => navigation.navigate('ForgotPassword')}
+              hitSlop={8}
+              style={{ alignSelf: 'flex-end', marginTop: 10 }}
+            >
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: BRAND }}>
+                Forgot password?
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Primary CTA */}
+          <Pressable
+            onPress={submitEmail}
+            disabled={busy !== null}
+            style={{
+              marginTop: isSignIn ? 14 : 18,
+              paddingVertical: 15,
+              borderRadius: 14,
+              alignItems: 'center',
+              backgroundColor: BRAND,
+              opacity: busy !== null && busy !== 'email' ? 0.6 : 1,
+            }}
+            accessibilityRole="button"
+          >
+            {busy === 'email' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
+                {isSignIn ? 'Sign in' : 'Create account'}
+              </Text>
+            )}
+          </Pressable>
+
+          {/* Inline mode swap */}
+          <Pressable
+            onPress={() => setMode(isSignIn ? 'signup' : 'signin')}
+            style={{ marginTop: 14 }}
+          >
+            <Text style={{ textAlign: 'center', fontSize: 13, color: INK_MUTED }}>
+              {isSignIn ? "Don't have an account? " : 'Already have one? '}
+              <Text style={{ fontWeight: '700', color: BRAND }}>
+                {isSignIn ? 'Sign up' : 'Sign in'}
+              </Text>
+            </Text>
+          </Pressable>
+
           {/* Divider */}
-          <View className="my-6 flex-row items-center">
-            <View className="h-px flex-1 bg-zinc-200" />
-            <Text className="mx-3 text-xs uppercase tracking-wider text-zinc-400">
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: 22,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flex: 1, height: 1, backgroundColor: HAIRLINE }} />
+            <Text
+              style={{
+                marginHorizontal: 12,
+                fontSize: 11,
+                color: INK_MUTED,
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                fontWeight: '600',
+              }}
+            >
               or
             </Text>
-            <View className="h-px flex-1 bg-zinc-200" />
+            <View style={{ flex: 1, height: 1, backgroundColor: HAIRLINE }} />
           </View>
 
-          {/* Apple Sign In — iOS only, requires a dev build (not Expo Go) */}
+          {/* Apple — real native button on iOS where available */}
           {appleAvailable && (
             <View style={{ marginBottom: 10 }}>
               <AppleAuthentication.AppleAuthenticationButton
@@ -384,33 +482,35 @@ export default function AuthScreen() {
                 buttonStyle={
                   AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                 }
-                cornerRadius={16}
-                style={{ width: '100%', height: 56 }}
+                cornerRadius={13}
+                style={{ width: '100%', height: 52 }}
                 onPress={signInWithApple}
               />
             </View>
           )}
 
-          {/* Other providers (Google / Facebook) — collapsed by default */}
+          {/* Google — always shown */}
+          <SocialButton
+            label="Continue with Google"
+            iconName="logo-google"
+            iconColor="#4285F4"
+            onPress={() => signInWithProvider('google')}
+            loading={busy === 'google'}
+            disabled={busy !== null}
+          />
+
+          {/* Facebook — revealed via "More ways to sign in" */}
           {!showSocial ? (
             <Pressable
               onPress={() => setShowSocial(true)}
-              className="items-center py-2"
+              style={{ alignItems: 'center', paddingVertical: 10, marginTop: 4 }}
             >
-              <Text className="text-sm font-semibold text-brand">
-                Continue with Google or Facebook
+              <Text style={{ fontSize: 13, fontWeight: '700', color: BRAND }}>
+                More ways to sign in
               </Text>
             </Pressable>
           ) : (
-            <View style={{ gap: 10 }}>
-              <SocialButton
-                label="Continue with Google"
-                iconName="logo-google"
-                iconColor="#4285F4"
-                onPress={() => signInWithProvider('google')}
-                loading={busy === 'google'}
-                disabled={busy !== null}
-              />
+            <View style={{ marginTop: 10 }}>
               <SocialButton
                 label="Continue with Facebook"
                 iconName="logo-facebook"
@@ -422,17 +522,26 @@ export default function AuthScreen() {
             </View>
           )}
 
-          <Text className="mt-8 text-center text-xs leading-5 text-zinc-400">
+          {/* Legal */}
+          <Text
+            style={{
+              marginTop: 22,
+              textAlign: 'center',
+              fontSize: 11.5,
+              lineHeight: 18,
+              color: INK_MUTED,
+            }}
+          >
             {'By continuing, you agree to our '}
             <Text
-              className="font-semibold text-zinc-600"
+              style={{ fontWeight: '700', color: INK_SOFT }}
               onPress={() => setLegalModal('terms')}
             >
               Terms of Service
             </Text>
             {' and '}
             <Text
-              className="font-semibold text-zinc-600"
+              style={{ fontWeight: '700', color: INK_SOFT }}
               onPress={() => setLegalModal('privacy')}
             >
               Privacy Policy
@@ -447,12 +556,42 @@ export default function AuthScreen() {
   );
 }
 
+const authInput = {
+  width: '100%' as const,
+  borderWidth: 1,
+  borderColor: HAIRLINE,
+  borderRadius: 13,
+  paddingVertical: 13,
+  paddingLeft: 40,
+  paddingRight: 14,
+  fontSize: 15,
+  color: INK,
+  backgroundColor: '#fff',
+};
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Text
+      style={{
+        fontSize: 11,
+        fontWeight: '700',
+        color: INK_SOFT,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 7,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+
 const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 
 function TroveSupportLink() {
   return (
     <Text
-      style={{ fontWeight: '600', color: '#2D5F3E' }}
+      style={{ fontWeight: '600', color: '#1F4D3A' }}
       onPress={() => Linking.openURL(SUPPORT_MAILTO)}
     >
       TroveSupport

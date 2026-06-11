@@ -20,10 +20,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
+import { CategoryPicker, HeaderButton, Input } from '../../components/ui';
+import { PostSection, PostProgressBar } from '../../components/PostFormShell';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'CreateListing'>;
 
@@ -269,9 +271,13 @@ export default function CreateListingScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(listing.id);
 
-      // Go straight to My Sales → Listings tab so the user can review
-      // or quickly edit the new post without any extra taps.
-      navigation.navigate('MySalesHome', { initialTab: 'listings' });
+      // goBack() instead of navigate('MySalesHome'): this screen lives in
+      // BOTH the Listings and Profile stacks, and navigate() to a route
+      // not present in the current stack PUSHED it, leaving CreateListing
+      // lingering underneath (it resurfaced when tapping the Profile tab).
+      // goBack() reliably pops it from whichever stack hosted it.
+      toast.success('Listing posted');
+      navigation.goBack();
     } catch (e: any) {
       const parts = [
         e?.message,
@@ -289,20 +295,72 @@ export default function CreateListingScreen() {
     }
   };
 
-  const canSubmit = !validate() && !submitting;
+  const validationError = validate();
+  const canSubmit = !validationError && !submitting;
+
+  const steps = [
+    { label: 'Photos', done: media.length > 0 },
+    {
+      label: 'Details',
+      done: !!title.trim() && !!price.trim() && !isNaN(parseFloat(price)),
+    },
+    { label: 'Category', done: selectedCategories.length > 0 },
+    { label: 'Pickup', done: !!(pinCoords && pickupDisplay) },
+  ];
+  const firstIncomplete = steps.findIndex((s) => !s.done);
+  const activeStepIdx = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+    <SafeAreaView edges={['top']} className="flex-1 bg-bone">
       {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-zinc-100 bg-white px-4 py-2">
-        <IconButton
-          variant="ghost"
-          size="md"
-          onPress={() => navigation.goBack()}
-          icon={<Ionicons name="close" size={24} color="#18181B" />}
+      <View
+        style={{
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#E5DECC',
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+          }}
+        >
+          <HeaderButton
+            onPress={() => navigation.goBack()}
+            icon="close"
+            variant="tile"
+            accessibilityLabel="Cancel"
+          />
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              fontSize: 16,
+              fontWeight: '700',
+              color: '#171513',
+            }}
+          >
+            New item
+          </Text>
+          <Text
+            style={{
+              paddingHorizontal: 6,
+              fontSize: 13,
+              fontWeight: '600',
+              color: '#8A857C',
+            }}
+          >
+            Draft
+          </Text>
+        </View>
+        <PostProgressBar
+          steps={steps.length}
+          activeIdx={activeStepIdx}
+          dones={steps.map((s) => s.done)}
         />
-        <Text className="text-base font-bold text-zinc-900">Post a listing</Text>
-        <View style={{ width: 44 }} />
       </View>
 
       <KeyboardAvoidingView
@@ -315,16 +373,13 @@ export default function CreateListingScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Photos */}
-          <View className="bg-white mt-3 px-4 py-4" style={{ gap: 12 }}>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center" style={{ gap: 4 }}>
-                <Text className="text-sm font-bold text-zinc-700">Photos</Text>
-                <Text className="text-sm font-bold text-red-500">*</Text>
-              </View>
-              {media.length === 0 && (
-                <Text className="text-xs text-red-400">At least 1 required</Text>
-              )}
-            </View>
+          <PostSection
+            step={1}
+            done={steps[0].done}
+            active={activeStepIdx === 0}
+            title="Photos"
+            subtitle="At least one photo is required. The first one is the cover."
+          >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ gap: 10 }}>
               <View className="flex-row" style={{ gap: 10 }}>
                 {media.map((item, i) => (
@@ -362,11 +417,16 @@ export default function CreateListingScreen() {
                 )}
               </View>
             </ScrollView>
-          </View>
+          </PostSection>
 
           {/* Title + Description + Price */}
-          <View className="bg-white mt-3 px-4 py-4" style={{ gap: 14 }}>
-            <Text className="text-sm font-bold text-zinc-700">Details</Text>
+          <PostSection
+            step={2}
+            done={steps[1].done}
+            active={activeStepIdx === 1}
+            title="Details"
+            subtitle="A clear title and price help your item sell."
+          >
             <Input
               label="Title"
               placeholder="What are you selling?"
@@ -397,21 +457,27 @@ export default function CreateListingScreen() {
               leftIcon={<Text className="text-base text-zinc-500">$</Text>}
               returnKeyType="done"
             />
-          </View>
+          </PostSection>
 
           {/* Category */}
-          <View className="bg-white mt-3 px-4 py-4" style={{ gap: 12 }}>
-            <Text className="text-sm font-bold text-zinc-700">Category</Text>
-            <Text className="text-xs text-zinc-500">Help buyers find your item.</Text>
+          <PostSection
+            step={3}
+            done={steps[2].done}
+            active={activeStepIdx === 2}
+            title="Category"
+            subtitle="Help buyers find your item."
+          >
             <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
-          </View>
+          </PostSection>
 
           {/* Pickup Location */}
-          <View className="bg-white mt-3 px-4 py-4" style={{ gap: 12 }}>
-            <Text className="text-sm font-bold text-zinc-700">Pickup location</Text>
-            <Text className="text-xs text-zinc-500">
-              Enter a city and state or a full address. A pin will mark the location for buyers.
-            </Text>
+          <PostSection
+            step={4}
+            done={steps[3].done}
+            active={activeStepIdx === 3}
+            title="Pickup location"
+            subtitle="A pin will mark where buyers should meet you."
+          >
             <View className="flex-row items-end" style={{ gap: 8 }}>
               <View className="flex-1">
                 <Input
@@ -441,7 +507,7 @@ export default function CreateListingScreen() {
               className="flex-row items-center"
               style={{ gap: 6 }}
             >
-              <Ionicons name="locate-outline" size={16} color="#2D5F3E" />
+              <Ionicons name="locate-outline" size={16} color="#1F4D3A" />
               <Text className="text-sm font-medium text-brand-600">Use my location</Text>
             </Pressable>
 
@@ -462,7 +528,7 @@ export default function CreateListingScreen() {
                 {pinCoords && (
                   <Marker
                     coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }}
-                    pinColor="#2D5F3E"
+                    pinColor="#1F4D3A"
                   />
                 )}
               </MapView>
@@ -480,24 +546,70 @@ export default function CreateListingScreen() {
             </View>
             {pickupDisplay ? (
               <View className="flex-row items-center" style={{ gap: 6 }}>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                <Ionicons name="checkmark-circle" size={16} color="#1F4D3A" />
                 <Text className="text-sm text-zinc-600">{pickupDisplay}</Text>
               </View>
             ) : null}
-          </View>
+          </PostSection>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Sticky Post CTA */}
-      <View className="absolute bottom-0 left-0 right-0 border-t border-zinc-100 bg-white px-4 pb-8 pt-3">
-        <Button
-          size="lg"
-          disabled={!canSubmit}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#E5DECC',
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          // Sits above the tab bar (which clears the home indicator).
+          paddingBottom: 16,
+        }}
+      >
+        {validationError ? (
+          <Text
+            style={{
+              marginBottom: 8,
+              textAlign: 'center',
+              fontSize: 11,
+              color: '#8A857C',
+            }}
+          >
+            {validationError}
+          </Text>
+        ) : null}
+        <Pressable
           onPress={submit}
-          loading={submitting}
+          disabled={!canSubmit}
+          accessibilityRole="button"
+          accessibilityLabel="Post listing"
+          style={{
+            backgroundColor: canSubmit ? '#1F4D3A' : '#C7C1B0',
+            borderRadius: 14,
+            paddingVertical: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+          }}
         >
-          Post listing
-        </Button>
+          <Text
+            style={{
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: '700',
+              marginRight: 8,
+            }}
+          >
+            {submitting ? 'Posting…' : 'Post listing'}
+          </Text>
+          {!submitting && (
+            <Ionicons name="arrow-forward" size={16} color="#fff" />
+          )}
+        </Pressable>
       </View>
     </SafeAreaView>
   );

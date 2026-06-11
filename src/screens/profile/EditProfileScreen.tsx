@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SubHeader } from '../../components/SubHeader';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile, invalidateProfile } from '../../hooks/useProfile';
@@ -21,7 +22,7 @@ import {
 import { AvatarEditor, Input } from '../../components/ui';
 import { toast } from '../../lib/toast';
 
-const BRAND = '#2D5F3E';
+const BRAND = '#1F4D3A';
 
 /**
  * Edit Profile screen. Lets the user change their display name and
@@ -131,42 +132,9 @@ export default function EditProfileScreen() {
     );
   };
 
-  // Install Save in the header. useLayoutEffect so the button paints
-  // in the same frame as the screen, not a frame late.
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <Pressable onPress={handleCancel} hitSlop={12}>
-          <Text style={{ fontSize: 17, color: BRAND }}>Cancel</Text>
-        </Pressable>
-      ),
-      headerRight: () =>
-        saving ? (
-          <ActivityIndicator size="small" color={BRAND} />
-        ) : (
-          <Pressable
-            onPress={handleSave}
-            disabled={!canSave}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSave }}
-          >
-            <Text
-              style={{
-                fontSize: 17,
-                fontWeight: '600',
-                color: canSave ? BRAND : '#A1A1AA',
-              }}
-            >
-              Save
-            </Text>
-          </Pressable>
-        ),
-    });
-    // We deliberately include all the inputs to handleSave/handleCancel
-    // so the closures captured by the header are current.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, canSave, saving, dirty, displayName, avatarUri]);
+  // Save/Cancel now live in this screen's own SubHeader (see render),
+  // since the screen renders headerShown:false to match the rest of the
+  // app's rounded-tile headers. The dirty-state guard below still runs.
 
   // Intercept hardware/swipe back to honor the dirty-state prompt.
   useEffect(() => {
@@ -206,6 +174,33 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['bottom']}>
+      <SubHeader
+        title="Edit profile"
+        onBack={handleCancel}
+        right={
+          saving ? (
+            <ActivityIndicator size="small" color={BRAND} />
+          ) : (
+            <Pressable
+              onPress={handleSave}
+              disabled={!canSave}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canSave }}
+            >
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '700',
+                  color: canSave ? BRAND : '#A1A1AA',
+                }}
+              >
+                Save
+              </Text>
+            </Pressable>
+          )
+        }
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -271,7 +266,7 @@ export default function EditProfileScreen() {
                 {profile?.email ?? user?.email ?? ''}
               </Text>
               <Text style={{ fontSize: 12, color: '#A1A1AA', marginTop: 2 }}>
-                Can't be changed here.
+                Can&rsquo;t be changed here.
               </Text>
             </View>
           </View>

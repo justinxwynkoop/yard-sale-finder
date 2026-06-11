@@ -53,9 +53,13 @@ export function useSales() {
   }, [fetchSales]);
 
   // Real-time subscription
+  // Channel name must be unique per hook instance — the hook can be mounted
+  // in multiple components simultaneously (MapHomeScreen + ListingsScreen),
+  // and Supabase Realtime rejects duplicate channel topics. Same pattern
+  // as useInbox; see CLAUDE.md.
   useEffect(() => {
     const channel = supabase
-      .channel('sales-changes')
+      .channel(`sales-changes-${Math.random().toString(36).slice(2, 9)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
         fetchSales();
       })

@@ -1,426 +1,414 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   FlatList,
-  Image,
   Pressable,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useListings, ListingFilters, PRICE_RANGES } from '../../hooks/useListings';
-import { useFavoriteListings } from '../../hooks/useFavoriteListings';
-import { ListingsStackParamList, ItemCategory, Listing } from '../../types';
-import { EmptyState, IconButton, CategoryPicker } from '../../components/ui';
 
-/** Returns true if the listing was created within the last 3 days. */
-function isNew(createdAt: string): boolean {
-  return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
-}
+import { useListings } from '../../hooks/useListings';
+import { useSales } from '../../hooks/useSales';
+import { useUserLocation } from '../../hooks/useUserLocation';
+import { useFavorites } from '../../hooks/useFavorites';
+import { ListingsStackParamList } from '../../types';
+import SaleCard from '../../components/SaleCard';
+import ListingTile from '../../components/ListingTile';
+import { haversineMeters } from '../../utils/distance';
+import {
+  countActiveListingsFilters,
+  priceBucketToRange,
+  useListingsFilters,
+} from '../../lib/listingsFilters';
 
-// ListingsScreen lives in ListingsStack -- the Nav type must match
-// the stack the screen is actually mounted in, otherwise
-// navigation.navigate('CreateListing') is a TypeScript-clean silent
-// no-op at runtime because the route doesn't resolve in the current
-// stack. CreateListing/EditListing are now registered on both stacks
-// (here AND on SaleStack), so this resolves locally.
 type Nav = NativeStackNavigationProp<ListingsStackParamList>;
 
+const BRAND = '#1F4D3A';
+const INK = '#171513';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
+
+type Segment = 'sales' | 'items';
 
 export default function ListingsScreen() {
   const navigation = useNavigation<Nav>();
+  const userLocation = useUserLocation();
 
-  const [categories, setCategories] = useState<ItemCategory[]>([]);
-  const [priceRangeIndex, setPriceRangeIndex] = useState<number | null>(null);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const { sales, loading: salesLoading } = useSales();
+  const listingsFilters = useListingsFilters();
+  const priceRange = useMemo(
+    () => priceBucketToRange(listingsFilters.priceBucket),
+    [listingsFilters.priceBucket],
+  );
+  const { listings, loading: listingsLoading, refetch: refetchListings } =
+    useListings({
+      category: null,
+      categories: listingsFilters.categories,
+      priceMin: priceRange.min,
+      priceMax: priceRange.max,
+    });
+  const { refetch: refetchFavorites } = useFavorites();
 
-  const filters: ListingFilters = useMemo(() => {
-    const range = priceRangeIndex !== null ? PRICE_RANGES[priceRangeIndex] : null;
-    return {
-      category: categories.length > 0 ? categories[0] : null,
-      categories: categories.length > 0 ? categories : undefined,
-      priceMin: range?.min ?? null,
-      priceMax: range?.max ?? null,
-    };
-  }, [categories, priceRangeIndex]);
+  const [segment, setSegment] = useState<Segment>('sales');
+  const activeFilterCount = countActiveListingsFilters(listingsFilters);
 
-  const { listings, loading, refetch } = useListings(filters);
-  const { isFavorited } = useFavoriteListings();
+  useFocusEffect(
+    useCallback(() => {
+      refetchFavorites();
+    }, [refetchFavorites]),
+  );
 
-  const activeFilterCount = (categories.length > 0 ? 1 : 0) + (priceRangeIndex !== null ? 1 : 0);
+  // Distance-sort both data sources so "Nearest" is real.
+  const sortedSales = useMemo(() => {
+    const dist = (lat: number, lng: number) =>
+      userLocation
+        ? haversineMeters(
+            userLocation.latitude,
+            userLocation.longitude,
+            lat,
+            lng,
+          )
+        : Number.POSITIVE_INFINITY;
+    return [...sales].sort(
+      (a, b) => dist(a.latitude, a.longitude) - dist(b.latitude, b.longitude),
+    );
+  }, [sales, userLocation]);
 
-  const clearFilters = useCallback(() => {
-    setCategories([]);
-    setPriceRangeIndex(null);
-  }, []);
+  const sortedListings = useMemo(() => {
+    const dist = (lat: number, lng: number) =>
+      userLocation
+        ? haversineMeters(
+            userLocation.latitude,
+            userLocation.longitude,
+            lat,
+            lng,
+          )
+        : Number.POSITIVE_INFINITY;
+    // Apply radius filter client-side. The DB query covers
+    // category/price; distance has to happen here because we don't push
+    // user coords into the query.
+    const maxMeters =
+      listingsFilters.radiusMiles != null
+        ? listingsFilters.radiusMiles * 1609.34
+        : Number.POSITIVE_INFINITY;
+    const within = listings.filter(
+      (l) => dist(l.pickup_lat, l.pickup_lng) <= maxMeters,
+    );
+    return [...within].sort(
+      (a, b) =>
+        dist(a.pickup_lat, a.pickup_lng) - dist(b.pickup_lat, b.pickup_lng),
+    );
+  }, [listings, userLocation, listingsFilters.radiusMiles]);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['top']}>
       {/* Header */}
-      <View className="bg-white px-5 pt-4 pb-3">
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-2xl font-extrabold text-zinc-900">Listings</Text>
-            <Text className="text-xs text-zinc-500">
-              {loading
-                ? 'Loading…'
-                : `${listings.length} item${listings.length === 1 ? '' : 's'} near you`}
-            </Text>
-          </View>
-          <View className="flex-row items-center" style={{ gap: 8 }}>
-            {/* Heart → saved listings (items the user favorited in this tab) */}
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingTop: 4,
+          paddingBottom: 10,
+          backgroundColor: '#F7F2E8',
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: '800',
+              color: INK,
+              letterSpacing: -0.5,
+            }}
+          >
+            Listings
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Pressable
               onPress={() => navigation.navigate('SavedListings')}
               accessibilityRole="button"
               accessibilityLabel="Saved listings"
-              className="h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white active:bg-zinc-50"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: '#fff',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 8,
+                borderWidth: 1,
+                borderColor: HAIRLINE,
+              }}
             >
-              <Ionicons name="heart-outline" size={20} color="#18181B" />
+              <Ionicons name="heart-outline" size={18} color={INK} />
             </Pressable>
-            {/* Filter button — green background when any filter is active */}
-            <Pressable
-              onPress={() => setFilterSheetOpen(true)}
-              style={[
-                {
-                  flexDirection: 'row',
-                  alignItems: 'center',
+            {segment === 'items' && (
+              <Pressable
+                onPress={() => navigation.navigate('ListingsFilter')}
+                accessibilityRole="button"
+                accessibilityLabel="Filter items"
+                style={{
+                  height: 36,
                   borderRadius: 12,
+                  backgroundColor:
+                    activeFilterCount > 0 ? BRAND : '#fff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  paddingHorizontal: 10,
+                  marginRight: 8,
                   borderWidth: 1,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  gap: 6,
-                },
-                activeFilterCount > 0
-                  ? { backgroundColor: '#2D5F3E', borderColor: '#2D5F3E' }
-                  : { backgroundColor: '#fff', borderColor: '#E4E4E7' },
-              ]}
+                  borderColor:
+                    activeFilterCount > 0 ? BRAND : HAIRLINE,
+                }}
+              >
+                <Ionicons
+                  name="options-outline"
+                  size={16}
+                  color={activeFilterCount > 0 ? '#fff' : INK}
+                />
+                {activeFilterCount > 0 && (
+                  <Text
+                    style={{
+                      marginLeft: 5,
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#fff',
+                    }}
+                  >
+                    {activeFilterCount}
+                  </Text>
+                )}
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => navigation.navigate('Search')}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: '#fff',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: HAIRLINE,
+              }}
             >
-              <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? '#fff' : '#18181B'} />
-              <Text style={{ fontSize: 14, fontWeight: '600', color: activeFilterCount > 0 ? '#fff' : '#3F3F46' }}>
-                Filter
-              </Text>
+              <Ionicons name="search-outline" size={18} color={INK} />
             </Pressable>
-            {/* Post a listing */}
-            <IconButton
-              variant="brand"
-              size="md"
-              onPress={() => navigation.navigate('CreateListing')}
-              icon={<Ionicons name="add" size={22} color="#fff" />}
-            />
           </View>
         </View>
 
-        {/* Active filters are indicated by the green Filter button — no chips shown here */}
+        {/* Segmented control */}
+        <View
+          style={{
+            marginTop: 14,
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+            padding: 4,
+            flexDirection: 'row',
+          }}
+        >
+          <SegmentButton
+            label={`Yard sales · ${sortedSales.length}`}
+            active={segment === 'sales'}
+            onPress={() => setSegment('sales')}
+          />
+          <SegmentButton
+            label={`One-off items · ${sortedListings.length}`}
+            active={segment === 'items'}
+            onPress={() => setSegment('items')}
+          />
+        </View>
+
+        {/* Sort row */}
+        <View
+          style={{
+            marginTop: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Text style={{ fontSize: 12, color: INK_MUTED }}>
+            Sorted by · Nearest
+          </Text>
+          <Pressable hitSlop={6} onPress={() => { /* future sort menu */ }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: BRAND }}>
+                Sort
+              </Text>
+              <Ionicons name="chevron-down" size={13} color={BRAND} />
+            </View>
+          </Pressable>
+        </View>
       </View>
 
-      {/* List — always a FlatList so pull-to-refresh works in every state */}
-      <FlatList
-        data={listings}
-        keyExtractor={(l) => l.id}
-        numColumns={2}
-        contentContainerStyle={{ padding: 12, gap: 10, flexGrow: 1 }}
-        columnWrapperStyle={{ gap: 10 }}
-        onRefresh={refetch}
-        refreshing={loading}
-        renderItem={({ item }) => (
-          <ListingCard
-            listing={item}
-            favorited={isFavorited(item.id)}
-          />
-        )}
-        ListEmptyComponent={
-          loading ? (
-            <View className="flex-1 items-center justify-center py-24">
-              <ActivityIndicator size="large" color="#2D5F3E" />
-            </View>
-          ) : (
-            <EmptyState
-              icon={<Ionicons name="storefront-outline" size={36} color="#2D5F3E" />}
-              title="No listings found"
-              description={
-                activeFilterCount > 0
-                  ? 'Try adjusting or clearing your filters.'
-                  : 'Be the first to list an item in your area.'
-              }
-              action={
-                activeFilterCount > 0 ? (
-                  <Pressable onPress={clearFilters} className="rounded-xl bg-brand px-6 py-3">
-                    <Text className="font-bold text-white">Clear filters</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    onPress={() => navigation.navigate('CreateListing')}
-                    className="rounded-xl bg-brand px-6 py-3"
-                  >
-                    <Text className="font-bold text-white">Post an item</Text>
-                  </Pressable>
-                )
+      {/* Data */}
+      {segment === 'sales' ? (
+        <FlatList
+          key="sales-list"
+          data={sortedSales}
+          keyExtractor={(s) => s.id}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
+          renderItem={({ item, index }) => (
+            <SaleCard
+              sale={item}
+              index={index}
+              density="comfy"
+              userLat={userLocation?.latitude}
+              userLng={userLocation?.longitude}
+              onPress={() =>
+                navigation.navigate('SaleDetail', { saleId: item.id })
               }
             />
-          )
-        }
-      />
-
-      {/* Filter bottom sheet */}
-      <FilterSheet
-        visible={filterSheetOpen}
-        onClose={() => setFilterSheetOpen(false)}
-        categories={categories}
-        onCategoriesChange={setCategories}
-        priceRangeIndex={priceRangeIndex}
-        onPriceRangeChange={setPriceRangeIndex}
-        onClear={clearFilters}
-      />
+          )}
+          ListEmptyComponent={
+            salesLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator color={BRAND} />
+              </View>
+            ) : (
+              <EmptyTab
+                title="No yard sales near you"
+                description="Try widening the area or check back this weekend."
+              />
+            )
+          }
+        />
+      ) : (
+        <FlatList
+          key="items-grid"
+          data={sortedListings}
+          keyExtractor={(l) => l.id}
+          numColumns={2}
+          columnWrapperStyle={{ gap: 10 }}
+          contentContainerStyle={{
+            paddingHorizontal: 12,
+            paddingBottom: 24,
+            gap: 10,
+          }}
+          onRefresh={refetchListings}
+          refreshing={listingsLoading}
+          renderItem={({ item }) => (
+            <ListingTile
+              listing={item}
+              userLat={userLocation?.latitude}
+              userLng={userLocation?.longitude}
+              onPress={() =>
+                navigation.navigate('ListingDetail', { listingId: item.id })
+              }
+            />
+          )}
+          ListEmptyComponent={
+            listingsLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator color={BRAND} />
+              </View>
+            ) : (
+              <EmptyTab
+                title="No items listed yet"
+                description="Be the first to post one."
+                ctaLabel="Post an item"
+                onCta={() => navigation.navigate('CreateListing')}
+              />
+            )
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-// ── Listing card (2-column grid) ───────────────────────────────────────────
-
-function ListingCard({
-  listing,
-  favorited,
+function SegmentButton({
+  label,
+  active,
+  onPress,
 }: {
-  listing: Listing;
-  favorited: boolean;
+  label: string;
+  active: boolean;
+  onPress: () => void;
 }) {
-  const navigation = useNavigation<Nav>();
-  const firstImage = listing.media?.find((m) => m.type === 'image');
-  const showNew = isNew(listing.created_at);
-
   return (
     <Pressable
-      className="flex-1 overflow-hidden rounded-2xl bg-white shadow-sm active:opacity-80"
-      style={{ maxWidth: '50%' }}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: listing.id })}
+      onPress={onPress}
+      style={{
+        flex: 1,
+        paddingVertical: 9,
+        borderRadius: 10,
+        backgroundColor: active ? BRAND : 'transparent',
+        alignItems: 'center',
+      }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
     >
-      {/* Photo */}
-      <View style={{ height: 140 }}>
-        {firstImage ? (
-          <Image
-            source={{ uri: firstImage.url }}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="h-full w-full items-center justify-center bg-zinc-100">
-            <Ionicons name="image-outline" size={32} color="#A1A1AA" />
-          </View>
-        )}
-
-        {/* "New" badge — top-left, shown for first 3 days */}
-        {showNew && (
-          <View
-            style={{
-              position: 'absolute',
-              top: 8,
-              left: 8,
-              backgroundColor: '#2D5F3E',
-              borderRadius: 999,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>
-              NEW
-            </Text>
-          </View>
-        )}
-
-        {/* Heart badge — top-right, shown when the user has favorited this listing */}
-        {favorited && (
-          <View
-            style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              width: 26,
-              height: 26,
-              borderRadius: 13,
-              backgroundColor: 'rgba(0,0,0,0.38)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="heart" size={14} color="#FF6B6B" />
-          </View>
-        )}
-      </View>
-
-      {/* Info */}
-      <View className="p-3" style={{ gap: 2 }}>
-        <Text className="text-sm font-bold text-zinc-900" numberOfLines={2}>
-          {listing.title}
-        </Text>
-        <Text className="text-base font-extrabold text-brand-600">
-          {listing.price === 0 ? 'Free' : `$${listing.price % 1 === 0 ? listing.price : listing.price.toFixed(2)}`}
-        </Text>
-        {listing.categories.length > 0 && (
-          <Text className="text-xs text-zinc-400 capitalize">
-            {listing.categories[0]}
-          </Text>
-        )}
-        <View className="mt-1 flex-row items-center" style={{ gap: 3 }}>
-          <Ionicons name="location-outline" size={11} color="#A1A1AA" />
-          <Text className="text-xs text-zinc-400" numberOfLines={1}>
-            {listing.pickup_display}
-          </Text>
-        </View>
-      </View>
+      <Text
+        style={{
+          fontSize: 12.5,
+          fontWeight: '700',
+          color: active ? '#fff' : INK,
+        }}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
-// ── Active filter chip ─────────────────────────────────────────────────────
-
-function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+function EmptyTab({
+  title,
+  description,
+  ctaLabel,
+  onCta,
+}: {
+  title: string;
+  description: string;
+  ctaLabel?: string;
+  onCta?: () => void;
+}) {
   return (
-    <View className="flex-row items-center rounded-full bg-brand-50 px-3 py-1" style={{ gap: 4 }}>
-      <Text className="text-xs font-semibold text-brand-700">{label}</Text>
-      <Pressable onPress={onRemove} hitSlop={8}>
-        <Ionicons name="close" size={13} color="#C2410C" />
-      </Pressable>
+    <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 60 }}>
+      <Ionicons name="basket-outline" size={36} color={INK_MUTED} />
+      <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '700', color: INK }}>
+        {title}
+      </Text>
+      <Text
+        style={{
+          marginTop: 6,
+          fontSize: 13,
+          color: INK_MUTED,
+          textAlign: 'center',
+        }}
+      >
+        {description}
+      </Text>
+      {ctaLabel && onCta ? (
+        <Pressable
+          onPress={onCta}
+          style={{
+            marginTop: 16,
+            backgroundColor: BRAND,
+            paddingHorizontal: 20,
+            paddingVertical: 11,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>{ctaLabel}</Text>
+        </Pressable>
+      ) : null}
     </View>
-  );
-}
-
-// ── Filter bottom sheet ────────────────────────────────────────────────────
-
-interface FilterSheetProps {
-  visible: boolean;
-  onClose: () => void;
-  categories: ItemCategory[];
-  onCategoriesChange: (cats: ItemCategory[]) => void;
-  priceRangeIndex: number | null;
-  onPriceRangeChange: (i: number | null) => void;
-  onClear: () => void;
-}
-
-const filterChipStyle = {
-  base: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: '#F4F4F5',
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
-  } as const,
-  active: {
-    backgroundColor: '#2D5F3E',
-    borderColor: '#2D5F3E',
-  } as const,
-  text: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: '#52525B',
-  },
-  textActive: {
-    color: '#fff',
-  },
-};
-
-function FilterSheet({
-  visible,
-  onClose,
-  categories,
-  onCategoriesChange,
-  priceRangeIndex,
-  onPriceRangeChange,
-  onClear,
-}: FilterSheetProps) {
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      {/* Backdrop */}
-      <Pressable
-        className="flex-1 bg-black/40"
-        onPress={onClose}
-      />
-
-      {/* Sheet */}
-      <View className="rounded-t-3xl bg-white px-5 pb-10 pt-4">
-        {/* Handle */}
-        <View className="mb-4 self-center h-1 w-10 rounded-full bg-zinc-300" />
-
-        {/* Title row */}
-        <View className="mb-5 flex-row items-center justify-between">
-          <Text className="text-lg font-bold text-zinc-900">Filters</Text>
-          <Pressable onPress={onClear}>
-            <Text className="text-sm font-semibold text-brand-600">Clear all</Text>
-          </Pressable>
-        </View>
-
-        {/* Category */}
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: '700',
-            color: '#A1A1AA',
-            textTransform: 'uppercase',
-            letterSpacing: 0.8,
-            marginBottom: 10,
-          }}
-        >
-          Category
-        </Text>
-        <View style={{ marginBottom: 20 }}>
-          <CategoryPicker selected={categories} onChange={onCategoriesChange} />
-        </View>
-
-        {/* Price range */}
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: '700',
-            color: '#A1A1AA',
-            textTransform: 'uppercase',
-            letterSpacing: 0.8,
-            marginBottom: 10,
-          }}
-        >
-          Price
-        </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-          {PRICE_RANGES.map((range, i) => {
-            const active = priceRangeIndex === i;
-            return (
-              <Pressable
-                key={range.label}
-                onPress={() => onPriceRangeChange(active ? null : i)}
-                style={[filterChipStyle.base, active && filterChipStyle.active]}
-              >
-                <Text style={[filterChipStyle.text, active && filterChipStyle.textActive]}>
-                  {range.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Actions */}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Pressable
-            onPress={() => { onClear(); onClose(); }}
-            className="flex-1 items-center rounded-2xl border border-zinc-200 bg-white py-4 active:bg-zinc-50"
-          >
-            <Text className="text-base font-semibold text-zinc-700">Reset</Text>
-          </Pressable>
-          <Pressable
-            onPress={onClose}
-            className="flex-1 items-center rounded-2xl bg-brand py-4 active:opacity-80"
-          >
-            <Text className="text-base font-bold text-white">Show Results</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
   );
 }

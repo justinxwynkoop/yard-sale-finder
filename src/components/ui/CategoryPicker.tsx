@@ -16,7 +16,7 @@ const chipBase = {
   borderWidth: 1,
   borderColor: '#E4E4E7',
 } as const;
-const chipActive = { backgroundColor: '#2D5F3E', borderColor: '#2D5F3E' } as const;
+const chipActive = { backgroundColor: '#1F4D3A', borderColor: '#1F4D3A' } as const;
 const textBase = { fontSize: 13, fontWeight: '600' as const, color: '#52525B' };
 const textActive = { color: '#fff' };
 

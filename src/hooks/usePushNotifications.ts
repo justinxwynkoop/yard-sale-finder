@@ -12,7 +12,9 @@ const EAS_PROJECT_ID = '21cc3271-4b50-4f32-a4e4-6823f78ec3e7';
 // this, arriving messages are silent while the user is already in-app.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // SDK 54 split the legacy `shouldShowAlert` into banner + list.
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -65,7 +67,7 @@ export function usePushNotifications() {
           name: 'Messages',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#2D5F3E',
+          lightColor: '#1F4D3A',
           sound: 'default',
         });
       }

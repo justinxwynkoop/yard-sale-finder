@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { File } from 'expo-file-system';
@@ -20,11 +20,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SubHeader } from '../../components/SubHeader';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, Listing, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
+import { Button, CategoryPicker, Input } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'EditListing'>;
 type Route = RouteProp<SaleStackParamList, 'EditListing'>;
@@ -217,7 +218,7 @@ export default function EditListingScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center">
-        <ActivityIndicator size="large" color="#2D5F3E" />
+        <ActivityIndicator size="large" color="#1F4D3A" />
       </SafeAreaView>
     );
   }
@@ -225,7 +226,8 @@ export default function EditListingScreen() {
   const canSubmit = !validate() && !submitting;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-surface">
+      <SubHeader title="Edit listing" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         <ScrollView
           contentContainerStyle={{ paddingBottom: 120 }}
@@ -334,7 +336,7 @@ export default function EditListingScreen() {
                 rotateEnabled={false}
               >
                 {pinCoords && (
-                  <Marker coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }} pinColor="#2D5F3E" />
+                  <Marker coordinate={{ latitude: pinCoords.lat, longitude: pinCoords.lng }} pinColor="#1F4D3A" />
                 )}
               </MapView>
             </View>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types';
 import { useAuth } from './useAuth';
@@ -40,13 +40,20 @@ export function useProfile() {
     loading: true,
     error: null,
   });
+  // Only the FIRST load should flip `loading` true. Background refetches
+  // (invalidateProfile after a save, avatar change, notification toggle)
+  // must NOT show a loading state — MainGate gates on this flag, and a
+  // transient `loading:true` would unmount/remount MainTabs and bounce
+  // the user from Profile back to the Discover tab.
+  const hasLoadedRef = useRef(false);
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
+      hasLoadedRef.current = false; // re-arm the spinner for the next sign-in
       setState({ profile: null, loading: false, error: null });
       return;
     }
-    setState((s) => ({ ...s, loading: true, error: null }));
+    setState((s) => ({ ...s, loading: !hasLoadedRef.current, error: null }));
     try {
       // Use maybeSingle so a missing row isn't treated as an error —
       // it just means the profile hasn't been created yet (Apple sign-in
@@ -57,8 +64,10 @@ export function useProfile() {
         .eq('id', user.id)
         .maybeSingle();
       if (error) throw error;
+      hasLoadedRef.current = true;
       setState({ profile: data ?? null, loading: false, error: null });
     } catch (e: any) {
+      hasLoadedRef.current = true;
       setState({
         profile: null,
         loading: false,
@@ -82,6 +91,28 @@ export function useProfile() {
   }, [fetchProfile]);
 
   return { ...state, refetch: fetchProfile };
+}
+
+/**
+ * Update arbitrary columns on the current user's profile row, then
+ * broadcast so every mounted useProfile() refetches. Returns the
+ * Supabase error (or null). Used by the Account screen's FieldEditor
+ * commits and the Notifications toggles.
+ */
+export function useUpdateProfile() {
+  const { user } = useAuth();
+  return useCallback(
+    async (patch: Partial<Profile>) => {
+      if (!user) return { error: new Error('Not signed in') };
+      const { error } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('id', user.id);
+      if (!error) invalidateProfile();
+      return { error };
+    },
+    [user],
+  );
 }
 
 export function isProfileComplete(profile: Profile | null): boolean {

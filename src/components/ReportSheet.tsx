@@ -167,7 +167,7 @@ export function ReportSheet({
                         : 'radio-button-off'
                     }
                     size={20}
-                    color={active ? '#2D5F3E' : '#A1A1AA'}
+                    color={active ? '#1F4D3A' : '#A1A1AA'}
                   />
                 </Pressable>
               );
@@ -199,7 +199,7 @@ export function ReportSheet({
               <Switch
                 value={alsoBlock}
                 onValueChange={setAlsoBlock}
-                trackColor={{ true: '#2D5F3E', false: '#E4E4E7' }}
+                trackColor={{ true: '#1F4D3A', false: '#E4E4E7' }}
                 thumbColor="#fff"
               />
             </View>
@@ -288,15 +288,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#FAFAF9',
+    backgroundColor: '#F7F2E8',
     marginBottom: 6,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#FAFAF9',
+    borderColor: '#F7F2E8',
   },
   optionActive: {
-    backgroundColor: '#FFEDD5',
-    borderColor: '#2D5F3E',
+    backgroundColor: '#EFE8D6',
+    borderColor: '#1F4D3A',
   },
   optionLabel: {
     fontSize: 15,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   notes: {
-    backgroundColor: '#FAFAF9',
+    backgroundColor: '#F7F2E8',
     borderRadius: 12,
     padding: 12,
     minHeight: 88,
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#FAFAF9',
+    backgroundColor: '#F7F2E8',
   },
   blockLabel: {
     fontSize: 15,

@@ -9,50 +9,69 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Forest-green primary, paired with warm cream backgrounds.
-        // 500 is the on-screen action color (buttons, pins, active
-        // states). 600/700 match the logo wordmark for emphasis.
+        // Primary brand — deeper, warmer forest. The "Open House" green.
         brand: {
-          50: '#EFF5EF',
-          100: '#D6E5D9',
-          200: '#ADCAB3',
-          300: '#83AE8C',
-          400: '#5A9265',
-          DEFAULT: '#2D5F3E', // 500
-          500: '#2D5F3E',
-          600: '#234D24',
-          700: '#1A3A1B',
-          800: '#102810',
-          900: '#08160A',
+          50: '#EEF4EF',
+          100: '#DCEADE',
+          200: '#B6D2BB',
+          300: '#86B091',
+          400: '#558F6B',
+          DEFAULT: '#1F4D3A', // 500 — primary action
+          500: '#1F4D3A',
+          600: '#163828',
+          700: '#0F2A1E',
+          800: '#0A1F17',
+          900: '#06150F',
+          soft: '#E1ECDF',
+          softer: '#EEF4EF',
         },
-        // Warm cream — the other half of the brand palette. Lives
-        // in surfaces / chip backgrounds / splash. Keeps the
-        // "vintage shop" warmth the logo establishes.
-        cream: {
-          DEFAULT: '#FFEDD5',
-          50: '#FFF7ED',
-          100: '#FFEDD5',
+
+        // Warm surfaces.
+        bone: '#F7F2E8',
+        cream: '#EFE8D6',
+
+        // Ink scale — slightly warm.
+        ink: {
+          DEFAULT: '#171513',
+          900: '#171513',
+          700: '#54504A',
+          500: '#8A857C',
+          300: '#C7C1B0',
+          200: '#E5DECC',
+          100: '#EFE8D6',
+          50: '#F7F2E8',
         },
-        // Status palette
+        hairline: '#E5DECC',
+
+        // Status — new palette mapped to existing names.
         live: {
-          DEFAULT: '#10B981', // emerald-500
-          bg: '#D1FAE5',
-          fg: '#065F46',
+          DEFAULT: '#1F4D3A',
+          bg: '#E1ECDF',
+          fg: '#0F2A1E',
         },
         winding: {
-          DEFAULT: '#EAB308', // yellow-500 — clearly yellow, not orange
-          bg: '#FEF9C3',
-          fg: '#854D0E',
+          DEFAULT: '#B8772C',
+          bg: '#FBEFD6',
+          fg: '#6B4318',
         },
         ended: {
-          DEFAULT: '#9CA3AF',
-          bg: '#F3F4F6',
-          fg: '#6B7280',
+          DEFAULT: '#8A857C',
+          bg: '#EFEBE0',
+          fg: '#54504A',
         },
-        // App surface
-        surface: '#FAFAF9', // zinc-50 / warm
+
+        // Accent for alerts / errors / "ending today" affordances.
+        rose: {
+          DEFAULT: '#A23E2D',
+          bg: '#F5DDD7',
+        },
+
+        // App surface — kept as `surface` for migration safety; points at bone.
+        surface: '#F7F2E8',
       },
       borderRadius: {
+        '2xl': '20px',
+        '3xl': '28px',
         '4xl': '32px',
       },
       fontSize: {

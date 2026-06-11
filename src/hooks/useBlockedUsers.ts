@@ -35,7 +35,10 @@ export function useBlockedUsers() {
     setBlocks(rows);
     setIds(new Set(rows.map((r) => r.blocked_id)));
     setLoading(false);
-  }, [user]);
+    // Depend on the stable user id, not the user object — otherwise this
+    // refetches (and makes a new Set) on every auth-token tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     fetchBlocks();

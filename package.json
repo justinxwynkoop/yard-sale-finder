@@ -31,8 +31,8 @@
     "ota": "eas update --branch production --message \"$(git log -1 --pretty=%s)\"",
     "ota:dev": "eas update --branch development --message \"$(git log -1 --pretty=%s)\"",
     "ota:preview": "eas update --branch preview --message \"$(git log -1 --pretty=%s)\"",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "test": "jest",
@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/bottom-tabs": "^7.16.0",
@@ -100,5 +101,8 @@
     "supabase": "^2.100.1",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
 }

@@ -13,11 +13,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { ListingsStackParamList, Listing } from '../../types';
+import { EmptyState } from '../../components/ui';
+import { SubHeader } from '../../components/SubHeader';
 
 function isNew(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
 }
-import { EmptyState } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<ListingsStackParamList, 'SavedListings'>;
 
@@ -33,7 +34,8 @@ export default function SavedListingsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['bottom']}>
+      <SubHeader title="Saved listings" />
       <FlatList
         data={favorites}
         keyExtractor={(l) => l.id}
@@ -48,15 +50,15 @@ export default function SavedListingsScreen() {
           <RefreshControl
             refreshing={loading}
             onRefresh={refetch}
-            tintColor="#2D5F3E"
-            colors={['#2D5F3E']}
+            tintColor="#1F4D3A"
+            colors={['#1F4D3A']}
           />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <EmptyState
-                icon={<Ionicons name="heart-outline" size={32} color="#2D5F3E" />}
+                icon={<Ionicons name="heart-outline" size={32} color="#1F4D3A" />}
                 title="No saved listings yet"
                 description="Tap the heart on any listing to save it here for later."
               />
@@ -128,7 +130,7 @@ function SavedListingCard({
               position: 'absolute',
               top: 6,
               left: 6,
-              backgroundColor: '#2D5F3E',
+              backgroundColor: '#1F4D3A',
               borderRadius: 999,
               paddingHorizontal: 7,
               paddingVertical: 2,
@@ -149,7 +151,7 @@ function SavedListingCard({
         >
           {listing.title}
         </Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#2D5F3E' }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F4D3A' }}>
           {price}
         </Text>
         <Text numberOfLines={1} style={{ fontSize: 12, color: '#A1A1AA' }}>

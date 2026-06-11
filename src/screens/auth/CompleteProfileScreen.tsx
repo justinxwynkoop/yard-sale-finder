@@ -182,7 +182,7 @@ export default function CompleteProfileScreen() {
                   width: n === step ? 24 : 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: n <= step ? '#2D5F3E' : '#E4E4E7',
+                  backgroundColor: n <= step ? '#1F4D3A' : '#E4E4E7',
                 }}
               />
             ))}
@@ -260,8 +260,9 @@ function Step1({
   bdMonth: string;   setBdMonth:   (v: string) => void;
   bdDay: string;     setBdDay:     (v: string) => void;
   bdYear: string;    setBdYear:    (v: string) => void;
-  dayRef: React.RefObject<TextInput>;
-  yearRef: React.RefObject<TextInput>;
+  // React 19 / @types/react typings: useRef<T>(null) is RefObject<T | null>.
+  dayRef: React.RefObject<TextInput | null>;
+  yearRef: React.RefObject<TextInput | null>;
   email: string;
 }) {
   return (
@@ -400,7 +401,7 @@ function Step2({
       <View className="mb-2">
         <Text className="text-2xl font-extrabold text-zinc-900">Your location</Text>
         <Text className="mt-1 text-sm text-zinc-500">
-          Enter your ZIP code and we'll fill in your city and state automatically.
+          Enter your ZIP code and we&rsquo;ll fill in your city and state automatically.
         </Text>
       </View>
 
@@ -418,7 +419,7 @@ function Step2({
             style={{ flex: 1, paddingVertical: 12, fontSize: 16, color: '#18181B' }}
             placeholderTextColor="#A1A1AA"
           />
-          {zipLooking && <ActivityIndicator size="small" color="#2D5F3E" />}
+          {zipLooking && <ActivityIndicator size="small" color="#1F4D3A" />}
           {!zipLooking && city && state && (
             <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
           )}
@@ -486,7 +487,7 @@ function StatePicker({
               <View className="flex-row items-center" style={{ gap: 8 }}>
                 <Text className="text-sm text-zinc-400">{item.abbr}</Text>
                 {selected === item.abbr && (
-                  <Ionicons name="checkmark" size={18} color="#2D5F3E" />
+                  <Ionicons name="checkmark" size={18} color="#1F4D3A" />
                 )}
               </View>
             </Pressable>

@@ -1,25 +1,14 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SaleStatus } from '../types';
 
-const STATUS_COLOR: Record<SaleStatus, string> = {
-  active: '#10B981', // emerald-500 — bright green for go!
-  winding_down: '#EAB308', // yellow-500 — clearly yellow
-  ended: '#9CA3AF', // zinc — muted
-};
-
-// Indigo used for pins that have been added to the route planner.
+const BRAND = '#1F4D3A';
+const GRAY = '#8A857C';
 const ROUTE_COLOR = '#4F46E5';
+const ROSE = '#A23E2D';
 
 /**
- * Map marker view: a colored circle with a price-tag (or heart) icon.
- *
- * Pass `inRoute={true}` to switch the pin to the route-planner style
- * (indigo circle with a checkmark). The parent Marker should set
- * tracksViewChanges={true} while route mode is active so the native
- * layer picks up the color change.
- *
  * History note: a previous version layered an Animated.View pulse
  * behind the pin for `status === 'active'` markers. Under the
  * iOS new architecture (Fabric), multiple native-driven Animated
@@ -29,27 +18,33 @@ const ROUTE_COLOR = '#4F46E5';
  *   object cannot be nil
  *   ... -[AIRMap insertReactSubview:atIndex:] + 888
  *
- * on zoom / refetch. The pulse was a cosmetic nicety; stability
- * matters more, so we ship a static colored circle.
+ * on zoom / refetch. Keep this static.
  */
 function MapPinInner({
   status,
   favorited,
   inRoute,
+  num,
+  openNow,
 }: {
   status: SaleStatus;
   favorited?: boolean;
   /** True when this sale has been added to the route planner. */
   inRoute?: boolean;
+  /** 1-indexed pin number (distance-sorted). When set, renders the number instead of an icon. */
+  num?: number;
+  /** True when the sale's hours include the current time. */
+  openNow?: boolean;
 }) {
-  const color = inRoute ? ROUTE_COLOR : STATUS_COLOR[status];
+  const isLive = status === 'active' && openNow;
+  const color = inRoute ? ROUTE_COLOR : isLive ? BRAND : GRAY;
   return (
     <View>
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: 30,
+          height: 30,
+          borderRadius: 15,
           backgroundColor: color,
           borderWidth: 3,
           borderColor: '#fff',
@@ -62,27 +57,39 @@ function MapPinInner({
           elevation: 4,
         }}
       >
-        <Ionicons
-          name={inRoute ? 'checkmark' : favorited ? 'heart' : 'pricetag'}
-          size={16}
-          color="#fff"
-        />
+        {inRoute ? (
+          <Ionicons name="checkmark" size={14} color="#fff" />
+        ) : typeof num === 'number' ? (
+          <Text
+            style={{
+              color: '#fff',
+              fontSize: 11.5,
+              fontWeight: '700',
+              includeFontPadding: false,
+            }}
+          >
+            {num}
+          </Text>
+        ) : (
+          <Ionicons
+            name={favorited ? 'heart' : 'pricetag'}
+            size={14}
+            color="#fff"
+          />
+        )}
       </View>
-      {/* Small heart badge in corner when favorited (hidden while in route) */}
       {favorited && !inRoute && (
         <View
           style={{
             position: 'absolute',
             top: -2,
             right: -2,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            backgroundColor: '#F43F5E',
-            borderWidth: 1.5,
+            width: 13,
+            height: 13,
+            borderRadius: 6.5,
+            backgroundColor: ROSE,
+            borderWidth: 2,
             borderColor: '#fff',
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
         />
       )}
@@ -90,6 +97,4 @@ function MapPinInner({
   );
 }
 
-// Pins re-render constantly when the map pans; memo by status + route
-// state so React skips reconciliation when the data hasn't changed.
 export const MapPin = React.memo(MapPinInner);

@@ -25,6 +25,21 @@ export function useUserLocation(autoRequest = true): UserLocation | null {
           status = (await Location.requestForegroundPermissionsAsync()).status;
           if (status !== 'granted') return;
         }
+        // Fast path: a cached last-known fix returns almost instantly, so
+        // the map can center on the user immediately instead of waiting
+        // seconds for a fresh GPS lock (during which it would otherwise
+        // fall back to the US-center default).
+        try {
+          const last = await Location.getLastKnownPositionAsync();
+          if (!cancelled && last) {
+            setCoords({
+              latitude: last.coords.latitude,
+              longitude: last.coords.longitude,
+            });
+          }
+        } catch {
+          /* no cached fix */
+        }
         const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });

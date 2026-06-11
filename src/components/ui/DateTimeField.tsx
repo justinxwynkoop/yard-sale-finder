@@ -213,6 +213,6 @@ const styles = StyleSheet.create({
   done: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2D5F3E',
+    color: '#1F4D3A',
   },
 });

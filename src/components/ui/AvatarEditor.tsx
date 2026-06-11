@@ -12,8 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { toast } from '../../lib/toast';
 
-const BRAND = '#2D5F3E';
-const SURFACE = '#FAFAF9';
+const BRAND = '#1F4D3A';
+const SURFACE = '#F7F2E8';
 const SIZE = 120;
 const BADGE = 40;
 
@@ -53,11 +53,11 @@ export function AvatarEditor({
   onChange,
 }: AvatarEditorProps) {
   const open = () => {
-    const buttons: Array<{
+    const buttons: {
       text: string;
       style?: 'destructive' | 'cancel';
       onPress?: () => void;
-    }> = [
+    }[] = [
       { text: 'Take Photo', onPress: () => void handle('camera') },
       { text: 'Choose from Library', onPress: () => void handle('library') },
     ];
@@ -129,11 +129,11 @@ export function AvatarEditor({
       accessibilityLabel={`${name ?? 'Profile'} photo, tap to change`}
       accessibilityHint="Opens a menu to take a photo, pick from library, or remove the current photo"
       hitSlop={8}
-      style={({ pressed }) => ({
+      style={{
         width: SIZE,
         height: SIZE,
-        opacity: pressed && !uploading ? 0.85 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       {/* Avatar surface: either the picked/saved image or a
           brand-colored circle with the initial. Sized explicitly via

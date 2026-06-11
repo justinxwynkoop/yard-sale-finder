@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
-import { Avatar, Button, EmptyState } from '../../components/ui';
+import { Avatar, EmptyState } from '../../components/ui';
 
 /**
  * Settings screen listing every user the current user has blocked,
@@ -46,20 +46,20 @@ export default function BlockedUsersScreen() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: '#F7F2E8',
         }}
       >
-        <ActivityIndicator size="large" color="#2D5F3E" />
+        <ActivityIndicator size="large" color="#1F4D3A" />
       </View>
     );
   }
 
   if (blocks.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9' }} edges={['bottom']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['bottom']}>
         <EmptyState
           icon={
-            <Ionicons name="shield-checkmark-outline" size={32} color="#2D5F3E" />
+            <Ionicons name="shield-checkmark-outline" size={32} color="#1F4D3A" />
           }
           title="No blocked users"
           description={
@@ -72,7 +72,7 @@ export default function BlockedUsersScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9' }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['bottom']}>
       <FlatList
         data={blocks}
         keyExtractor={(b) => b.blocked_id}
@@ -115,14 +115,14 @@ export default function BlockedUsersScreen() {
                 handleUnblock(item.blocked_id, item.blocked?.display_name)
               }
               hitSlop={8}
-              style={({ pressed }) => ({
+              style={{
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 999,
-                backgroundColor: pressed ? '#FFEDD5' : '#FAFAF9',
+                backgroundColor: '#F7F2E8',
                 borderWidth: 1,
                 borderColor: '#F4F4F5',
-              })}
+              }}
             >
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#18181B' }}>
                 Unblock

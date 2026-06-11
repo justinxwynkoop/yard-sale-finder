@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { HeaderButton } from '../../components/ui';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useConversation } from '../../hooks/useConversation';
@@ -54,20 +55,20 @@ function MessageBubble({
           maxWidth: '78%',
           paddingHorizontal: 13,
           paddingVertical: 8,
-          borderRadius: 20,
-          backgroundColor: isMine ? '#2D5F3E' : '#FFFFFF',
-          borderBottomRightRadius: isMine && isTail ? 6 : 20,
-          borderBottomLeftRadius: !isMine && isTail ? 6 : 20,
+          borderRadius: 16,
+          backgroundColor: isMine ? '#1F4D3A' : '#FFFFFF',
+          borderBottomRightRadius: isMine && isTail ? 4 : 16,
+          borderBottomLeftRadius: !isMine && isTail ? 4 : 16,
           borderWidth: isMine ? 0 : 1,
-          borderColor: '#F4F4F5',
+          borderColor: '#E5DECC',
         }}
       >
         <Text
           selectable
           style={{
-            fontSize: 15.5,
-            color: isMine ? '#FFFFFF' : '#18181B',
-            lineHeight: 20,
+            fontSize: 13.5,
+            color: isMine ? '#FFFFFF' : '#171513',
+            lineHeight: 19,
           }}
         >
           {message.body}
@@ -139,7 +140,7 @@ function ContextCard({
             width: 44,
             height: 44,
             borderRadius: 8,
-            backgroundColor: '#FFEDD5',
+            backgroundColor: '#EFE8D6',
             alignItems: 'center',
             justifyContent: 'center',
             marginRight: 12,
@@ -148,7 +149,7 @@ function ContextCard({
           <Ionicons
             name={targetType === 'sale' ? 'pricetag-outline' : 'cube-outline'}
             size={20}
-            color="#2D5F3E"
+            color="#1F4D3A"
           />
         </View>
       )}
@@ -246,22 +247,59 @@ export default function ConversationScreen() {
   // default style get dropped to React Navigation's smaller default
   // before snapping back.
   useLayoutEffect(() => {
+    const openOtherProfile = () => {
+      if (!otherProfile?.id) return;
+      (navigation as any).navigate('PublicProfile', {
+        userId: otherProfile.id,
+      });
+    };
     navigation.setOptions({
       title: otherProfile?.display_name ?? 'Conversation',
-      // Fallback back button for cases where Conversation is the stack root
-      // (e.g. if the two-step navigation above races or is bypassed). Checked
-      // at press time so it always reflects the live navigation state.
-      headerLeft: navigation.canGoBack()
-        ? undefined
-        : () => (
-            <Pressable
-              onPress={() => (navigation as any).navigate('Inbox')}
-              style={{ paddingLeft: 8, paddingRight: 4 }}
-              hitSlop={8}
-            >
-              <Ionicons name="chevron-back" size={28} color="#18181B" />
-            </Pressable>
-          ),
+      headerTitle: () => (
+        <Pressable
+          onPress={openOtherProfile}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${
+            otherProfile?.display_name ?? 'profile'
+          }`}
+          hitSlop={6}
+        >
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '700',
+              color: '#18181B',
+              maxWidth: 200,
+            }}
+            numberOfLines={1}
+          >
+            {otherProfile?.display_name ?? 'Conversation'}
+          </Text>
+        </Pressable>
+      ),
+      // Always render our own back button. We can't rely on React
+      // Navigation's default because cross-tab nested navigation can
+      // land Conversation as the stack root with no history -- in
+      // which case the default chevron just doesn't render. This
+      // version walks the canGoBack fast path first and falls back to
+      // explicit InboxHome navigation, so users are never stranded.
+      // Header bg is #fff, so the back button uses the same 36×36
+      // rounded-12 chip shape as the icon buttons on the Listings /
+      // Profile headers, just inverted (bone-on-white instead of
+      // white-on-bone). Keeps the visual language consistent across
+      // the app's chrome.
+      headerLeft: () => (
+        <HeaderButton
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              (navigation as any).navigate('InboxHome');
+            }
+          }}
+          accessibilityLabel="Back"
+        />
+      ),
     });
   }, [navigation, otherProfile]);
 
@@ -314,10 +352,10 @@ export default function ConversationScreen() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: '#F7F2E8',
         }}
       >
-        <ActivityIndicator size="large" color="#2D5F3E" />
+        <ActivityIndicator size="large" color="#1F4D3A" />
       </View>
     );
   }
@@ -325,7 +363,7 @@ export default function ConversationScreen() {
   if (error) {
     return (
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: '#FAFAF9' }}
+        style={{ flex: 1, backgroundColor: '#F7F2E8' }}
         edges={['bottom']}
       >
         <View
@@ -351,7 +389,7 @@ export default function ConversationScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: '#FAFAF9' }}
+      style={{ flex: 1, backgroundColor: '#F7F2E8' }}
       edges={['bottom']}
     >
       <KeyboardAvoidingView
@@ -396,8 +434,8 @@ export default function ConversationScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#2D5F3E"
-              colors={['#2D5F3E']}
+              tintColor="#1F4D3A"
+              colors={['#1F4D3A']}
             />
           }
           renderItem={({ item }) => (
@@ -434,31 +472,44 @@ export default function ConversationScreen() {
             alignItems: 'center',
             backgroundColor: '#FFFFFF',
             paddingHorizontal: 12,
-            paddingVertical: 8,
+            paddingVertical: 10,
             borderTopWidth: 1,
-            borderTopColor: '#F4F4F5',
+            borderTopColor: '#E5DECC',
           }}
         >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: '#F7F2E8',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 8,
+            }}
+          >
+            <Ionicons name="add" size={18} color="#54504A" />
+          </View>
           <TextInput
             ref={inputRef}
             value={draft}
             onChangeText={setDraft}
             placeholder="Message…"
-            placeholderTextColor="#A1A1AA"
+            placeholderTextColor="#8A857C"
             multiline
             maxLength={2000}
             style={{
               flex: 1,
               marginRight: 8,
-              minHeight: 40,
+              minHeight: 34,
               maxHeight: 120,
               paddingHorizontal: 14,
-              paddingTop: 10,
-              paddingBottom: 10,
-              backgroundColor: '#F4F4F5',
-              borderRadius: 20,
-              fontSize: 15.5,
-              color: '#18181B',
+              paddingTop: 8,
+              paddingBottom: 8,
+              backgroundColor: '#F7F2E8',
+              borderRadius: 17,
+              fontSize: 14,
+              color: '#171513',
             }}
           />
           <Pressable
@@ -468,18 +519,15 @@ export default function ConversationScreen() {
             accessibilityRole="button"
             accessibilityLabel="Send message"
             style={{
-              minWidth: 64,
-              height: 40,
-              paddingHorizontal: 16,
-              borderRadius: 20,
-              backgroundColor: draft.trim() ? '#2D5F3E' : '#D4D4D8',
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: draft.trim() ? '#1F4D3A' : '#C7C1B0',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>
-              Send
-            </Text>
+            <Ionicons name="paper-plane" size={15} color="#fff" />
           </Pressable>
         </View>
       </KeyboardAvoidingView>

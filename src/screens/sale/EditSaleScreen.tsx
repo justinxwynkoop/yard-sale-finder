@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SubHeader } from '../../components/SubHeader';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -292,7 +293,7 @@ export default function EditSaleScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#2D5F3E" />
+        <ActivityIndicator size="large" color="#1F4D3A" />
       </View>
     );
   }
@@ -316,7 +317,8 @@ export default function EditSaleScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+      <SubHeader title="Edit sale" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

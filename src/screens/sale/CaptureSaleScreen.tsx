@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
-import { Button } from '../../components/ui';
+import { Button, HeaderButton } from '../../components/ui';
 
 type Route = RouteProp<SaleStackParamList, 'Capture'>;
 
@@ -73,7 +73,7 @@ export default function CaptureSaleScreen() {
   if (!permission) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#2D5F3E" />
+        <ActivityIndicator color="#1F4D3A" />
       </View>
     );
   }
@@ -81,7 +81,7 @@ export default function CaptureSaleScreen() {
     return (
       <View style={styles.permWrap}>
         <View style={styles.permIcon}>
-          <Ionicons name="camera-outline" size={32} color="#2D5F3E" />
+          <Ionicons name="camera-outline" size={32} color="#1F4D3A" />
         </View>
         <Text style={styles.permTitle}>Camera access needed</Text>
         <Text style={styles.permBody}>
@@ -112,9 +112,7 @@ export default function CaptureSaleScreen() {
         style={[styles.topBar, { top: Math.max(insets.top, 12) }]}
         pointerEvents="box-none"
       >
-        <Pressable onPress={cancel} style={styles.topBtn}>
-          <Ionicons name="close" size={22} color="#fff" />
-        </Pressable>
+        <HeaderButton onPress={cancel} icon="close" variant="glass" accessibilityLabel="Close" />
         <View style={styles.counter}>
           <Ionicons name="camera" size={14} color="#fff" />
           <Text style={styles.counterText}>
@@ -209,7 +207,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFEDD5',
+    backgroundColor: '#EFE8D6',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -314,7 +312,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#2D5F3E',
+    backgroundColor: '#1F4D3A',
     alignItems: 'center',
     justifyContent: 'center',
   },
