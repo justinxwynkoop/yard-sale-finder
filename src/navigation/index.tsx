@@ -219,7 +219,11 @@ function MessagesNavigator() {
         component={InboxScreen}
         options={{ headerShown: false }}
       />
-      <MessagesStack.Screen name="Conversation" component={ConversationScreen} />
+      <MessagesStack.Screen
+        name="Conversation"
+        component={ConversationScreen}
+        options={{ headerShown: false }}
+      />
       <MessagesStack.Screen
         name="PublicProfile"
         component={PublicProfileScreen as any}

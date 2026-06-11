@@ -5,6 +5,7 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -34,6 +35,21 @@ const HAIRLINE = '#E5DECC';
 
 type Segment = 'sales' | 'items';
 
+type SalesSort = 'nearest' | 'soonest' | 'newest';
+type ListingsSort = 'nearest' | 'newest' | 'price_low' | 'price_high';
+
+const SALES_SORT_LABEL: Record<SalesSort, string> = {
+  nearest: 'Nearest',
+  soonest: 'Starting soonest',
+  newest: 'Recently posted',
+};
+const LISTINGS_SORT_LABEL: Record<ListingsSort, string> = {
+  nearest: 'Nearest',
+  newest: 'Recently posted',
+  price_low: 'Price: low to high',
+  price_high: 'Price: high to low',
+};
+
 export default function ListingsScreen() {
   const navigation = useNavigation<Nav>();
   const userLocation = useUserLocation();
@@ -54,6 +70,8 @@ export default function ListingsScreen() {
   const { refetch: refetchFavorites } = useFavorites();
 
   const [segment, setSegment] = useState<Segment>('sales');
+  const [salesSort, setSalesSort] = useState<SalesSort>('nearest');
+  const [listingsSort, setListingsSort] = useState<ListingsSort>('nearest');
   const activeFilterCount = countActiveListingsFilters(listingsFilters);
 
   useFocusEffect(
@@ -73,10 +91,23 @@ export default function ListingsScreen() {
             lng,
           )
         : Number.POSITIVE_INFINITY;
-    return [...sales].sort(
-      (a, b) => dist(a.latitude, a.longitude) - dist(b.latitude, b.longitude),
-    );
-  }, [sales, userLocation]);
+    const out = [...sales];
+    switch (salesSort) {
+      case 'soonest':
+        out.sort((a, b) => a.start_date.localeCompare(b.start_date));
+        break;
+      case 'newest':
+        out.sort((a, b) => b.created_at.localeCompare(a.created_at));
+        break;
+      case 'nearest':
+      default:
+        out.sort(
+          (a, b) =>
+            dist(a.latitude, a.longitude) - dist(b.latitude, b.longitude),
+        );
+    }
+    return out;
+  }, [sales, userLocation, salesSort]);
 
   const sortedListings = useMemo(() => {
     const dist = (lat: number, lng: number) =>
@@ -98,11 +129,44 @@ export default function ListingsScreen() {
     const within = listings.filter(
       (l) => dist(l.pickup_lat, l.pickup_lng) <= maxMeters,
     );
-    return [...within].sort(
-      (a, b) =>
-        dist(a.pickup_lat, a.pickup_lng) - dist(b.pickup_lat, b.pickup_lng),
-    );
-  }, [listings, userLocation, listingsFilters.radiusMiles]);
+    switch (listingsSort) {
+      case 'newest':
+        within.sort((a, b) => b.created_at.localeCompare(a.created_at));
+        break;
+      case 'price_low':
+        within.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_high':
+        within.sort((a, b) => b.price - a.price);
+        break;
+      case 'nearest':
+      default:
+        within.sort(
+          (a, b) =>
+            dist(a.pickup_lat, a.pickup_lng) - dist(b.pickup_lat, b.pickup_lng),
+        );
+    }
+    return within;
+  }, [listings, userLocation, listingsFilters.radiusMiles, listingsSort]);
+
+  const openSortMenu = useCallback(() => {
+    if (segment === 'sales') {
+      Alert.alert('Sort yard sales', undefined, [
+        { text: SALES_SORT_LABEL.nearest, onPress: () => setSalesSort('nearest') },
+        { text: SALES_SORT_LABEL.soonest, onPress: () => setSalesSort('soonest') },
+        { text: SALES_SORT_LABEL.newest, onPress: () => setSalesSort('newest') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    } else {
+      Alert.alert('Sort items', undefined, [
+        { text: LISTINGS_SORT_LABEL.nearest, onPress: () => setListingsSort('nearest') },
+        { text: LISTINGS_SORT_LABEL.newest, onPress: () => setListingsSort('newest') },
+        { text: LISTINGS_SORT_LABEL.price_low, onPress: () => setListingsSort('price_low') },
+        { text: LISTINGS_SORT_LABEL.price_high, onPress: () => setListingsSort('price_high') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, [segment]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['top']}>
@@ -244,9 +308,12 @@ export default function ListingsScreen() {
           }}
         >
           <Text style={{ fontSize: 12, color: INK_MUTED }}>
-            Sorted by · Nearest
+            Sorted by ·{' '}
+            {segment === 'sales'
+              ? SALES_SORT_LABEL[salesSort]
+              : LISTINGS_SORT_LABEL[listingsSort]}
           </Text>
-          <Pressable hitSlop={6} onPress={() => { /* future sort menu */ }}>
+          <Pressable hitSlop={6} onPress={openSortMenu}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontSize: 12, fontWeight: '600', color: BRAND }}>
                 Sort
