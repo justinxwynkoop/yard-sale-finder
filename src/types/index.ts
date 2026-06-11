@@ -224,7 +224,8 @@ export type MainTabParamList = {
 
 export type MessagesStackParamList = {
   InboxHome: undefined;
-  Conversation: { conversationId: string };
+  /** initialDraft pre-fills the composer (e.g. a Make-offer template). */
+  Conversation: { conversationId: string; initialDraft?: string };
   PublicProfile: { userId: string; self?: boolean };
 };
 

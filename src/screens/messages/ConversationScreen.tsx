@@ -210,7 +210,7 @@ function ContextCard({
 export default function ConversationScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Route>();
-  const { conversationId } = route.params;
+  const { conversationId, initialDraft } = route.params;
   const { user } = useAuth();
   const {
     conversation,
@@ -223,7 +223,10 @@ export default function ConversationScreen() {
     refetch,
   } = useConversation(conversationId);
 
-  const [draft, setDraft] = useState('');
+  // Seed the composer from the route (e.g. the Make-offer template).
+  // useState's initializer only runs on mount, so later param changes
+  // can't clobber what the user is typing.
+  const [draft, setDraft] = useState(initialDraft ?? '');
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
