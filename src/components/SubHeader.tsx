@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { HeaderButton } from './ui';
@@ -17,14 +17,24 @@ export function SubHeader({
   title,
   right,
   onBack,
+  onTitlePress,
 }: {
   title: string;
   right?: React.ReactNode;
   onBack?: () => void;
+  /** When set, the title becomes tappable (e.g. open the other party's
+   *  profile from a conversation header). */
+  onTitlePress?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const handleBack = onBack ?? (() => navigation.goBack());
+  const textStyle = {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: INK,
+    letterSpacing: -0.3,
+  };
   return (
     <View
       style={{
@@ -40,19 +50,22 @@ export function SubHeader({
       }}
     >
       <HeaderButton onPress={handleBack} accessibilityLabel="Back" />
-      <Text
-        style={{
-          flex: 1,
-          marginLeft: 6,
-          fontSize: 17,
-          fontWeight: '700',
-          color: INK,
-          letterSpacing: -0.3,
-        }}
-        numberOfLines={1}
-      >
-        {title}
-      </Text>
+      {onTitlePress ? (
+        <Pressable
+          onPress={onTitlePress}
+          hitSlop={6}
+          style={{ flex: 1, marginLeft: 6 }}
+          accessibilityRole="button"
+        >
+          <Text style={textStyle} numberOfLines={1}>
+            {title}
+          </Text>
+        </Pressable>
+      ) : (
+        <Text style={{ flex: 1, marginLeft: 6, ...textStyle }} numberOfLines={1}>
+          {title}
+        </Text>
+      )}
       {right}
     </View>
   );

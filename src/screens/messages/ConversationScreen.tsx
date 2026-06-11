@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,9 +15,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { HeaderButton } from '../../components/ui';
+import { SubHeader } from '../../components/SubHeader';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { useHeaderHeight } from '@react-navigation/elements';
 import { useConversation } from '../../hooks/useConversation';
 import { useAuth } from '../../hooks/useAuth';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
@@ -289,76 +282,21 @@ export default function ConversationScreen() {
       params: undefined,
     } as never);
   }, [navigation]);
-  // Exact pixel height of React Navigation's header, including the
-  // safe-area top inset. Pass to KeyboardAvoidingView as the vertical
-  // offset so the avoidance math is correct -- a hardcoded guess
-  // (we had 90 before) left the input visible but covered the last
-  // few message bubbles behind the keyboard.
-  const headerHeight = useHeaderHeight();
+  // The header is a SubHeader (rendered below) — the SAME push-screen
+  // header used on Saved / Profile, so the back button is identical
+  // across the app. The native stack header is hidden for this screen
+  // (headerShown: false in MessagesNavigator).
+  const openOtherProfile = useCallback(() => {
+    if (!otherProfile?.id) return;
+    (navigation as any).navigate('PublicProfile', { userId: otherProfile.id });
+  }, [navigation, otherProfile?.id]);
 
-  // Title bar shows the other participant's name. The tab bar is
-  // hidden by the Tab.Navigator's screenOptions (see
-  // src/navigation/index.tsx) when the focused stack route is
-  // 'Conversation' -- doing it here via setOptions caused a visible
-  // tab-bar bounce on unmount because the height/padding from our
-  // default style get dropped to React Navigation's smaller default
-  // before snapping back.
-  useLayoutEffect(() => {
-    const openOtherProfile = () => {
-      if (!otherProfile?.id) return;
-      (navigation as any).navigate('PublicProfile', {
-        userId: otherProfile.id,
-      });
-    };
-    navigation.setOptions({
-      title: otherProfile?.display_name ?? 'Conversation',
-      headerTitle: () => (
-        <Pressable
-          onPress={openOtherProfile}
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${
-            otherProfile?.display_name ?? 'profile'
-          }`}
-          hitSlop={6}
-        >
-          <Text
-            style={{
-              fontSize: 17,
-              fontWeight: '700',
-              color: '#18181B',
-              maxWidth: 200,
-            }}
-            numberOfLines={1}
-          >
-            {otherProfile?.display_name ?? 'Conversation'}
-          </Text>
-        </Pressable>
-      ),
-      // Always render our own back button. We can't rely on React
-      // Navigation's default because cross-tab nested navigation can
-      // land Conversation as the stack root with no history -- in
-      // which case the default chevron just doesn't render. This
-      // version walks the canGoBack fast path first and falls back to
-      // explicit InboxHome navigation, so users are never stranded.
-      // Header bg is #fff, so the back button uses the same 36×36
-      // rounded-12 chip shape as the icon buttons on the Listings /
-      // Profile headers, just inverted (bone-on-white instead of
-      // white-on-bone). Keeps the visual language consistent across
-      // the app's chrome.
-      headerLeft: () => (
-        <HeaderButton
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              (navigation as any).navigate('InboxHome');
-            }
-          }}
-          accessibilityLabel="Back"
-        />
-      ),
-    });
-  }, [navigation, otherProfile]);
+  // canGoBack fast path, falling back to InboxHome — cross-tab nested
+  // navigation can land Conversation as the stack root with no history.
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else (navigation as any).navigate('InboxHome');
+  }, [navigation]);
 
   // Reverse for inverted FlatList: newest at index 0. We also tag
   // each entry with grouping flags -- iMessage only shows the
@@ -445,8 +383,15 @@ export default function ConversationScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+        // No native header now (headerShown:false), so the KAV is at the
+        // top of the screen — zero offset.
+        keyboardVerticalOffset={0}
       >
+        <SubHeader
+          title={otherProfile?.display_name ?? 'Conversation'}
+          onBack={handleBack}
+          onTitlePress={otherProfile?.id ? openOtherProfile : undefined}
+        />
         {/* Rich context card: shows the item being discussed with
             its photo + title + price-or-dates. Tappable to jump to
             the full sale / listing detail screen. Sits above the
