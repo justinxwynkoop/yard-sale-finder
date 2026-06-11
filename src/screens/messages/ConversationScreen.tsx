@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadMessageImage } from '../../lib/messageImageUpload';
+import { getSignedMessageImage } from '../../lib/signedMessageImage';
 import { SubHeader } from '../../components/SubHeader';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useConversation } from '../../hooks/useConversation';
@@ -44,6 +45,23 @@ function MessageBubble({
   isTail: boolean;
   isGrouped: boolean;
 }) {
+  // message-media is private — resolve the stored path to a short-lived
+  // signed URL (only participants can mint one).
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (!message.image_url) {
+      setImageUri(null);
+      return;
+    }
+    getSignedMessageImage(message.image_url).then((u) => {
+      if (active) setImageUri(u);
+    });
+    return () => {
+      active = false;
+    };
+  }, [message.image_url]);
+
   return (
     <View
       style={{
@@ -68,7 +86,7 @@ function MessageBubble({
       >
         {message.image_url ? (
           <Image
-            source={{ uri: message.image_url }}
+            source={imageUri ? { uri: imageUri } : undefined}
             style={{
               width: 220,
               height: 220,

@@ -10,6 +10,10 @@ import { compressImage } from './imageCompression';
  *
  * Path is `${userId}/${conversationId}/${unique}.jpg` so the storage
  * insert/delete RLS (folder[1] === auth.uid()) is satisfied.
+ *
+ * Returns the storage PATH (not a URL) — message-media is a private
+ * bucket, so the path is stored in messages.image_url and the renderer
+ * mints a short-lived signed URL (see signedMessageImage.ts).
  */
 export async function uploadMessageImage(
   uri: string,
@@ -28,8 +32,5 @@ export async function uploadMessageImage(
     .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
   if (error) throw error;
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('message-media').getPublicUrl(path);
-  return publicUrl;
+  return path;
 }
