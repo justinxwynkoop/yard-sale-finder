@@ -199,16 +199,19 @@ export function useConversation(conversationId: string | undefined) {
   }, [conversationId, user]);
 
   const send = useCallback(
-    async (body: string) => {
+    async (body: string, imageUrl?: string | null) => {
       const trimmed = body.trim();
-      if (!trimmed || !user || !conversationId) return { error: null };
+      // A message needs text OR an image.
+      if ((!trimmed && !imageUrl) || !user || !conversationId)
+        return { error: null };
       setSending(true);
       // Optimistic append so the bubble shows up immediately.
       const optimistic: Message = {
         id: `optimistic-${Date.now()}`,
         conversation_id: conversationId,
         sender_id: user.id,
-        body: trimmed,
+        body: trimmed || null,
+        image_url: imageUrl ?? null,
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, optimistic]);
@@ -217,7 +220,8 @@ export function useConversation(conversationId: string | undefined) {
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          body: trimmed,
+          body: trimmed || null,
+          image_url: imageUrl ?? null,
         })
         .select()
         .single();

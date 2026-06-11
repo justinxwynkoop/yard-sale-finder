@@ -127,14 +127,19 @@ export function useInbox() {
     const convIds = rows.map((c) => c.id);
     const { data: recentMessages } = await supabase
       .from('messages')
-      .select('conversation_id, body, created_at, sender_id')
+      .select('conversation_id, body, image_url, created_at, sender_id')
       .in('conversation_id', convIds)
       .order('created_at', { ascending: false })
       .limit(convIds.length * 4); // ~4 most-recent per conv is plenty
 
     const lastByConv = new Map<
       string,
-      { body: string; created_at: string; sender_id: string }
+      {
+        body: string | null;
+        image_url: string | null;
+        created_at: string;
+        sender_id: string;
+      }
     >();
     for (const m of recentMessages ?? []) {
       if (!lastByConv.has((m as any).conversation_id)) {
@@ -158,7 +163,9 @@ export function useInbox() {
         other_profile: profileById.get(otherId),
         target_title: targetPreview?.title,
         target_image_url: targetPreview?.image ?? undefined,
-        last_message_preview: lastMsg?.body,
+        last_message_preview: lastMsg
+          ? (lastMsg.body ?? (lastMsg.image_url ? '📷 Photo' : undefined))
+          : undefined,
         has_unread: isUnread,
       };
     });
