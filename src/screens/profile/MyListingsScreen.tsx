@@ -41,11 +41,13 @@ export default function MyListingsScreen() {
   const filtered = useMemo(
     () =>
       listings.filter((l) =>
-        segment === 'live' ? l.status === 'available' : l.status === 'sold',
+        // "Live" = anything not sold (available + pending), so pending items
+        // don't vanish from the list.
+        segment === 'live' ? l.status !== 'sold' : l.status === 'sold',
       ),
     [listings, segment],
   );
-  const liveCount = listings.filter((l) => l.status === 'available').length;
+  const liveCount = listings.filter((l) => l.status !== 'sold').length;
   const soldCount = listings.filter((l) => l.status === 'sold').length;
 
   const mutateStatus = async (listing: Listing, status: ListingStatus) => {

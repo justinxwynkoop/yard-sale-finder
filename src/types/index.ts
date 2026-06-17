@@ -169,7 +169,7 @@ export interface ListingFavorite {
   created_at: string;
 }
 
-export type ListingStatus = 'available' | 'sold';
+export type ListingStatus = 'available' | 'sold' | 'pending';
 
 export interface Listing {
   id: string;

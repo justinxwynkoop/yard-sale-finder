@@ -22,7 +22,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { supabase } from '../../lib/supabase';
-import { Listing, ListingMedia, ListingsStackParamList } from '../../types';
+import { toast } from '../../lib/toast';
+import { Listing, ListingMedia, ListingStatus, ListingsStackParamList } from '../../types';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 import { useAuth } from '../../hooks/useAuth';
@@ -76,6 +77,21 @@ export default function ListingDetailScreen() {
   const userLocation = useUserLocation();
 
   const isOwnListing = listing?.user_id === user?.id;
+
+  // Owner can flip the item's status (available / pending / sold) right here.
+  const updateStatus = async (status: ListingStatus) => {
+    if (!listing || listing.status === status) return;
+    const prev = listing.status;
+    setListing({ ...listing, status });
+    const { error } = await supabase
+      .from('listings')
+      .update({ status })
+      .eq('id', listing.id);
+    if (error) {
+      setListing({ ...listing, status: prev });
+      toast.error("Couldn't update status", error.message);
+    }
+  };
   const favorited = listing ? isFavorited(listing.id) : false;
 
   useEffect(() => {
@@ -392,14 +408,16 @@ export default function ListingDetailScreen() {
                 letterSpacing: -0.6,
               }}
             >
-              {listing.price === 0
-                ? 'Free'
-                : `$${listing.price % 1 === 0 ? listing.price : listing.price.toFixed(2)}`}
+              {listing.price === 0 ? 'Free' : `$${listing.price.toFixed(2)}`}
             </Text>
             <View
               style={{
                 backgroundColor:
-                  listing.status === 'sold' ? '#EFEBE0' : BRAND_SOFT,
+                  listing.status === 'sold'
+                    ? '#EFEBE0'
+                    : listing.status === 'pending'
+                      ? '#FBEFD6'
+                      : BRAND_SOFT,
                 paddingHorizontal: 9,
                 paddingVertical: 4,
                 borderRadius: 99,
@@ -409,11 +427,20 @@ export default function ListingDetailScreen() {
                 style={{
                   fontSize: 11,
                   fontWeight: '700',
-                  color: listing.status === 'sold' ? INK_SOFT : BRAND,
+                  color:
+                    listing.status === 'sold'
+                      ? INK_SOFT
+                      : listing.status === 'pending'
+                        ? '#B8772C'
+                        : BRAND,
                   letterSpacing: 0.4,
                 }}
               >
-                {listing.status === 'sold' ? 'SOLD' : 'AVAILABLE'}
+                {listing.status === 'sold'
+                  ? 'SOLD'
+                  : listing.status === 'pending'
+                    ? 'PENDING'
+                    : 'AVAILABLE'}
               </Text>
             </View>
           </View>
@@ -445,6 +472,46 @@ export default function ListingDetailScreen() {
               {formatPostedDate(listing.created_at).replace('Posted ', '')}
             </Text>
           </View>
+
+          {/* Owner status controls — set this item available / pending / sold. */}
+          {isOwnListing && (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+              {(['available', 'pending', 'sold'] as ListingStatus[]).map((s) => {
+                const active = listing.status === s;
+                const label =
+                  s === 'available'
+                    ? 'Available'
+                    : s === 'pending'
+                      ? 'Pending'
+                      : 'Sold';
+                return (
+                  <Pressable
+                    key={s}
+                    onPress={() => updateStatus(s)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 9,
+                      borderRadius: 10,
+                      alignItems: 'center',
+                      backgroundColor: active ? BRAND : BRAND_SOFT,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: active ? '#fff' : BRAND,
+                      }}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
 
           {listing.description ? (
             <Text

@@ -23,7 +23,7 @@ export type ConversationTarget =
       kind: 'listing';
       title: string;
       price: number;
-      status: 'available' | 'sold';
+      status: 'available' | 'sold' | 'pending';
       pickup_display?: string;
       image_url?: string;
     };
