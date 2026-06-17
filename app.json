@@ -89,7 +89,8 @@
           "imageWidth": 300,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "extra": {
       "eas": {

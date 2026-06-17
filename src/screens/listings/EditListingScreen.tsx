@@ -93,13 +93,16 @@ export default function EditListingScreen() {
 
   const pickFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: MAX_MEDIA - media.length,
     });
     if (!result.canceled) {
-      const items: MediaItem[] = result.assets.map((a) => ({ uri: a.uri, type: 'image' }));
+      const items: MediaItem[] = result.assets.map((a) => ({
+        uri: a.uri,
+        type: a.type === 'video' ? 'video' : 'image',
+      }));
       setMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
     }
   };
@@ -132,13 +135,16 @@ export default function EditListingScreen() {
   const uploadNewMedia = async (listingId: string, newItems: MediaItem[], startIndex: number) => {
     for (let i = 0; i < newItems.length; i++) {
       const item = newItems[i];
-      const uri = await compressImage(item.uri);
-      const path = `${user!.id}/${listingId}/${startIndex + i}.jpg`;
+      // Compress images before upload; pass videos through as-is.
+      const uri = item.type === 'image' ? await compressImage(item.uri) : item.uri;
+      const ext = item.type === 'video' ? 'mp4' : 'jpg';
+      const path = `${user!.id}/${listingId}/${startIndex + i}.${ext}`;
+      const contentType = item.type === 'video' ? 'video/mp4' : 'image/jpeg';
       const file = new File(uri);
       const arrayBuffer = await file.arrayBuffer();
       const { error: uploadError } = await supabase.storage
         .from('listing-media')
-        .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
+        .upload(path, arrayBuffer, { contentType, upsert: true });
       if (uploadError) {
         const enriched: any = new Error(
           `Storage upload rejected (path=${path}): ${uploadError.message}`,
@@ -149,7 +155,7 @@ export default function EditListingScreen() {
       }
       const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
       const { error: insertError } = await supabase.from('listing_media').insert({
-        listing_id: listingId, url: publicUrl, type: 'image', order: startIndex + i,
+        listing_id: listingId, url: publicUrl, type: item.type, order: startIndex + i,
       });
       if (insertError) {
         const enriched: any = new Error(
@@ -164,7 +170,7 @@ export default function EditListingScreen() {
   };
 
   const validate = (): string | null => {
-    if (media.length === 0) return 'Please add at least one photo.';
+    if (media.length === 0) return 'Please add at least one photo or video.';
     if (!title.trim()) return 'Please add a title.';
     const p = parseFloat(price);
     if (!price.trim() || isNaN(p) || p < 0) return 'Please enter a valid price.';
@@ -250,6 +256,19 @@ export default function EditListingScreen() {
                 {media.map((item, i) => (
                   <View key={i} style={styles.thumb}>
                     <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    {item.type === 'video' && (
+                      <View
+                        style={{
+                          ...StyleSheet.absoluteFillObject,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: 'rgba(0,0,0,0.15)',
+                        }}
+                        pointerEvents="none"
+                      >
+                        <Ionicons name="play-circle" size={30} color="#fff" />
+                      </View>
+                    )}
                     <Pressable onPress={() => removeMedia(i)} style={styles.removeBtn}>
                       <Ionicons name="close-circle" size={22} color="#fff" />
                     </Pressable>
