@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { Button, Input, Card } from '../../components/ui';
 
-const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
+const SUPPORT_MAILTO = 'mailto:mytrovesupport@gmail.com';
 
 /**
  * Self-service account deletion. Required by Apple App Store

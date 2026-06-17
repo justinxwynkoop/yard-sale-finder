@@ -552,7 +552,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
+const SUPPORT_MAILTO = 'mailto:mytrovesupport@gmail.com';
 
 function TroveSupportLink() {
   return (
