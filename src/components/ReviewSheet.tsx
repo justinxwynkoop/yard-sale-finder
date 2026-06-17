@@ -27,10 +27,10 @@ const STAR_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
 /**
  * Bottom-sheet star-rating composer. The write half of the reviews
  * loop: 1-5 stars + an optional note, submitted via submitReview.
- * Server-side the insert is gated by RLS (you must have a conversation
- * with the subject or have visited one of their sales), so this sheet
- * should only be opened when useCanReview says eligible — but a
- * rejected insert still fails safe with a readable message.
+ * Server-side the insert is gated by RLS (you must have had a two-way
+ * conversation with the subject — they replied), so this sheet should
+ * only be opened when useCanReview says eligible — but a rejected insert
+ * still fails safe with a readable message.
  */
 export function ReviewSheet({
   visible,
