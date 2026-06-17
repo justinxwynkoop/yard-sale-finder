@@ -14,7 +14,7 @@ import { useProfile, invalidateProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui';
 
-const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
+const SUPPORT_MAILTO = 'mailto:mytrovesupport@gmail.com';
 
 const TERMS_VERSION = 'v1';
 

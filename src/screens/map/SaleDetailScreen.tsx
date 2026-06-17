@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
 import { Image } from 'expo-image';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import {
   useRoute,
@@ -90,6 +91,10 @@ export default function SaleDetailScreen() {
   const [linkedListings, setLinkedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  // Hero carousel position across ALL media (images + video); the photo
+  // counter reads this. `activeImage` separately tracks which IMAGE the
+  // lightbox opens to (video isn't shown in the lightbox).
+  const [activeSlide, setActiveSlide] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const { isFavorited, toggle: toggleFavorite } = useFavorites();
@@ -284,7 +289,13 @@ export default function SaleDetailScreen() {
     );
   }
 
-  const images = sale.media?.filter((m) => m.type === 'image') ?? [];
+  // All media (images + video) in order — the hero carousel shows everything;
+  // `images` (image-only) drives the lightbox + thumbnail rail since the
+  // lightbox can't play video.
+  const media = [...(sale.media ?? [])].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0),
+  );
+  const images = media.filter((m) => m.type === 'image');
   const open = isOpenNow(sale);
   const distance =
     userLocation != null
@@ -306,7 +317,7 @@ export default function SaleDetailScreen() {
       >
         {/* Hero */}
         <View style={{ height: HERO_HEIGHT, backgroundColor: BRAND_SOFT }}>
-          {images.length > 0 ? (
+          {media.length > 0 ? (
             <ScrollView
               horizontal
               pagingEnabled
@@ -315,31 +326,41 @@ export default function SaleDetailScreen() {
                 const idx = Math.round(
                   e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
                 );
-                setActiveImage(idx);
+                setActiveSlide(idx);
               }}
             >
-              {images.map((img) => (
-                <Pressable
-                  key={img.id}
-                  onPress={() => setIsViewerOpen(true)}
-                >
-                  <Image
-                    source={{
-                      uri: transformedImageUrl(img.url, {
-                        width: Math.round(SCREEN_WIDTH * 2),
-                        height: HERO_HEIGHT * 2,
-                        resize: 'cover',
-                        quality: 80,
-                      }),
+              {media.map((item) =>
+                item.type === 'video' ? (
+                  <VideoSlide key={item.id} uri={item.url} />
+                ) : (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      // Open the lightbox at this image's position within the
+                      // image-only list (video slides are skipped there).
+                      const imgIdx = images.findIndex((m) => m.id === item.id);
+                      setActiveImage(imgIdx < 0 ? 0 : imgIdx);
+                      setIsViewerOpen(true);
                     }}
-                    placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
-                    style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}
-                    contentFit="cover"
-                    transition={200}
-                    cachePolicy="memory-disk"
-                  />
-                </Pressable>
-              ))}
+                  >
+                    <Image
+                      source={{
+                        uri: transformedImageUrl(item.url, {
+                          width: Math.round(SCREEN_WIDTH * 2),
+                          height: HERO_HEIGHT * 2,
+                          resize: 'cover',
+                          quality: 80,
+                        }),
+                      }}
+                      placeholder={{ blurhash: PLACEHOLDER_BLURHASH }}
+                      style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}
+                      contentFit="cover"
+                      transition={200}
+                      cachePolicy="memory-disk"
+                    />
+                  </Pressable>
+                ),
+              )}
             </ScrollView>
           ) : (
             <View
@@ -414,8 +435,8 @@ export default function SaleDetailScreen() {
             )}
           </View>
 
-          {/* Photo counter chip */}
-          {images.length > 0 && (
+          {/* Media counter chip */}
+          {media.length > 0 && (
             <View
               style={{
                 position: 'absolute',
@@ -435,7 +456,7 @@ export default function SaleDetailScreen() {
                   fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
                 }}
               >
-                {activeImage + 1} / {images.length}
+                {activeSlide + 1} / {media.length}
               </Text>
             </View>
           )}
@@ -1238,4 +1259,24 @@ function labelForCategory(c: string): string {
     .split('_')
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(' ');
+}
+
+// Inline video player for the hero carousel. Mirrors ListingDetail's
+// VideoSlide — native controls, doesn't autoplay.
+function VideoSlide({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = false;
+  });
+  return (
+    <View
+      style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT, backgroundColor: '#000' }}
+    >
+      <VideoView
+        player={player}
+        style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}
+        nativeControls
+        contentFit="contain"
+      />
+    </View>
+  );
 }

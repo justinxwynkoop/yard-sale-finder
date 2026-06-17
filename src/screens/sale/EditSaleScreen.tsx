@@ -51,7 +51,7 @@ const MAX_DESCRIPTION = 500;
 const MAX_PRICING = 200;
 const MAX_MEDIA = 10;
 
-type NewMedia = { uri: string };
+type NewMedia = { uri: string; type: 'image' | 'video' };
 
 export default function EditSaleScreen() {
   const route = useRoute<Route>();
@@ -146,13 +146,16 @@ export default function EditSaleScreen() {
   const pickFromLibrary = async () => {
     if (remainingSlots <= 0) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: remainingSlots,
     });
     if (!result.canceled) {
-      const items: NewMedia[] = result.assets.map((a) => ({ uri: a.uri }));
+      const items: NewMedia[] = result.assets.map((a) => ({
+        uri: a.uri,
+        type: a.type === 'video' ? 'video' : 'image',
+      }));
       setNewMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
     }
   };
@@ -161,7 +164,7 @@ export default function EditSaleScreen() {
     if (remainingSlots <= 0) return;
     captureBus.setListener((uris) => {
       if (uris.length === 0) return;
-      const items: NewMedia[] = uris.map((uri) => ({ uri }));
+      const items: NewMedia[] = uris.map((uri) => ({ uri, type: 'image' as const }));
       setNewMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
     });
     navigation.navigate('Capture', { max: remainingSlots });
@@ -173,9 +176,11 @@ export default function EditSaleScreen() {
     let nextOrder = existingOrderMax + 1;
     for (let i = 0; i < newMedia.length; i++) {
       const item = newMedia[i];
-      // Compress before upload.
-      const uri = await compressImage(item.uri);
-      const path = `${user!.id}/${saleId}/new-${Date.now()}-${i}.jpg`;
+      // Compress images before upload; pass videos through as-is.
+      const uri = item.type === 'image' ? await compressImage(item.uri) : item.uri;
+      const ext = item.type === 'video' ? 'mp4' : 'jpg';
+      const path = `${user!.id}/${saleId}/new-${Date.now()}-${i}.${ext}`;
+      const contentType = item.type === 'video' ? 'video/mp4' : 'image/jpeg';
 
       const file = new File(uri);
       const arrayBuffer = await file.arrayBuffer();
@@ -183,7 +188,7 @@ export default function EditSaleScreen() {
       const { error: uploadError } = await supabase.storage
         .from('sale-media')
         .upload(path, arrayBuffer, {
-          contentType: 'image/jpeg',
+          contentType,
           upsert: true,
         });
       if (uploadError) {
@@ -202,7 +207,7 @@ export default function EditSaleScreen() {
       const { error: insertError } = await supabase.from('sale_media').insert({
         sale_id: saleId,
         url: publicUrl,
-        type: 'image',
+        type: item.type,
         order: nextOrder++,
       });
       if (insertError) {
@@ -354,6 +359,15 @@ export default function EditSaleScreen() {
                       style={{ width: '100%', height: '100%' }}
                       resizeMode="cover"
                     />
+                    {m.type === 'video' && (
+                      <View
+                        className="absolute inset-0 items-center justify-center"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}
+                        pointerEvents="none"
+                      >
+                        <Ionicons name="play-circle" size={28} color="#fff" />
+                      </View>
+                    )}
                     <Pressable
                       onPress={() => toggleRemoveExisting(m.id)}
                       className="absolute right-1 top-1 h-7 w-7 items-center justify-center rounded-full bg-black/60"
@@ -373,6 +387,15 @@ export default function EditSaleScreen() {
                       style={{ width: '100%', height: '100%' }}
                       resizeMode="cover"
                     />
+                    {item.type === 'video' && (
+                      <View
+                        className="absolute inset-0 items-center justify-center"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}
+                        pointerEvents="none"
+                      >
+                        <Ionicons name="play-circle" size={28} color="#fff" />
+                      </View>
+                    )}
                     <View className="absolute bottom-1 left-1 rounded-full bg-brand px-1.5 py-0.5">
                       <Text className="text-2xs font-bold text-white">
                         NEW

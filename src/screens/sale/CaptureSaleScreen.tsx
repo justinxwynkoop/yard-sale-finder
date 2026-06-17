@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import { CameraView, useCameraPermissions, CameraType } from 'expo-camera';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -59,6 +60,15 @@ export default function CaptureSaleScreen() {
     setFacing((p) => (p === 'back' ? 'front' : 'back'));
   };
 
+  // Request camera permission. If iOS won't re-prompt (already denied),
+  // send the user to Settings instead of the button appearing to do nothing.
+  const handleGrant = async () => {
+    const res = await requestPermission();
+    if (!res.granted && !res.canAskAgain) {
+      Linking.openSettings();
+    }
+  };
+
   const done = () => {
     captureBus.emit(shots);
     navigation.goBack();
@@ -88,7 +98,7 @@ export default function CaptureSaleScreen() {
           Allow camera access to snap photos for your sale.
         </Text>
         <View style={{ width: '100%', maxWidth: 280, marginTop: 16 }}>
-          <Button size="lg" onPress={requestPermission}>
+          <Button size="lg" onPress={handleGrant}>
             Grant access
           </Button>
         </View>

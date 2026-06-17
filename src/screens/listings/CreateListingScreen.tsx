@@ -9,6 +9,7 @@ import {
   Platform,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -50,6 +51,9 @@ export default function CreateListingScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
   const mapRef = useRef<MapView>(null);
+  // Hard guard against a double-submit (a stale `submitting` state value in
+  // a fast second tap could otherwise slip through and insert twice).
+  const submittingRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -67,18 +71,40 @@ export default function CreateListingScreen() {
   // -- Photo handlers --
   const pickFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: MAX_MEDIA - media.length,
     });
     if (!result.canceled) {
-      const items: MediaItem[] = result.assets.map((a) => ({ uri: a.uri, type: 'image' as const }));
+      const items: MediaItem[] = result.assets.map((a) => ({
+        uri: a.uri,
+        type: a.type === 'video' ? 'video' : 'image',
+      }));
       setMedia((prev) => [...prev, ...items].slice(0, MAX_MEDIA));
     }
   };
 
   const takePhoto = async () => {
+    // Must request camera permission first — without this, launchCameraAsync
+    // silently no-ops when permission is undetermined/denied (the "camera
+    // button does nothing" bug).
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Camera access needed',
+        perm.canAskAgain
+          ? 'Allow camera access to take a photo.'
+          : 'Camera access is off. Turn it on for Trove in Settings.',
+        perm.canAskAgain
+          ? [{ text: 'OK' }]
+          : [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ],
+      );
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (!result.canceled) {
       setMedia((prev) => [...prev, { uri: result.assets[0].uri, type: 'image' as const }].slice(0, MAX_MEDIA));
@@ -145,16 +171,18 @@ export default function CreateListingScreen() {
   const uploadMedia = async (listingId: string) => {
     for (let i = 0; i < media.length; i++) {
       const item = media[i];
+      // Compress images before upload; pass videos through as-is.
       const uri = item.type === 'image' ? await compressImage(item.uri) : item.uri;
-      const ext = 'jpg';
+      const ext = item.type === 'video' ? 'mp4' : 'jpg';
       const path = `${user!.id}/${listingId}/${i}.${ext}`;
+      const contentType = item.type === 'video' ? 'video/mp4' : 'image/jpeg';
 
       const file = new File(uri);
       const arrayBuffer = await file.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from('listing-media')
-        .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
+        .upload(path, arrayBuffer, { contentType, upsert: true });
       if (uploadError) {
         // Pull live server-validated session info into the error so
         // the alert tells us whether the JWT is being seen, whether
@@ -196,7 +224,7 @@ export default function CreateListingScreen() {
       const { error: insertError } = await supabase.from('listing_media').insert({
         listing_id: listingId,
         url: publicUrl,
-        type: 'image',
+        type: item.type,
         order: i,
       });
       if (insertError) {
@@ -223,7 +251,7 @@ export default function CreateListingScreen() {
   };
 
   const validate = (): string | null => {
-    if (media.length === 0) return 'Please add at least one photo.';
+    if (media.length === 0) return 'Please add at least one photo or video.';
     if (!title.trim()) return 'Please add a title.';
     const p = parseFloat(price);
     if (!price.trim() || isNaN(p) || p < 0) return 'Please enter a valid price.';
@@ -231,10 +259,23 @@ export default function CreateListingScreen() {
     return null;
   };
 
+  const resetForm = () => {
+    setMedia([]);
+    setTitle('');
+    setDescription('');
+    setPrice('');
+    setPickupInput('');
+    setPickupDisplay('');
+    setPinCoords(null);
+    setSelectedCategories([]);
+  };
+
   const submit = async () => {
     if (!user) return;
+    if (submittingRef.current) return; // already posting — ignore re-taps
     const err = validate();
     if (err) { Alert.alert('Almost there', err); return; }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // Force a token refresh so an expired/stale JWT can't lead to a
@@ -271,6 +312,13 @@ export default function CreateListingScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(listing.id);
 
+      // Clear the form before leaving. If this screen instance lingers in
+      // the navigator (React Navigation can keep popped screens cached),
+      // an empty form fails validation and disables Post — so the same
+      // item can never be posted twice. This is the fix for the
+      // "reopened Post and it re-posted my last item" duplicate bug.
+      resetForm();
+
       // goBack() instead of navigate('MySalesHome'): this screen lives in
       // BOTH the Listings and Profile stacks, and navigate() to a route
       // not present in the current stack PUSHED it, leaving CreateListing
@@ -291,6 +339,7 @@ export default function CreateListingScreen() {
         parts.join('\n') || 'Unknown error',
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -377,8 +426,8 @@ export default function CreateListingScreen() {
             step={1}
             done={steps[0].done}
             active={activeStepIdx === 0}
-            title="Photos"
-            subtitle="At least one photo is required. The first one is the cover."
+            title="Photos & video"
+            subtitle="At least one photo or video is required. The first one is the cover."
           >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ gap: 10 }}>
               <View className="flex-row" style={{ gap: 10 }}>
@@ -389,6 +438,19 @@ export default function CreateListingScreen() {
                       style={StyleSheet.absoluteFill}
                       contentFit="cover"
                     />
+                    {item.type === 'video' && (
+                      <View
+                        style={{
+                          ...StyleSheet.absoluteFillObject,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: 'rgba(0,0,0,0.15)',
+                        }}
+                        pointerEvents="none"
+                      >
+                        <Ionicons name="play-circle" size={30} color="#fff" />
+                      </View>
+                    )}
                     <Pressable
                       onPress={() => removeMedia(i)}
                       style={styles.removeBtn}

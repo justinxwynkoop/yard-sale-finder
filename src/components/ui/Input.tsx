@@ -27,6 +27,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     inputClassName = '',
     onFocus,
     onBlur,
+    style,
     ...rest
   },
   ref,
@@ -41,7 +42,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       <View
         className={[
           'flex-row rounded-xl border bg-white px-3',
-          rest.multiline ? 'items-start py-2.5' : 'items-center',
+          // Height lives on the CONTAINER (not the TextInput) so items-center
+          // can vertically center an unsized input — otherwise single-line
+          // text sits at the top of the field on iOS.
+          rest.multiline ? 'items-start py-2.5' : 'h-11 items-center',
           error
             ? 'border-red-500'
             : focused
@@ -56,13 +60,13 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         ) : null}
         <TextInput
           ref={ref}
-          className={[
-            'flex-1 text-base text-zinc-900',
-            rest.multiline ? '' : 'h-11',
-            inputClassName,
-          ]
+          // No `text-base` here: that class injects lineHeight:24, which on
+          // iOS pushes single-line text toward the top of the box. Set the
+          // font size via style with NO lineHeight so the line centers.
+          className={['flex-1 text-zinc-900', inputClassName]
             .filter(Boolean)
             .join(' ')}
+          style={[{ fontSize: 16, paddingVertical: 0 }, style]}
           placeholderTextColor="#a1a1aa"
           textAlignVertical={rest.multiline ? 'top' : 'center'}
           onFocus={(e) => {

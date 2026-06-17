@@ -16,6 +16,7 @@ import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/usePro
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useInbox } from '../hooks/useInbox';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useNearbyLocationSync } from '../hooks/useNearbyLocationSync';
 import {
   navigationRef,
   navigateToConversation,
@@ -28,11 +29,14 @@ import {
   ListingsStackParamList,
   ProfileStackParamList,
   MessagesStackParamList,
+  PostStackParamList,
 } from '../types';
 
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import AuthScreen from '../screens/auth/AuthScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
+import ResetPasswordCodeScreen from '../screens/auth/ResetPasswordCodeScreen';
 import CheckEmailScreen from '../screens/auth/CheckEmailScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
@@ -74,6 +78,7 @@ const MapStack = createNativeStackNavigator<MapStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
+const PostStack = createNativeStackNavigator<PostStackParamList>();
 
 const BRAND = '#1F4D3A';
 const INACTIVE = '#A1A1AA';
@@ -134,15 +139,9 @@ function MapNavigator() {
           animation: 'slide_from_bottom',
         }}
       />
-      <MapStack.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
+      {/* Map search is now the inline area-search box on MapHome, so the
+          old full-screen Search route is no longer registered here. The
+          keyword Search lives on the Listings stack. */}
       <MapStack.Screen
         name="PublicProfile"
         component={PublicProfileScreen as any}
@@ -349,6 +348,30 @@ function ProfileNavigator() {
   );
 }
 
+// Posting flow — presented modally OVER the tabs (see RootStack below).
+// Routing Create through here (instead of into the Profile tab) avoids the
+// tab-switch flash AND the "Create lingers in the Profile stack" bug.
+// Capture lives inside so CreateSale's multi-shot camera still works.
+function PostFlowNavigator() {
+  return (
+    <PostStack.Navigator screenOptions={{ headerShown: false }}>
+      <PostStack.Screen name="CreateSale" component={CreateSaleScreen} />
+      <PostStack.Screen
+        name="CreateListing"
+        component={CreateListingScreen as any}
+      />
+      <PostStack.Screen
+        name="Capture"
+        component={CaptureSaleScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+    </PostStack.Navigator>
+  );
+}
+
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // Tab.Screen requires a component reference even when we never render it
@@ -363,19 +386,15 @@ function MainTabs() {
   // Lifted to the navigator level so any tab can open the Post sheet.
   const [postMenuOpen, setPostMenuOpen] = useState(false);
 
+  // Open Create in the PostFlow modal (over the tabs) — no tab switch, no
+  // ProfileHome flash, and it can't linger in a tab stack.
   const handlePickSale = () => {
-    // Jump to the Profile stack's CreateSale screen — it's registered there
-    // so the user lands inside the same flow Profile→MySales pushes them into.
-    navigationRef.navigate('Main' as any, {
-      screen: 'Profile',
-      params: { screen: 'CreateSale' },
-    } as any);
+    navigationRef.navigate('PostFlow' as any, { screen: 'CreateSale' } as any);
   };
 
   const handlePickListing = () => {
-    navigationRef.navigate('Main' as any, {
-      screen: 'Profile',
-      params: { screen: 'CreateListing' },
+    navigationRef.navigate('PostFlow' as any, {
+      screen: 'CreateListing',
     } as any);
   };
 
@@ -385,6 +404,9 @@ function MainTabs() {
   // Register device for push notifications and persist the token to
   // the user's profile. Runs once per sign-in, bails on simulators.
   usePushNotifications();
+  // Persist coarse location for "new sale near you" pushes (only while the
+  // notify_sales_nearby toggle is on).
+  useNearbyLocationSync();
 
   // Handle notification taps → open the relevant conversation.
   // Two cases:
@@ -596,13 +618,15 @@ function PostTabButton({
  */
 function MainGate() {
   const { profile, loading: profileLoading } = useProfile();
-  const { loading: onboardingLoading, completed: onboardingCompleted } =
+  const { completed: onboardingDone, loading: onboardingLoading } =
     useOnboarding();
 
   // Only block on profileLoading before we have ANY profile (first load).
   // Once a profile exists, a background refetch must never swap MainTabs
   // for the spinner — that remount resets the tab navigator to Discover
-  // and bounces the user out of whatever tab/stack they were in.
+  // and bounces the user out of whatever tab/stack they were in. Also wait
+  // for the onboarding flag to load so we don't flash MainTabs then jump
+  // to the onboarding slides.
   if ((profileLoading && !profile) || onboardingLoading) {
     return (
       <View
@@ -619,10 +643,10 @@ function MainGate() {
   }
 
   // Order of gates after sign-in:
-  //   1) profile fields missing        -> CompleteProfileScreen
-  //   2) terms not accepted            -> TermsScreen
-  //   3) onboarding not yet seen       -> OnboardingScreen
-  //   4) otherwise                     -> MainTabs
+  //   1) profile fields missing -> CompleteProfileScreen
+  //   2) terms not accepted     -> TermsScreen
+  //   3) onboarding not seen     -> OnboardingScreen (one-time slides)
+  //   4) otherwise              -> MainTabs
   // Gate 1 — collect name, birthdate (18+), and location
   if (!isProfileComplete(profile)) {
     return <CompleteProfileScreen />;
@@ -633,8 +657,8 @@ function MainGate() {
     return <TermsScreen />;
   }
 
-  // Gate 3 — one-time welcome / onboarding slides
-  if (!onboardingCompleted) {
+  // Gate 3 — one-time welcome slides, right after they finish setup
+  if (!onboardingDone) {
     return <OnboardingScreen />;
   }
 
@@ -696,7 +720,14 @@ export default function Navigation() {
             component={ResetPasswordScreen}
           />
         ) : session ? (
-          <RootStack.Screen name="Main" component={MainGate} />
+          <>
+            <RootStack.Screen name="Main" component={MainGate} />
+            <RootStack.Screen
+              name="PostFlow"
+              component={PostFlowNavigator}
+              options={{ presentation: 'modal' }}
+            />
+          </>
         ) : (
           <>
             {/* Welcome is the signed-out landing; its CTAs push Auth in
@@ -707,6 +738,11 @@ export default function Navigation() {
               name="ForgotPassword"
               component={ForgotPasswordScreen}
             />
+            <RootStack.Screen
+              name="ResetPasswordCode"
+              component={ResetPasswordCodeScreen}
+            />
+            <RootStack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
             <RootStack.Screen name="CheckEmail" component={CheckEmailScreen} />
           </>
         )}

@@ -20,17 +20,17 @@ import {
 import { CATEGORY_GROUPS } from '../../lib/categories';
 import { ItemCategory } from '../../types';
 import { useSales } from '../../hooks/useSales';
-import { isOpenNow } from '../../utils/saleStatus';
+import { useFavorites } from '../../hooks/useFavorites';
+import { useViewport, regionContains } from '../../lib/viewport';
+import { saleMatchesFilters } from '../../lib/filterSales';
 import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
-const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
 
-const DISTANCE_TICKS = [1, 5, 10, 15, 25] as const;
 const WHEN_OPTIONS: { value: Exclude<WhenFilter, null>; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'weekend', label: 'This weekend' },
@@ -48,6 +48,10 @@ export default function FilterSheet() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { sales } = useSales();
+  const { isFavorited } = useFavorites();
+  // The map's current viewport — so "Show N" matches what's actually in
+  // view (Zillow-style), not a global count.
+  const viewport = useViewport();
 
   // Editable copy — only commit to the store when the user taps "Show".
   const [draft, setDraft] = useState<MapFilters>(getMapFilters());
@@ -73,23 +77,19 @@ export default function FilterSheet() {
     });
   };
 
-  // Live preview count — how many sales match the draft filters.
-  const matchCount = useMemo(() => {
-    return sales.filter((s) => {
-      if (draft.openNow && !isOpenNow(s)) return false;
-      if (
-        draft.categories.length > 0 &&
-        !s.categories.some((c) => draft.categories.includes(c))
-      )
-        return false;
-      if (
-        draft.vibeTags.length > 0 &&
-        !(s.vibe_tags ?? []).some((v) => draft.vibeTags.includes(v as VibeTag))
-      )
-        return false;
-      return true;
-    }).length;
-  }, [sales, draft]);
+  // Live preview count — how many sales in the current map view match the
+  // draft filters. Same predicate + viewport scoping as the Map list so
+  // "Show N" is honest about what will appear.
+  const matchCount = useMemo(
+    () =>
+      sales.filter(
+        (s) =>
+          saleMatchesFilters(s, draft) &&
+          (!draft.savedOnly || isFavorited(s.id)) &&
+          (viewport ? regionContains(viewport, s.latitude, s.longitude) : true),
+      ).length,
+    [sales, draft, viewport, isFavorited],
+  );
 
   const handleApply = () => {
     setMapFilters(draft);
@@ -148,75 +148,12 @@ export default function FilterSheet() {
           paddingBottom: 140,
         }}
       >
-        {/* Distance */}
-        <SectionTitle>Distance</SectionTitle>
-        <View style={{ marginTop: 8 }}>
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: '700',
-              color: BRAND,
-              fontVariant: ['tabular-nums'],
-            }}
-          >
-            {draft.radiusMiles != null ? `${draft.radiusMiles} mi` : 'Any'}
-          </Text>
-        </View>
-        <View
-          style={{
-            marginTop: 12,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-          }}
-        >
-          {DISTANCE_TICKS.map((mi) => {
-            const active = draft.radiusMiles === mi;
-            return (
-              <Pressable
-                key={mi}
-                onPress={() =>
-                  updateDraft({ radiusMiles: active ? null : mi })
-                }
-                style={{
-                  flex: 1,
-                  marginHorizontal: 3,
-                  paddingVertical: 12,
-                  alignItems: 'center',
-                  borderRadius: 12,
-                  backgroundColor: active ? BRAND : '#fff',
-                  borderWidth: 1,
-                  borderColor: active ? BRAND : HAIRLINE,
-                }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '700',
-                    color: active ? '#fff' : INK,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {mi}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: '600',
-                    color: active ? 'rgba(255,255,255,0.8)' : INK_MUTED,
-                    marginTop: 2,
-                  }}
-                >
-                  mi
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Distance is handled by the map itself — pan/zoom to change the
+            area you're searching. These filters apply on top of what's in
+            view. */}
 
         {/* When */}
-        <SectionTitle style={{ marginTop: 22 }}>When</SectionTitle>
+        <SectionTitle>When</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
           <ToggleChip
             label="Open now"

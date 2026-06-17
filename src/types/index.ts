@@ -70,6 +70,7 @@ export interface Profile {
   notify_offers?: boolean;
   notify_weekly_digest?: boolean;
   notify_tips?: boolean;
+  nearby_radius_miles?: number;
   // Account v7 — verification + payment + address-privacy.
   email_verified?: boolean;
   phone_verified?: boolean;
@@ -204,12 +205,28 @@ export type RootStackParamList = {
   Welcome: undefined;
   Auth: { mode?: 'signin' | 'signup' } | undefined;
   ForgotPassword: undefined;
+  // Primary post-signup step: enter the 6-digit code we emailed.
+  VerifyEmail: { email: string };
+  // Link fallback ("email me a link instead") + magic-link confirmation.
   CheckEmail: { email: string };
+  // Password reset: enter the 6-digit recovery code, then set a new password.
+  ResetPasswordCode: { email: string };
   ResetPassword: undefined;
   // Post-signin gates
   CompleteProfile: undefined;
   Onboarding: undefined;
   Main: undefined;
+  // Posting flow, presented as a modal OVER the tabs (so it doesn't switch
+  // tabs / flash the Profile screen, and never lingers in a tab stack).
+  PostFlow: { screen: 'CreateSale' | 'CreateListing' } | undefined;
+};
+
+// The post-flow modal stack. Capture lives here too so CreateSale's
+// multi-shot camera works within the modal.
+export type PostStackParamList = {
+  CreateSale: undefined;
+  CreateListing: undefined;
+  Capture: { max?: number } | undefined;
 };
 
 export type MainTabParamList = {
@@ -250,7 +267,6 @@ export type MapStackParamList = {
   FilterSheet: undefined;
   RoutePlanner: undefined;
   ActiveRoute: { saleIds: string[] };
-  Search: undefined;
   PublicProfile: { userId: string; self?: boolean };
 };
 

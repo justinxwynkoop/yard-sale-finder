@@ -56,16 +56,45 @@ type Route = RouteProp<ProfileStackParamList, 'PublicProfile'>;
  *
  * Backend gaps that are surfaced cleanly:
  * - Replies-in: no message-timing analytics yet → label hidden.
- * - Verification badges key off profiles.email_verified /
- *   phone_verified. phone_verified stays false until a real OTP flow
- *   ships, so that badge is effectively hidden for now (deliberate —
- *   no fake trust signals).
+ * - Verification badges key off the REAL profiles.email_verified /
+ *   phone_verified flags. email_verified now mirrors
+ *   auth.users.email_confirmed_at (migration 20260612120000) and
+ *   phone_verified is set by the SMS OTP flow — so each badge only shows
+ *   when the user actually completed that verification.
  */
 export default function PublicProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<Route>();
   const { userId, self } = route.params;
+
+  // Open a sale/listing detail robustly from whichever stack this profile is
+  // mounted on. PublicProfile is registered in 4 stacks (Map, Listings,
+  // Messages, Profile) but not all of them register the detail routes — the
+  // Messages stack has neither SaleDetail nor ListingDetail, and the Map stack
+  // has no ListingDetail. A flat navigate from those stacks throws "not handled
+  // by any navigator". So: navigate in-tab when the current stack already
+  // registers the route (keeps the back stack on PublicProfile), otherwise jump
+  // to the tab whose stack always has it.
+  const openSale = (saleId: string) => {
+    const routeNames = navigation.getState()?.routeNames ?? [];
+    if (routeNames.includes('SaleDetail')) {
+      navigation.navigate('SaleDetail', { saleId });
+    } else {
+      navigation.navigate('Map', { screen: 'SaleDetail', params: { saleId } });
+    }
+  };
+  const openListing = (listingId: string) => {
+    const routeNames = navigation.getState()?.routeNames ?? [];
+    if (routeNames.includes('ListingDetail')) {
+      navigation.navigate('ListingDetail', { listingId });
+    } else {
+      navigation.navigate('Listings', {
+        screen: 'ListingDetail',
+        params: { listingId },
+      });
+    }
+  };
 
   const {
     profile,
@@ -314,8 +343,8 @@ export default function PublicProfileScreen() {
         >
           {/* Verified badges key off the REAL verification flags, not
               mere field presence — a typed-in phone number is not a
-              trust signal. phone_verified stays false until a real OTP
-              flow ships, so that badge simply won't render yet. */}
+              trust signal. email_verified mirrors the confirmed-email
+              state; phone_verified is set by the SMS OTP flow. */}
           {profile?.email_verified ? (
             <Badge icon="checkmark" label="Email verified" />
           ) : null}
@@ -373,9 +402,7 @@ export default function PublicProfileScreen() {
                 return (
                   <Pressable
                     key={sale.id}
-                    onPress={() =>
-                      navigation.navigate('SaleDetail', { saleId: sale.id })
-                    }
+                    onPress={() => openSale(sale.id)}
                     style={{
                       width: 200,
                       borderRadius: 14,
@@ -515,11 +542,7 @@ export default function PublicProfileScreen() {
                 return (
                   <Pressable
                     key={listing.id}
-                    onPress={() =>
-                      navigation.navigate('ListingDetail', {
-                        listingId: listing.id,
-                      })
-                    }
+                    onPress={() => openListing(listing.id)}
                     style={{
                       width: '47%',
                       backgroundColor: '#fff',

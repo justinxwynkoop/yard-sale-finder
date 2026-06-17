@@ -15,6 +15,8 @@ import {
   setListingsFilters,
 } from '../../lib/listingsFilters';
 import { useListings } from '../../hooks/useListings';
+import { useUserLocation } from '../../hooks/useUserLocation';
+import { haversineMeters } from '../../utils/distance';
 import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
@@ -34,7 +36,7 @@ const PRICE_OPTIONS: { value: PriceBucket; label: string }[] = [
 ];
 
 /**
- * Modal filter sheet for the One-off items segment of the Listings tab.
+ * Modal filter sheet for the Items segment of the Listings tab.
  * Mirrors the Map FilterSheet's visual language: distance, then price
  * buckets, then categories. Live-counts the matches and applies on
  * "Show N items".
@@ -57,6 +59,27 @@ export default function ListingsFilterSheet() {
     priceMin: range.min,
     priceMax: range.max,
   });
+  const userLocation = useUserLocation();
+
+  // `listings` already reflects category + price (query). The distance
+  // filter is applied client-side (same as ListingsScreen), so include it
+  // here too — otherwise "Show N" ignores the radius and overcounts.
+  const matchCount = useMemo(() => {
+    if (draft.radiusMiles == null) return listings.length;
+    // A radius is set but we have no location to measure from — the list
+    // itself shows 0 in this case (dist = Infinity), so match that.
+    if (!userLocation) return 0;
+    const maxMeters = draft.radiusMiles * 1609.34;
+    return listings.filter(
+      (l) =>
+        haversineMeters(
+          userLocation.latitude,
+          userLocation.longitude,
+          l.pickup_lat,
+          l.pickup_lng,
+        ) <= maxMeters,
+    ).length;
+  }, [listings, draft.radiusMiles, userLocation]);
 
   const updateDraft = (patch: Partial<ListingsFilters>) =>
     setDraft((d) => ({ ...d, ...patch }));
@@ -245,7 +268,7 @@ export default function ListingsFilterSheet() {
           }}
         >
           <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
-            Show {listings.length} {listings.length === 1 ? 'item' : 'items'}
+            Show {matchCount} {matchCount === 1 ? 'item' : 'items'}
           </Text>
         </Pressable>
       </View>

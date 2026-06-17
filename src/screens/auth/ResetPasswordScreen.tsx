@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Pressable,
   Alert,
   ScrollView,
   KeyboardAvoidingView,
@@ -107,6 +108,19 @@ export default function ResetPasswordScreen() {
               Update password
             </Button>
           </View>
+
+          {/* Escape hatch: a recovery session otherwise pins the user to
+              this screen with no way out but to finish. signOut clears
+              inRecovery and returns to the signed-out stack. */}
+          <Pressable
+            onPress={signOut}
+            disabled={saving}
+            style={{ marginTop: 16, alignItems: 'center', paddingVertical: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+          >
+            <Text className="text-sm font-medium text-zinc-500">Cancel</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

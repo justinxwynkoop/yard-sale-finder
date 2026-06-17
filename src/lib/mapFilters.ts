@@ -19,8 +19,6 @@ export type VibeTag =
   | 'moving';
 
 export interface MapFilters {
-  /** Radius in miles, or null for no radius filter. */
-  radiusMiles: number | null;
   openNow: boolean;
   when: WhenFilter;
   categories: ItemCategory[];
@@ -29,7 +27,6 @@ export interface MapFilters {
 }
 
 const DEFAULT_FILTERS: MapFilters = {
-  radiusMiles: null,
   openNow: false,
   when: null,
   categories: [],
@@ -56,7 +53,6 @@ export function resetMapFilters() {
 
 export function countActiveFilters(state: MapFilters): number {
   let n = 0;
-  if (state.radiusMiles != null) n++;
   if (state.openNow) n++;
   if (state.when) n++;
   if (state.categories.length > 0) n++;

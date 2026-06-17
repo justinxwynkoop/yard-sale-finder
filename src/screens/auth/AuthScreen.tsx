@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView as SafeAreaViewRN , SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -23,7 +24,6 @@ import { HeaderButton } from '../../components/ui';
 import { RootStackParamList } from '../../types';
 
 const BONE = '#F7F2E8';
-const CREAM = '#EFE8D6';
 const BRAND = '#1F4D3A';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
@@ -123,6 +123,13 @@ export default function AuthScreen() {
           });
           if (!signInError) return; // session listener takes over
 
+          // Right password, but they never confirmed — send them to the
+          // code screen to finish (a fresh code is emailed there on resend).
+          if (/email not confirmed/i.test(signInError.message)) {
+            navigation.navigate('VerifyEmail', { email: cleanEmail });
+            return;
+          }
+
           // Wrong password — show options
           Alert.alert(
             'Account already exists',
@@ -136,11 +143,11 @@ export default function AuthScreen() {
           return;
         }
 
-        // If email confirmation is enabled, session will be null until
-        // the user clicks the link — route to a dedicated CheckEmail
-        // screen with a resend option.
+        // With "Confirm email" enabled, signUp returns no session until
+        // the user verifies. Route them to the 6-digit code screen (the
+        // primary path); from there they can fall back to a magic link.
         if (!data.session) {
-          navigation.navigate('CheckEmail', { email: cleanEmail });
+          navigation.navigate('VerifyEmail', { email: cleanEmail });
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -148,6 +155,11 @@ export default function AuthScreen() {
           password,
         });
         if (error) {
+          // Signed up but never confirmed — funnel to the code screen.
+          if (/email not confirmed/i.test(error.message)) {
+            navigation.navigate('VerifyEmail', { email: cleanEmail });
+            return;
+          }
           // Common case: user hasn't signed up yet
           if (/invalid login credentials/i.test(error.message)) {
             Alert.alert(
@@ -254,23 +266,11 @@ export default function AuthScreen() {
         >
           {/* Brand mark + title */}
           <View style={{ alignItems: 'center', marginTop: 6, marginBottom: 20 }}>
-            <View
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: 18,
-                backgroundColor: BRAND,
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: BRAND,
-                shadowOpacity: 0.27,
-                shadowRadius: 20,
-                shadowOffset: { width: 0, height: 8 },
-                elevation: 6,
-              }}
-            >
-              <Ionicons name="pricetag" size={28} color="#fff" />
-            </View>
+            <Image
+              source={require('../../../assets/trove-logo.png')}
+              style={{ width: 150, height: 45 }}
+              resizeMode="contain"
+            />
             <Text
               style={{
                 fontSize: 23,
@@ -296,61 +296,12 @@ export default function AuthScreen() {
             </Text>
           </View>
 
-          {/* Mode toggle */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignSelf: 'stretch',
-              backgroundColor: CREAM,
-              padding: 4,
-              borderRadius: 999,
-              marginBottom: 20,
-            }}
-          >
-            {(['signin', 'signup'] as Mode[]).map((m) => {
-              const on = mode === m;
-              return (
-                <Pressable
-                  key={m}
-                  onPress={() => setMode(m)}
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    paddingVertical: 9,
-                    borderRadius: 999,
-                    backgroundColor: on ? '#fff' : 'transparent',
-                    shadowColor: '#000',
-                    shadowOpacity: on ? 0.1 : 0,
-                    shadowRadius: 4,
-                    shadowOffset: { width: 0, height: 1 },
-                    elevation: on ? 2 : 0,
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: '700',
-                      color: on ? INK : INK_MUTED,
-                    }}
-                  >
-                    {m === 'signin' ? 'Sign in' : 'Sign up'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {/* No Sign in/Sign up toggle — the mode is chosen on the Welcome
+              screen's two CTAs; the inline link below swaps it. */}
 
           {/* Email */}
           <FieldLabel>Email</FieldLabel>
           <View style={{ position: 'relative' }}>
-            <Ionicons
-              name="mail-outline"
-              size={16}
-              color={INK_MUTED}
-              style={{ position: 'absolute', left: 13, top: 15 }}
-            />
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -362,6 +313,14 @@ export default function AuthScreen() {
               autoComplete="email"
               style={authInput}
             />
+            {/* Icon after the input so it paints on top of the white field;
+                pointerEvents none keeps taps falling through to the input. */}
+            <Ionicons
+              name="mail-outline"
+              size={16}
+              color={INK_MUTED}
+              style={{ position: 'absolute', left: 13, top: 15, pointerEvents: 'none' }}
+            />
           </View>
 
           <View style={{ height: 14 }} />
@@ -369,12 +328,6 @@ export default function AuthScreen() {
           {/* Password */}
           <FieldLabel>Password</FieldLabel>
           <View style={{ position: 'relative' }}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={16}
-              color={INK_MUTED}
-              style={{ position: 'absolute', left: 13, top: 15 }}
-            />
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -385,6 +338,12 @@ export default function AuthScreen() {
               autoCorrect={false}
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               style={{ ...authInput, paddingRight: 56 }}
+            />
+            <Ionicons
+              name="lock-closed-outline"
+              size={16}
+              color={INK_MUTED}
+              style={{ position: 'absolute', left: 13, top: 15, pointerEvents: 'none' }}
             />
             <Pressable
               onPress={() => setShowPassword((s) => !s)}
@@ -472,19 +431,24 @@ export default function AuthScreen() {
             <View style={{ flex: 1, height: 1, backgroundColor: HAIRLINE }} />
           </View>
 
-          {/* Apple — real native button on iOS where available */}
+          {/* Apple — custom button (iOS only) so its size/typography matches
+              the Google/Facebook buttons exactly. The native
+              AppleAuthenticationButton auto-sizes its text to the frame and
+              renders larger than the rest; a black button with the Apple
+              logo + "Continue with Apple" is HIG-compliant. signInAsync
+              still uses the real native Apple auth sheet under the hood. */}
           {appleAvailable && (
             <View style={{ marginBottom: 10 }}>
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={
-                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-                }
-                buttonStyle={
-                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                }
-                cornerRadius={13}
-                style={{ width: '100%', height: 52 }}
+              <SocialButton
+                label="Continue with Apple"
+                iconName="logo-apple"
+                iconColor="#fff"
+                bg={INK}
+                fg="#fff"
+                border={INK}
                 onPress={signInWithApple}
+                loading={busy === 'apple'}
+                disabled={busy !== null}
               />
             </View>
           )}
@@ -588,7 +552,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
+const SUPPORT_MAILTO = 'mailto:mytrovesupport@gmail.com';
 
 function TroveSupportLink() {
   return (
@@ -810,6 +774,9 @@ function SocialButton({
   onPress,
   loading,
   disabled,
+  bg = '#fff',
+  fg = INK,
+  border = HAIRLINE,
 }: {
   label: string;
   iconName: React.ComponentProps<typeof Ionicons>['name'];
@@ -817,10 +784,14 @@ function SocialButton({
   onPress: () => void;
   loading: boolean;
   disabled: boolean;
+  bg?: string;
+  fg?: string;
+  border?: string;
 }) {
-  // Matches the native Apple button's footprint (52h / radius 13) and
-  // centers icon+label so the three SSO buttons read as one consistent
-  // stack. White fill + bone hairline (not zinc) to fit the palette.
+  // Fixed footprint (52h / radius 13) and centered icon+label so all SSO
+  // buttons read as one consistent stack with identical type size. Defaults
+  // are the white+hairline (Google/Facebook) look; Apple passes a black
+  // fill + white fg.
   return (
     <Pressable
       onPress={onPress}
@@ -832,18 +803,18 @@ function SocialButton({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        backgroundColor: '#fff',
+        backgroundColor: bg,
         borderWidth: 1,
-        borderColor: HAIRLINE,
+        borderColor: border,
         opacity: disabled ? 0.5 : 1,
       }}
     >
       {loading ? (
-        <ActivityIndicator color={INK} />
+        <ActivityIndicator color={fg} />
       ) : (
         <>
           <Ionicons name={iconName} size={18} color={iconColor} />
-          <Text style={{ fontSize: 14.5, fontWeight: '600', color: INK }}>
+          <Text style={{ fontSize: 14.5, fontWeight: '600', color: fg }}>
             {label}
           </Text>
         </>

@@ -386,7 +386,7 @@ export default function AccountScreen() {
         </Pressable>
 
         {/* Location & privacy — informational. Yard sales always show
-            their exact address (shoppers need it); one-off listings only
+            their exact address (shoppers need it); items only
             ever show the general pickup area the seller enters. There's
             no per-account toggle because the policy differs by content
             type. */}
@@ -411,7 +411,7 @@ export default function AccountScreen() {
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Ionicons name="pricetag-outline" size={18} color={BRAND} />
             <Text style={{ flex: 1, fontSize: 13, color: INK_SOFT, lineHeight: 19 }}>
-              <Text style={{ fontWeight: '700', color: INK }}>One-off listings </Text>
+              <Text style={{ fontWeight: '700', color: INK }}>Items </Text>
               only show the general pickup area you enter — never your exact
               address. You arrange the meet-up by message.
             </Text>

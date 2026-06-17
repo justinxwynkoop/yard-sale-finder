@@ -29,7 +29,7 @@ const HAIRLINE = '#E5DECC';
 type Segment = 'live' | 'sold';
 
 /**
- * v3 redesign — "Your listings". Manage one-off items in a compact
+ * v3 redesign — "Your listings". Manage items in a compact
  * row layout. Mark sold / Relist mutate status in place.
  */
 export default function MyListingsScreen() {

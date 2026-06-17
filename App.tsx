@@ -12,7 +12,6 @@ import Toast from 'react-native-toast-message';
 import Navigation from './src/navigation';
 import { handleAuthDeepLink } from './src/lib/authDeepLinks';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { OnboardingProvider } from './src/hooks/useOnboarding';
 
 // Keep the native splash up until we've mounted at least once.
 // Under the new architecture the auto-hide behavior is unreliable,
@@ -59,11 +58,9 @@ function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <OnboardingProvider>
-          <ErrorBoundary>
-            <Navigation />
-          </ErrorBoundary>
-        </OnboardingProvider>
+        <ErrorBoundary>
+          <Navigation />
+        </ErrorBoundary>
         <StatusBar style="auto" />
         {/* Toast root — rendered above everything so it sits over modals too */}
         <Toast />

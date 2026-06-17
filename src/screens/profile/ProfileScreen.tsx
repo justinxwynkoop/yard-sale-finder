@@ -37,8 +37,12 @@ const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
 const ROSE = '#A23E2D';
 
+// Dedicated support inbox (matches the AuthScreen / Terms / Delete-account
+// mailtos). The old default — support@trove.app — was an unregistered domain,
+// so support emails bounced with "address not found". Override per-build with
+// EXPO_PUBLIC_SUPPORT_EMAIL.
 const SUPPORT_EMAIL =
-  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@trove.app';
+  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'mytrovesupport@gmail.com';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { onRecovery } from '../lib/recoveryBus';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -66,7 +67,22 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // A tapped password-reset link routes through handleAuthDeepLink, which
+  // sets the session manually (emitting SIGNED_IN, not PASSWORD_RECOVERY).
+  // It fires this signal so we still force the ResetPassword screen.
+  useEffect(() => onRecovery(() => setInRecovery(true)), []);
+
   const signOut = async () => {
+    // Release this device's push token from the signed-out account first,
+    // while the session is still valid. Otherwise that account keeps
+    // receiving this device's notifications after sign-out — and tapping one
+    // while signed in as someone else opens a conversation RLS hides
+    // ("Conversation not found"). Best-effort: never block sign-out on it.
+    try {
+      await supabase.rpc('clear_push_token');
+    } catch {
+      // ignore
+    }
     await supabase.auth.signOut();
   };
 

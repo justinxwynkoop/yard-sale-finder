@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { supabase } from '../../lib/supabase';
 import { Listing, ListingMedia, ListingsStackParamList } from '../../types';
@@ -693,7 +693,9 @@ function GlassButton({
 }
 
 function VideoSlide({ uri }: { uri: string }) {
-  const videoRef = useRef<any>(null);
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = false;
+  });
   return (
     <View
       style={{
@@ -702,13 +704,11 @@ function VideoSlide({ uri }: { uri: string }) {
         backgroundColor: '#000',
       }}
     >
-      <Video
-        ref={videoRef}
-        source={{ uri }}
+      <VideoView
+        player={player}
         style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}
-        resizeMode={ResizeMode.CONTAIN}
-        useNativeControls
-        shouldPlay={false}
+        nativeControls
+        contentFit="contain"
       />
     </View>
   );

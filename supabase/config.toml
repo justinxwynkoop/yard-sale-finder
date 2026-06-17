@@ -38,7 +38,13 @@ enable_signup = true
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-enable_confirmations = false
+# Require email confirmation before a session is issued. This is what
+# makes the post-signup VerifyEmailScreen (6-digit OTP) the gate into the
+# app. NOTE: this governs `supabase start` (local). The LIVE project's
+# equivalent is the dashboard "Confirm email" toggle (mailer_autoconfirm),
+# which must ALSO be on, and the "Confirm signup" email template must
+# include {{ .Token }} so the 6-digit code is delivered, not just a link.
+enable_confirmations = true
 
 [edge_runtime]
 enabled = true
