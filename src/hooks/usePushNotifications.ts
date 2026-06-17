@@ -96,22 +96,15 @@ export function usePushNotifications() {
 
       if (cancelled || !token) return;
 
-      // ── 5. Persist to profile (skip write if unchanged) ───────────
-      // Avoids hammering the DB every mount when the token is stable.
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('expo_push_token')
-        .eq('id', user.id)
-        .single();
-
-      if (cancelled) return;
-
-      if (profile?.expo_push_token !== token) {
-        await supabase
-          .from('profiles')
-          .update({ expo_push_token: token })
-          .eq('id', user.id);
-      }
+      // ── 5. Persist to the signed-in user's profile via RPC ────────
+      // Expo push tokens are per-DEVICE, not per-user. set_push_token
+      // (SECURITY DEFINER) first strips this token off any OTHER profile,
+      // then assigns it to the current user — so a device that has signed
+      // into multiple accounts only ever notifies the account currently
+      // signed in. A plain client UPDATE can't clear the token from other
+      // users' rows (profiles UPDATE RLS is owner-only), which is what let
+      // a stale token deliver another account's message notifications here.
+      await supabase.rpc('set_push_token', { p_token: token });
     })();
 
     return () => { cancelled = true; };

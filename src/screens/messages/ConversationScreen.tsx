@@ -331,10 +331,18 @@ export default function ConversationScreen() {
     (navigation as any).navigate('PublicProfile', { userId: otherProfile.id });
   }, [navigation, otherProfile?.id]);
 
-  // canGoBack fast path, falling back to InboxHome — cross-tab nested
-  // navigation can land Conversation as the stack root with no history.
+  // Decide back purely from THIS (Messages) stack's own history, never
+  // navigation.canGoBack(): canGoBack() walks UP to the Tab navigator, which
+  // (backBehavior defaults to 'firstRoute') reports it can "go back" to the
+  // Map tab even when Conversation is the lone route of the Messages stack —
+  // a state navigateToConversation produces on a push-notification tap.
+  // Trusting canGoBack() there pops to the MAP instead of the inbox. So: pop
+  // only if a screen sits beneath us in this stack; otherwise go straight to
+  // the inbox list (resolves within the Inbox tab, never bubbling to the tabs).
   const handleBack = useCallback(() => {
-    if (navigation.canGoBack()) navigation.goBack();
+    const state = navigation.getState?.();
+    const hasHistoryInThisStack = !!state && state.index > 0;
+    if (hasHistoryInThisStack) navigation.goBack();
     else (navigation as any).navigate('InboxHome');
   }, [navigation]);
 
@@ -428,38 +436,60 @@ export default function ConversationScreen() {
 
   if (loading && messages.length === 0) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#F7F2E8',
-        }}
-      >
-        <ActivityIndicator size="large" color="#1F4D3A" />
+      <View style={{ flex: 1, backgroundColor: '#F7F2E8' }}>
+        <SubHeader
+          title={otherProfile?.display_name ?? 'Conversation'}
+          onBack={handleBack}
+        />
+        <View
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <ActivityIndicator size="large" color="#1F4D3A" />
+        </View>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#F7F2E8',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-          gap: 8,
-        }}
-      >
-        <Ionicons name="cloud-offline-outline" size={36} color="#A1A1AA" />
-        <Text style={{ fontSize: 17, fontWeight: '600', color: '#18181B' }}>
-          Couldn&rsquo;t load this conversation
-        </Text>
-        <Text style={{ fontSize: 13, color: '#71717A', textAlign: 'center' }}>
-          {error}
-        </Text>
+      <View style={{ flex: 1, backgroundColor: '#F7F2E8' }}>
+        <SubHeader
+          title={otherProfile?.display_name ?? 'Conversation'}
+          onBack={handleBack}
+        />
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            gap: 8,
+          }}
+        >
+          <Ionicons name="cloud-offline-outline" size={36} color="#A1A1AA" />
+          <Text style={{ fontSize: 17, fontWeight: '600', color: '#18181B' }}>
+            Couldn&rsquo;t load this conversation
+          </Text>
+          <Text style={{ fontSize: 13, color: '#71717A', textAlign: 'center' }}>
+            {error}
+          </Text>
+          <Pressable
+            onPress={refetch}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading conversation"
+            style={{
+              marginTop: 8,
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              borderRadius: 999,
+              backgroundColor: '#1F4D3A',
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
+              Retry
+            </Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -477,6 +507,38 @@ export default function ConversationScreen() {
           title={otherProfile?.display_name ?? 'Conversation'}
           onBack={handleBack}
           onTitlePress={otherProfile?.id ? openOtherProfile : undefined}
+          right={
+            otherProfile?.id ? (
+              <Pressable
+                onPress={openOtherProfile}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${otherProfile.display_name ?? 'profile'}`}
+                style={{ marginRight: 6 }}
+              >
+                {otherProfile.avatar_url ? (
+                  <Image
+                    source={{ uri: otherProfile.avatar_url }}
+                    style={{ width: 32, height: 32, borderRadius: 16 }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: '#E1ECDF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="person" size={18} color="#1F4D3A" />
+                  </View>
+                )}
+              </Pressable>
+            ) : undefined
+          }
         />
         {/* Rich context card: shows the item being discussed with
             its photo + title + price-or-dates. Tappable to jump to
@@ -489,8 +551,12 @@ export default function ConversationScreen() {
             targetType={conversation.target_type}
             onPress={() => {
               if (conversation.target_type === 'sale') {
-                navigation.navigate('SaleDetail', {
-                  saleId: conversation.target_id,
+                // Conversation lives only in the Messages stack, which has no
+                // SaleDetail screen — route through the Map tab (same nested
+                // form the listing branch below uses) so it always resolves.
+                navigation.navigate('Map', {
+                  screen: 'SaleDetail',
+                  params: { saleId: conversation.target_id },
                 });
               } else {
                 navigation.navigate('Listings', {

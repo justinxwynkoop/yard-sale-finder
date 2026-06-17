@@ -61,16 +61,45 @@ export function useConversation(conversationId: string | undefined) {
     setLoading(true);
     setError(null);
 
-    const { data: conv, error: convErr } = await supabase
+    const firstTry = await supabase
       .from('conversations')
       .select('*')
       .eq('id', conversationId)
       .maybeSingle();
-    if (convErr) {
-      setError(convErr.message);
+    if (firstTry.error) {
+      setError(firstTry.error.message);
       setLoading(false);
       return;
     }
+    let conv = firstTry.data;
+
+    // Cold-start RLS race: a notification tap can mount this screen while the
+    // supabase client has `user` in React state but hasn't finished attaching
+    // the restored JWT to outgoing requests. That request goes out anon, the
+    // conversations SELECT policy (auth.uid() = buyer/seller) hides the row,
+    // and maybeSingle() returns null — which looks like "not found" even
+    // though we ARE a participant. Confirm a live session (awaiting
+    // getSession forces the client to finish hydrating) and retry once so a
+    // real participant isn't permanently stranded on the error screen.
+    if (!conv) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        const retry = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('id', conversationId)
+          .maybeSingle();
+        if (retry.error) {
+          setError(retry.error.message);
+          setLoading(false);
+          return;
+        }
+        conv = retry.data;
+      }
+    }
+
     if (!conv) {
       setError('Conversation not found.');
       setLoading(false);
@@ -231,10 +260,19 @@ export function useConversation(conversationId: string | undefined) {
         setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
         return { error: sendErr };
       }
-      // Replace optimistic with the real row.
-      setMessages((prev) =>
-        prev.map((m) => (m.id === optimistic.id ? (data as Message) : m)),
-      );
+      // Reconcile the optimistic bubble with the real row. The realtime
+      // INSERT echo for this same message can land BEFORE this insert()
+      // resolves — in which case the real row is already in the list and a
+      // naive map() would leave the optimistic placeholder swapped to a
+      // SECOND copy of the real row (duplicate React key). So drop the
+      // placeholder and append the real row only if it isn't already there.
+      const real = data as Message;
+      setMessages((prev) => {
+        const withoutOptimistic = prev.filter((m) => m.id !== optimistic.id);
+        return withoutOptimistic.some((m) => m.id === real.id)
+          ? withoutOptimistic
+          : [...withoutOptimistic, real];
+      });
       return { error: null };
     },
     [conversationId, user],

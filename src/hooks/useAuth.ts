@@ -73,6 +73,16 @@ export function useAuth() {
   useEffect(() => onRecovery(() => setInRecovery(true)), []);
 
   const signOut = async () => {
+    // Release this device's push token from the signed-out account first,
+    // while the session is still valid. Otherwise that account keeps
+    // receiving this device's notifications after sign-out — and tapping one
+    // while signed in as someone else opens a conversation RLS hides
+    // ("Conversation not found"). Best-effort: never block sign-out on it.
+    try {
+      await supabase.rpc('clear_push_token');
+    } catch {
+      // ignore
+    }
     await supabase.auth.signOut();
   };
 
