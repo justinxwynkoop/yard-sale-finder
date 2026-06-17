@@ -515,6 +515,11 @@ export default function CreateListingScreen() {
                 const cleaned = t.replace(/[^0-9.]/g, '');
                 setPrice(cleaned);
               }}
+              onBlur={() => {
+                // Always show cents (e.g. "5" → "5.00").
+                const p = parseFloat(price);
+                if (price.trim() && !isNaN(p)) setPrice(p.toFixed(2));
+              }}
               keyboardType="decimal-pad"
               leftIcon={<Text className="text-base text-zinc-500">$</Text>}
               returnKeyType="done"
