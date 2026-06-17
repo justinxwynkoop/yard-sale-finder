@@ -12,6 +12,7 @@
 // token / code into supabase.auth.
 
 import { supabase } from './supabase';
+import { triggerRecovery } from './recoveryBus';
 
 export type DeepLinkResult =
   | { kind: 'session_set'; type: string | null }
@@ -25,6 +26,13 @@ function parseFragment(fragment: string): URLSearchParams {
 
 export async function handleAuthDeepLink(url: string): Promise<DeepLinkResult> {
   try {
+    // Password-recovery links redirect to trove://reset-password (both the
+    // implicit and PKCE shapes). We can't rely on Supabase's
+    // PASSWORD_RECOVERY event firing in RN (we set the session manually,
+    // which emits SIGNED_IN), so detect recovery from the URL and signal
+    // the navigator explicitly once the session is in place.
+    const isRecovery = url.includes('reset-password');
+
     // Fragment-based (implicit flow)
     const hashIdx = url.indexOf('#');
     if (hashIdx >= 0) {
@@ -38,6 +46,7 @@ export async function handleAuthDeepLink(url: string): Promise<DeepLinkResult> {
           refresh_token: refreshToken,
         });
         if (error) return { kind: 'error', message: error.message };
+        if (isRecovery || type === 'recovery') triggerRecovery();
         return { kind: 'session_set', type };
       }
     }
@@ -50,6 +59,7 @@ export async function handleAuthDeepLink(url: string): Promise<DeepLinkResult> {
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) return { kind: 'error', message: error.message };
+        if (isRecovery) triggerRecovery();
         return { kind: 'code_exchanged' };
       }
     }

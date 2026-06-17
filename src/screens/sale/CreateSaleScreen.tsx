@@ -58,6 +58,8 @@ export default function CreateSaleScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
   const mapRef = useRef<MapView>(null);
+  // Hard guard against a double-submit slipping through a stale state read.
+  const submittingRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -299,16 +301,33 @@ export default function CreateSaleScreen() {
     return null;
   };
 
+  const resetForm = () => {
+    setMedia([]);
+    setPinCoords(null);
+    setAddress('');
+    setAddressInput('');
+    setStartDate('');
+    setEndDate('');
+    setStartTime('');
+    setEndTime('');
+    setTitle('');
+    setDescription('');
+    setSelectedCategories([]);
+    setPricingNotes('');
+  };
+
   const submit = async () => {
     if (!user) {
       Alert.alert('Not signed in', 'You need to be signed in to post a sale.');
       return;
     }
+    if (submittingRef.current) return; // already posting — ignore re-taps
     const err = validate();
     if (err) {
       Alert.alert('Almost there', err);
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // Force a token refresh so an expired/stale JWT can't lead to a
@@ -351,6 +370,11 @@ export default function CreateSaleScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(sale.id);
 
+      // Clear the form so a lingering/cached screen instance can't re-post
+      // the same sale (duplicate-post fix) — empty fields fail validation
+      // and disable Post.
+      resetForm();
+
       // Pop this screen off the stack. Previously we navigate()'d to
       // 'MySalesHome', but that route isn't in the stack, so navigate
       // PUSHED it and left CreateSale lingering underneath — tapping the
@@ -372,6 +396,7 @@ export default function CreateSaleScreen() {
       console.error('Create sale failed:', e);
       Alert.alert('Could not post sale', parts.join('\n') || 'Unknown error');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

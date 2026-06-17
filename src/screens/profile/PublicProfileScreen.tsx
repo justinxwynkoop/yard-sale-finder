@@ -56,10 +56,11 @@ type Route = RouteProp<ProfileStackParamList, 'PublicProfile'>;
  *
  * Backend gaps that are surfaced cleanly:
  * - Replies-in: no message-timing analytics yet → label hidden.
- * - Verification badges key off profiles.email_verified /
- *   phone_verified. phone_verified stays false until a real OTP flow
- *   ships, so that badge is effectively hidden for now (deliberate —
- *   no fake trust signals).
+ * - Verification badges key off the REAL profiles.email_verified /
+ *   phone_verified flags. email_verified now mirrors
+ *   auth.users.email_confirmed_at (migration 20260612120000) and
+ *   phone_verified is set by the SMS OTP flow — so each badge only shows
+ *   when the user actually completed that verification.
  */
 export default function PublicProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -314,8 +315,8 @@ export default function PublicProfileScreen() {
         >
           {/* Verified badges key off the REAL verification flags, not
               mere field presence — a typed-in phone number is not a
-              trust signal. phone_verified stays false until a real OTP
-              flow ships, so that badge simply won't render yet. */}
+              trust signal. email_verified mirrors the confirmed-email
+              state; phone_verified is set by the SMS OTP flow. */}
           {profile?.email_verified ? (
             <Badge icon="checkmark" label="Email verified" />
           ) : null}

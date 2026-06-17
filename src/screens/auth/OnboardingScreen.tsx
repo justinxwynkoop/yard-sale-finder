@@ -2,63 +2,81 @@ import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
+  ScrollView,
   Dimensions,
-  StyleSheet,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../components/ui';
 import { useOnboarding } from '../../hooks/useOnboarding';
+
+const BONE = '#F7F2E8';
+const BRAND = '#1F4D3A';
+const BRAND_SOFT = '#E1ECDF';
+const INK = '#171513';
+const INK_SOFT = '#54504A';
+const INK_MUTED = '#8A857C';
+const HAIRLINE = '#E5DECC';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-type Slide = {
+const SLIDES: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   title: string;
   body: string;
-};
-
-const SLIDES: Slide[] = [
+}[] = [
   {
-    icon: 'map',
-    title: 'Find sales near you',
-    body: "Open the map to see live yard sales happening now. Tap any pin for photos, time, and directions.",
+    icon: 'map-outline',
+    title: 'Sales on a live map',
+    body: 'See yard sales, estate sales, and moving sales happening around you — right now.',
   },
   {
-    icon: 'pricetag',
-    title: 'Post your own',
-    body: "Got stuff to sell? Drop a pin, snap a few photos, and you're on the map in under two minutes.",
+    icon: 'pricetag-outline',
+    title: 'Buy & sell the easy way',
+    body: 'Browse one-off finds nearby, or post your own sale or item in a couple of minutes.',
   },
   {
-    icon: 'heart',
-    title: 'Save the good ones',
-    body: 'Heart any sale to save it for your weekend route. Find them all back in your Profile tab.',
+    icon: 'heart-outline',
+    title: 'Never miss a good one',
+    body: 'Save the sales you love and search any area to see what’s on this weekend.',
   },
 ];
 
+/**
+ * One-time post-signup onboarding (after Complete Profile + Terms). Three
+ * value slides; "Get started" marks it seen via useOnboarding().complete,
+ * which flips MainGate to the real app.
+ */
 export default function OnboardingScreen() {
   const { complete } = useOnboarding();
   const scrollRef = useRef<ScrollView>(null);
-  const [index, setIndex] = useState(0);
+  const [page, setPage] = useState(0);
 
-  const goNext = () => {
-    if (index < SLIDES.length - 1) {
-      scrollRef.current?.scrollTo({
-        x: (index + 1) * SCREEN_W,
-        animated: true,
-      });
-    } else {
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const p = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    if (p !== page) setPage(p);
+  };
+
+  const isLast = page === SLIDES.length - 1;
+
+  const next = () => {
+    if (isLast) {
       complete();
+    } else {
+      scrollRef.current?.scrollTo({ x: (page + 1) * SCREEN_W, animated: true });
     }
   };
 
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.skipRow}>
-        <Pressable onPress={complete} hitSlop={8}>
-          <Text style={styles.skip}>Skip</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BONE }}>
+      {/* Skip */}
+      <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 8 }}>
+        <Pressable onPress={complete} hitSlop={10} accessibilityRole="button">
+          <Text style={{ fontSize: 14, fontWeight: '600', color: INK_MUTED }}>
+            Skip
+          </Text>
         </Pressable>
       </View>
 
@@ -67,92 +85,99 @@ export default function OnboardingScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) =>
-          setIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))
-        }
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
       >
         {SLIDES.map((s) => (
-          <View key={s.title} style={[styles.slide, { width: SCREEN_W }]}>
-            <View style={styles.iconBubble}>
-              <Ionicons name={s.icon} size={56} color="#1F4D3A" />
+          <View
+            key={s.title}
+            style={{
+              width: SCREEN_W,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: 36,
+            }}
+          >
+            <View
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 28,
+                backgroundColor: BRAND_SOFT,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 28,
+              }}
+            >
+              <Ionicons name={s.icon} size={44} color={BRAND} />
             </View>
-            <Text style={styles.title}>{s.title}</Text>
-            <Text style={styles.body}>{s.body}</Text>
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: '800',
+                color: INK,
+                letterSpacing: -0.5,
+                textAlign: 'center',
+              }}
+            >
+              {s.title}
+            </Text>
+            <Text
+              style={{
+                fontSize: 15,
+                color: INK_SOFT,
+                textAlign: 'center',
+                marginTop: 12,
+                lineHeight: 22,
+              }}
+            >
+              {s.body}
+            </Text>
           </View>
         ))}
       </ScrollView>
 
-      {/* Page dots */}
-      <View style={styles.dots}>
+      {/* Dots */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: 7,
+          marginBottom: 20,
+        }}
+      >
         {SLIDES.map((_, i) => (
           <View
             key={i}
-            style={[
-              styles.dot,
-              i === index ? styles.dotActive : styles.dotInactive,
-            ]}
+            style={{
+              width: i === page ? 22 : 7,
+              height: 7,
+              borderRadius: 4,
+              backgroundColor: i === page ? BRAND : HAIRLINE,
+            }}
           />
         ))}
       </View>
 
-      <View style={styles.cta}>
-        <Button size="lg" onPress={goNext}>
-          {index === SLIDES.length - 1 ? 'Get started' : 'Next'}
-        </Button>
+      {/* CTA */}
+      <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
+        <Pressable
+          onPress={next}
+          style={{
+            paddingVertical: 15,
+            borderRadius: 14,
+            alignItems: 'center',
+            backgroundColor: BRAND,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isLast ? 'Get started' : 'Next'}
+        >
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
+            {isLast ? 'Get started' : 'Next'}
+          </Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
-  skipRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 24,
-    paddingTop: 8,
-  },
-  skip: { fontSize: 14, color: '#71717A', fontWeight: '600' },
-  slide: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  iconBubble: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#EFE8D6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#18181B',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  body: {
-    fontSize: 16,
-    color: '#52525B',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
-  },
-  dotActive: { width: 24, backgroundColor: '#1F4D3A' },
-  dotInactive: { width: 8, backgroundColor: '#E4E4E7' },
-  cta: { paddingHorizontal: 24, paddingBottom: 32, paddingTop: 8 },
-});

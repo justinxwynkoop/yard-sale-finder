@@ -9,6 +9,7 @@ import {
   Platform,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -50,6 +51,9 @@ export default function CreateListingScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
   const mapRef = useRef<MapView>(null);
+  // Hard guard against a double-submit (a stale `submitting` state value in
+  // a fast second tap could otherwise slip through and insert twice).
+  const submittingRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -79,6 +83,25 @@ export default function CreateListingScreen() {
   };
 
   const takePhoto = async () => {
+    // Must request camera permission first — without this, launchCameraAsync
+    // silently no-ops when permission is undetermined/denied (the "camera
+    // button does nothing" bug).
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Camera access needed',
+        perm.canAskAgain
+          ? 'Allow camera access to take a photo.'
+          : 'Camera access is off. Turn it on for Trove in Settings.',
+        perm.canAskAgain
+          ? [{ text: 'OK' }]
+          : [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ],
+      );
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (!result.canceled) {
       setMedia((prev) => [...prev, { uri: result.assets[0].uri, type: 'image' as const }].slice(0, MAX_MEDIA));
@@ -231,10 +254,23 @@ export default function CreateListingScreen() {
     return null;
   };
 
+  const resetForm = () => {
+    setMedia([]);
+    setTitle('');
+    setDescription('');
+    setPrice('');
+    setPickupInput('');
+    setPickupDisplay('');
+    setPinCoords(null);
+    setSelectedCategories([]);
+  };
+
   const submit = async () => {
     if (!user) return;
+    if (submittingRef.current) return; // already posting — ignore re-taps
     const err = validate();
     if (err) { Alert.alert('Almost there', err); return; }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // Force a token refresh so an expired/stale JWT can't lead to a
@@ -271,6 +307,13 @@ export default function CreateListingScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(listing.id);
 
+      // Clear the form before leaving. If this screen instance lingers in
+      // the navigator (React Navigation can keep popped screens cached),
+      // an empty form fails validation and disables Post — so the same
+      // item can never be posted twice. This is the fix for the
+      // "reopened Post and it re-posted my last item" duplicate bug.
+      resetForm();
+
       // goBack() instead of navigate('MySalesHome'): this screen lives in
       // BOTH the Listings and Profile stacks, and navigate() to a route
       // not present in the current stack PUSHED it, leaving CreateListing
@@ -291,6 +334,7 @@ export default function CreateListingScreen() {
         parts.join('\n') || 'Unknown error',
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

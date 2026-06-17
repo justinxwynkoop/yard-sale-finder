@@ -27,16 +27,18 @@ const BULLETS: {
 /**
  * Signed-out landing / first run. The Trove wordmark + illustration over
  * warm bone, a value headline, three benefit rows, and the two entry
- * CTAs. "Create account" / "I already have an account" both push the
- * Auth screen in the matching mode. (New screen — our existing
- * OnboardingScreen is the *post*-auth welcome-slides surface.)
+ * CTAs. "Create account" / "I already have an account" push the Auth
+ * screen in the matching mode.
+ *
+ * The wordmark uses FIXED pixel dimensions (not aspectRatio/%) so it can't
+ * balloon and push the headline/bullets off-screen.
  */
 export default function WelcomeScreen() {
   const navigation = useNavigation<Nav>();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BONE }}>
-      {/* Brand area */}
+      {/* Brand + value props */}
       <View
         style={{
           flex: 1,
@@ -45,11 +47,9 @@ export default function WelcomeScreen() {
           paddingHorizontal: 28,
         }}
       >
-        {/* Dedicated wordmark asset (a copy of the splash artwork) so the
-            Welcome hero is decoupled from the splash-icon's purpose. */}
         <Image
           source={require('../../../assets/trove-wordmark-transparent.png')}
-          style={{ width: '74%', maxWidth: 240, height: 130 }}
+          style={{ width: 224, height: 150 }}
           resizeMode="contain"
         />
         <Text
@@ -59,7 +59,7 @@ export default function WelcomeScreen() {
             color: INK,
             letterSpacing: -0.5,
             textAlign: 'center',
-            marginTop: 8,
+            marginTop: 12,
             lineHeight: 26,
           }}
         >
@@ -79,7 +79,7 @@ export default function WelcomeScreen() {
         </Text>
 
         {/* Value bullets */}
-        <View style={{ marginTop: 24, alignSelf: 'stretch', gap: 12 }}>
+        <View style={{ marginTop: 28, alignSelf: 'stretch', gap: 14 }}>
           {BULLETS.map((b) => (
             <View
               key={b.label}
@@ -105,8 +105,8 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* CTAs */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
+      {/* CTAs — pinned at the bottom */}
+      <View style={{ paddingHorizontal: 24, paddingBottom: 36 }}>
         <Pressable
           onPress={() => navigation.navigate('Auth', { mode: 'signup' })}
           style={{

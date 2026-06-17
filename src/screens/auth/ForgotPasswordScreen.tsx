@@ -21,7 +21,6 @@ import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
-const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
@@ -37,7 +36,6 @@ export default function ForgotPasswordScreen() {
   const navigation = useNavigation<Nav>();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   const submit = async () => {
     const cleanEmail = email.trim().toLowerCase();
@@ -47,12 +45,16 @@ export default function ForgotPasswordScreen() {
     }
     setSending(true);
     try {
+      // Keep redirectTo so the email's link still works on a phone, but the
+      // primary path is the 6-digit code entered on the next screen (deep
+      // links are unreliable in RN). Non-enumerating: we navigate to the
+      // code screen regardless of whether the account exists.
       const redirectTo = Linking.createURL('reset-password');
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,
       });
       if (error) throw error;
-      setSent(true);
+      navigation.navigate('ResetPasswordCode', { email: cleanEmail });
     } catch (e: any) {
       Alert.alert('Could not send reset link', e.message);
     } finally {
@@ -97,8 +99,7 @@ export default function ForgotPasswordScreen() {
           contentContainerStyle={{ padding: 24 }}
           keyboardShouldPersistTaps="handled"
         >
-          {!sent ? (
-            <>
+          <>
               <Text
                 style={{
                   fontSize: 14,
@@ -107,8 +108,8 @@ export default function ForgotPasswordScreen() {
                   marginBottom: 20,
                 }}
               >
-                Enter the email on your account and we&rsquo;ll send a link to
-                reset your password.
+                Enter the email on your account and we&rsquo;ll email you a
+                6-digit code to reset your password.
               </Text>
               <Text
                 style={{
@@ -123,12 +124,6 @@ export default function ForgotPasswordScreen() {
                 Email
               </Text>
               <View style={{ position: 'relative' }}>
-                <Ionicons
-                  name="mail-outline"
-                  size={16}
-                  color={INK_MUTED}
-                  style={{ position: 'absolute', left: 13, top: 15 }}
-                />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
@@ -151,6 +146,13 @@ export default function ForgotPasswordScreen() {
                     backgroundColor: '#fff',
                   }}
                 />
+                {/* After the input so it paints on top of the white field. */}
+                <Ionicons
+                  name="mail-outline"
+                  size={16}
+                  color={INK_MUTED}
+                  style={{ position: 'absolute', left: 13, top: 15, pointerEvents: 'none' }}
+                />
               </View>
               <Pressable
                 onPress={submit}
@@ -168,60 +170,11 @@ export default function ForgotPasswordScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
-                    Send reset link
+                    Send reset code
                   </Text>
                 )}
               </Pressable>
-            </>
-          ) : (
-            <View style={{ alignItems: 'center', paddingTop: 30 }}>
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 22,
-                  backgroundColor: BRAND_SOFT,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 18,
-                }}
-              >
-                <Ionicons name="checkmark" size={32} color={BRAND} />
-              </View>
-              <Text style={{ fontSize: 19, fontWeight: '800', color: INK }}>
-                Check your inbox
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13.5,
-                  color: INK_SOFT,
-                  marginTop: 8,
-                  lineHeight: 20,
-                  textAlign: 'center',
-                }}
-              >
-                If an account exists for{' '}
-                {email.trim().toLowerCase() || 'that email'}, a reset link is on
-                its way.
-              </Text>
-              <Pressable
-                onPress={() => navigation.goBack()}
-                style={{
-                  marginTop: 22,
-                  alignSelf: 'stretch',
-                  paddingVertical: 14,
-                  borderRadius: 14,
-                  alignItems: 'center',
-                  backgroundColor: BRAND,
-                }}
-                accessibilityRole="button"
-              >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
-                  Back to sign in
-                </Text>
-              </Pressable>
-            </View>
-          )}
+          </>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

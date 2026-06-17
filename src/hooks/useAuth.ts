@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { onRecovery } from '../lib/recoveryBus';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -65,6 +66,11 @@ export function useAuth() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // A tapped password-reset link routes through handleAuthDeepLink, which
+  // sets the session manually (emitting SIGNED_IN, not PASSWORD_RECOVERY).
+  // It fires this signal so we still force the ResetPassword screen.
+  useEffect(() => onRecovery(() => setInRecovery(true)), []);
 
   const signOut = async () => {
     await supabase.auth.signOut();

@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
   Dimensions,
   FlatList,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -26,7 +28,6 @@ import { useSales } from '../../hooks/useSales';
 import { useAuth } from '../../hooks/useAuth';
 import { saleDisplayLocation } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
-import { useLocationLabel } from '../../hooks/useLocationLabel';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
 import { useFavorites } from '../../hooks/useFavorites';
 import { MapStackParamList, ItemCategory, Sale } from '../../types';
@@ -35,12 +36,16 @@ import { SelectedPinCallout } from '../../components/SelectedPinCallout';
 import { BottomSheet, SheetState } from '../../components/BottomSheet';
 import SaleCard from '../../components/SaleCard';
 import { Chip } from '../../components/ui';
-import { haversineMeters, formatDistanceMiles } from '../../utils/distance';
+import { haversineMeters } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
 import {
   setMapFilters,
   useMapFilters,
 } from '../../lib/mapFilters';
+import { saleMatchesFilters } from '../../lib/filterSales';
+import { useSearchArea, setSearchArea } from '../../lib/searchArea';
+import { useViewport, setViewport, regionContains } from '../../lib/viewport';
+import { toast } from '../../lib/toast';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 
 type Nav = NativeStackNavigationProp<MapStackParamList, 'MapHome'>;
@@ -53,10 +58,15 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.1,
 };
 
+// Map zoom (latitude/longitude delta) used when flying to a searched
+// area — roughly a city-sized view.
+const CITY_DELTA = 0.25;
+
 // Peek is now just the slim header bar (count + "List" toggle) — no
-// carousel — so it only needs ~the header height. The map gets the
-// rest of the screen until the user expands to the list.
-const SHEET_PEEK = 100;
+// carousel — so it only needs ~the header height (grabber + two text
+// lines ≈ 67pt). Sized snug so the map gets as much room as possible
+// until the user expands to the list.
+const SHEET_PEEK = 76;
 // Open list fills most of the screen (leaving the search card + chips
 // visible up top) so you can actually browse the whole list, not a
 // 420pt window of it. Adapts to the device height.
@@ -81,8 +91,13 @@ export default function MapHomeScreen() {
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const userLocation = useUserLocation();
-  const locationLabel = useLocationLabel(userLocation);
   const { region: lastRegion, save: saveLastRegion } = useLastMapRegion();
+
+  // Active "search an area" target (e.g. "Muncie, IN"). When set it only
+  // recenters the map there; the resulting viewport then scopes the list
+  // (Zillow-style). Distance/sort still use GPS (markers) / the map center
+  // (list) — searchArea does not change that math.
+  const searchArea = useSearchArea();
 
   // Filter state — driven by the shared mapFilters store so the
   // FilterSheet modal can read/write the same object.
@@ -96,6 +111,15 @@ export default function MapHomeScreen() {
     () => new Set(filters.categories.filter((c) => c === 'furniture' || c === 'tools') as QuickCat[]),
     [filters.categories],
   );
+
+  // The map's current visible region drives which sales show — Zillow
+  // style, the viewport IS the filter. Updated on every settle below.
+  const viewport = useViewport();
+
+  // Inline area search (the text field in the top card). `areaQuery` is the
+  // raw text; submitting geocodes it into a searchArea.
+  const [areaQuery, setAreaQuery] = useState(searchArea?.label ?? '');
+  const [areaSearching, setAreaSearching] = useState(false);
 
   const [sheetState, setSheetState] = useState<SheetState>('peek');
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
@@ -147,6 +171,14 @@ export default function MapHomeScreen() {
         longitudeDelta: 0.02,
       };
     }
+    if (searchArea) {
+      return {
+        latitude: searchArea.latitude,
+        longitude: searchArea.longitude,
+        latitudeDelta: CITY_DELTA,
+        longitudeDelta: CITY_DELTA,
+      };
+    }
     if (sessionRegionRef.current) return sessionRegionRef.current;
     if (userLocation) {
       return {
@@ -166,7 +198,7 @@ export default function MapHomeScreen() {
       return DEFAULT_REGION;
     }
     return null;
-  }, [focusLat, focusLng, userLocation, gpsTimedOut, lastRegion]);
+  }, [focusLat, focusLng, searchArea, userLocation, gpsTimedOut, lastRegion]);
   const mapReady = initialRegion != null;
   // Only one AIRMap instance can safely exist at a time under the new
   // architecture. Push transitions to SaleDetail / RoutePlanner mount
@@ -235,50 +267,78 @@ export default function MapHomeScreen() {
     );
   }, [userLocation, focusLat, focusLng]);
 
-  // Filtered + distance-sorted list. The pin numbers (1..N) reflect this order.
-  const sortedSales = useMemo(() => {
-    let result = sales;
-    if (filters.openNow) result = result.filter((s) => isOpenNow(s));
+  // Fly to a searched area when one is set; the viewport updates on settle,
+  // which scopes the list to that area. When the area is CLEARED, fly back
+  // to the user so the list refreshes to "near me" instead of staying
+  // parked (and stale) on the old area.
+  const prevSearchAreaRef = useRef(searchArea);
+  useEffect(() => {
+    const was = prevSearchAreaRef.current;
+    prevSearchAreaRef.current = searchArea;
+    if (searchArea) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: searchArea.latitude,
+          longitude: searchArea.longitude,
+          latitudeDelta: CITY_DELTA,
+          longitudeDelta: CITY_DELTA,
+        },
+        500,
+      );
+    } else if (was && userLocation) {
+      // Area just cleared → return to the user's location.
+      mapRef.current?.animateToRegion(
+        {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        },
+        500,
+      );
+    }
+  }, [searchArea, userLocation]);
+
+  // MAP MARKER set — attribute filters (open now, categories, when, vibe)
+  // + savedOnly only. Deliberately NOT viewport-scoped: re-filtering the
+  // markers on every pan made react-native-maps add/remove AIRMap subviews
+  // constantly, which crashes under the new architecture
+  // (-[AIRMap insertReactSubview:atIndex:] object cannot be nil). Keeping
+  // the marker set stable across pans avoids that churn. Sorted by distance
+  // from the user so pin numbers don't reshuffle as you move the map.
+  const mapSales = useMemo(() => {
+    let result = sales.filter((s) => saleMatchesFilters(s, filters));
     if (filters.savedOnly) result = result.filter((s) => isFavorited(s.id));
-    if (filters.categories.length > 0) {
-      result = result.filter((s) =>
-        s.categories.some((c) => filters.categories.includes(c)),
-      );
+    if (userLocation) {
+      const d = (s: Sale) =>
+        haversineMeters(
+          userLocation.latitude,
+          userLocation.longitude,
+          s.latitude,
+          s.longitude,
+        );
+      result = [...result].sort((a, b) => d(a) - d(b));
     }
-    if (filters.vibeTags.length > 0) {
-      result = result.filter((s) =>
-        (s.vibe_tags ?? []).some((v) => filters.vibeTags.includes(v as any)),
+    return result;
+  }, [sales, filters, isFavorited, userLocation]);
+
+  // LIST (bottom-sheet) set — the markers scoped to what's currently in the
+  // map viewport (Zillow-style), sorted by distance from the map center.
+  // This is the set that changes as you pan; the markers above don't.
+  const sortedSales = useMemo(() => {
+    if (!viewport) return mapSales;
+    const inView = mapSales.filter((s) =>
+      regionContains(viewport, s.latitude, s.longitude),
+    );
+    const d = (s: Sale) =>
+      haversineMeters(
+        viewport.latitude,
+        viewport.longitude,
+        s.latitude,
+        s.longitude,
       );
-    }
-    if (filters.when === 'today') {
-      const today = new Date().toISOString().slice(0, 10);
-      result = result.filter(
-        (s) => s.start_date <= today && s.end_date >= today,
-      );
-    }
-    if (filters.radiusMiles != null && userLocation) {
-      const radiusMeters = filters.radiusMiles * 1609.34;
-      result = result.filter(
-        (s) =>
-          haversineMeters(
-            userLocation.latitude,
-            userLocation.longitude,
-            s.latitude,
-            s.longitude,
-          ) <= radiusMeters,
-      );
-    }
-    const dist = (s: Sale) =>
-      userLocation
-        ? haversineMeters(
-            userLocation.latitude,
-            userLocation.longitude,
-            s.latitude,
-            s.longitude,
-          )
-        : Number.POSITIVE_INFINITY;
-    return [...result].sort((a, b) => dist(a) - dist(b));
-  }, [sales, filters, userLocation, isFavorited]);
+    return [...inView].sort((a, b) => d(a) - d(b));
+  }, [mapSales, viewport]);
 
   const savedCount = useMemo(
     () => sales.filter((s) => isFavorited(s.id)).length,
@@ -333,6 +393,8 @@ export default function MapHomeScreen() {
   );
 
   const goToUserLocation = useCallback(async () => {
+    // Tapping locate clears any active area search and returns to "me".
+    setSearchArea(null);
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
     const loc = await Location.getCurrentPositionAsync({});
@@ -349,6 +411,9 @@ export default function MapHomeScreen() {
 
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
+      // The visible region IS the filter (Zillow-style): publish it so the
+      // list + count rescope to what's now on screen.
+      setViewport(region);
       // Remember the pan for THIS session so returning from a detail
       // screen restores the view (initialRegion reads this ref).
       sessionRegionRef.current = region;
@@ -362,6 +427,51 @@ export default function MapHomeScreen() {
     },
     [saveLastRegion],
   );
+
+  // Geocode the typed text into a search area (built-in geocoder, no key).
+  const handleAreaSearch = useCallback(async () => {
+    const q = areaQuery.trim();
+    if (!q) return;
+    Keyboard.dismiss();
+    setAreaSearching(true);
+    try {
+      const results = await Location.geocodeAsync(q);
+      if (!results.length) {
+        toast.error(
+          "Couldn't find that place",
+          'Try a city and state, like “Muncie, IN”.',
+        );
+        return;
+      }
+      const { latitude, longitude } = results[0];
+      let label = q;
+      try {
+        const rev = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const p = rev[0];
+        const nice = [p?.city, p?.region].filter(Boolean).join(', ');
+        if (nice) label = nice;
+      } catch {
+        /* keep typed text as the label */
+      }
+      setSearchArea({ latitude, longitude, label });
+      setAreaQuery(label);
+    } catch {
+      toast.error("Couldn't search", 'Check your connection and try again.');
+    } finally {
+      setAreaSearching(false);
+    }
+  }, [areaQuery]);
+
+  // Clear the text + any active area. When GPS is available the searchArea
+  // effect flies back to the user (and the viewport/list refreshes on
+  // settle). With no GPS there's nothing to fly to, so drop the viewport
+  // scope instead — otherwise the list stays stuck on the old searched area.
+  const handleClearArea = useCallback(() => {
+    setAreaQuery('');
+    setSearchArea(null);
+    Keyboard.dismiss();
+    if (!userLocation) setViewport(null);
+  }, [userLocation]);
 
   const handleFilterOpen = useCallback(() => {
     navigation.navigate('FilterSheet');
@@ -422,7 +532,7 @@ export default function MapHomeScreen() {
           setCalloutPoint(null);
         }}
       >
-        {sortedSales.map((sale, idx) => {
+        {mapSales.map((sale, idx) => {
           // Honor the host's address privacy: a 'reply'-mode sale shows a
           // deterministically-offset pin (near, not on, the real address)
           // to anyone but the owner. 'live'/legacy sales show exact.
@@ -512,21 +622,12 @@ export default function MapHomeScreen() {
         }}
       >
         <SearchCard
-          locationLabel={locationLabel ?? 'Near you'}
-          radiusLabel={
-            userLocation
-              ? formatDistanceMiles(
-                  haversineMeters(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    userLocation.latitude + 0.05,
-                    userLocation.longitude,
-                  ),
-                )
-              : '5 mi'
-          }
-          countLabel={`${sortedSales.length} sales`}
-          onPress={() => navigation.navigate('Search')}
+          value={areaQuery}
+          onChangeText={setAreaQuery}
+          onSubmit={handleAreaSearch}
+          onClear={handleClearArea}
+          hasArea={!!searchArea}
+          searching={areaSearching}
           onFilters={handleFilterOpen}
         />
 
@@ -716,7 +817,7 @@ export default function MapHomeScreen() {
                   }}
                 >
                   <Text style={{ color: INK_SOFT, textAlign: 'center' }}>
-                    No sales match your filters.
+                    No sales in this area. Try zooming out or moving the map.
                   </Text>
                 </View>
               )
@@ -729,16 +830,20 @@ export default function MapHomeScreen() {
 }
 
 function SearchCard({
-  locationLabel,
-  radiusLabel,
-  countLabel,
-  onPress,
+  value,
+  onChangeText,
+  onSubmit,
+  onClear,
+  hasArea,
+  searching,
   onFilters,
 }: {
-  locationLabel: string;
-  radiusLabel: string;
-  countLabel: string;
-  onPress: () => void;
+  value: string;
+  onChangeText: (t: string) => void;
+  onSubmit: () => void;
+  onClear: () => void;
+  hasArea?: boolean;
+  searching?: boolean;
   onFilters: () => void;
 }) {
   return (
@@ -757,30 +862,43 @@ function SearchCard({
         elevation: 4,
       }}
     >
-      <Pressable
-        onPress={onPress}
-        style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-        accessibilityRole="button"
-        accessibilityLabel="Change location"
-      >
-        <Ionicons name="search-outline" size={16} color={INK_SOFT} />
-        <View style={{ marginLeft: 8, flex: 1 }}>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '600',
-              color: INK,
-              letterSpacing: -0.2,
-            }}
-            numberOfLines={1}
-          >
-            {locationLabel}
-          </Text>
-          <Text style={{ fontSize: 11, color: INK_MUTED, marginTop: 1 }}>
-            {radiusLabel} · {countLabel}
-          </Text>
-        </View>
-      </Pressable>
+      <Ionicons
+        name={hasArea ? 'location' : 'search-outline'}
+        size={16}
+        color={hasArea ? BRAND : INK_SOFT}
+      />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        onSubmitEditing={onSubmit}
+        placeholder="Search a city, ZIP, or area"
+        placeholderTextColor={INK_MUTED}
+        returnKeyType="search"
+        autoCapitalize="words"
+        autoCorrect={false}
+        style={{
+          flex: 1,
+          marginLeft: 8,
+          fontSize: 14,
+          fontWeight: '600',
+          color: INK,
+          paddingVertical: 0,
+        }}
+        accessibilityLabel="Search an area"
+      />
+      {searching ? (
+        <ActivityIndicator size="small" color={BRAND} style={{ marginLeft: 6 }} />
+      ) : value ? (
+        <Pressable
+          onPress={onClear}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+          hitSlop={8}
+          style={{ marginLeft: 6, padding: 2 }}
+        >
+          <Ionicons name="close-circle" size={18} color={INK_MUTED} />
+        </Pressable>
+      ) : null}
       <View
         style={{
           width: 1,

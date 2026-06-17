@@ -32,7 +32,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFEDD5"
+        "backgroundColor": "#F7F2E8"
       },
       "splash": {
         "image": "./assets/splash-icon.png",
