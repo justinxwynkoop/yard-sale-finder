@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { HeaderButton } from './ui';
+import { useStackBack } from '../hooks/useStackBack';
 
 const INK = '#171513';
 const HAIRLINE = '#E5DECC';
@@ -27,8 +27,16 @@ export function SubHeader({
   onTitlePress?: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-  const handleBack = onBack ?? (() => navigation.goBack());
+  // Default back resolves within the current stack/tab (never bubbles to the
+  // Tab navigator). The home names cover every stack a SubHeader screen lives
+  // in; the one present in the live routeNames is used.
+  const stackBack = useStackBack(
+    'ProfileHome',
+    'ListingsHome',
+    'InboxHome',
+    'MapHome',
+  );
+  const handleBack = onBack ?? stackBack;
   const textStyle = {
     fontSize: 17,
     fontWeight: '700' as const,

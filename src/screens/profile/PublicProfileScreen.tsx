@@ -22,6 +22,7 @@ import { ReviewSheet } from '../../components/ReviewSheet';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useReviews, useCanReview } from '../../hooks/useReviews';
+import { useStackBack } from '../../hooks/useStackBack';
 import { useFollow } from '../../hooks/useFollow';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
@@ -67,6 +68,8 @@ export default function PublicProfileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Route>();
   const { userId, self } = route.params;
+  // Stack-local back — PublicProfile lives in all four tab stacks.
+  const goBack = useStackBack('MapHome', 'ListingsHome', 'InboxHome', 'ProfileHome');
 
   // Open a sale/listing detail robustly from whichever stack this profile is
   // mounted on. PublicProfile is registered in 4 stacks (Map, Listings,
@@ -162,7 +165,7 @@ export default function PublicProfileScreen() {
               return;
             }
             toast.success(`${firstName} blocked`);
-            navigation.goBack();
+            goBack();
           },
         },
       ],
@@ -218,7 +221,7 @@ export default function PublicProfileScreen() {
             <HeaderButton
               variant="glass"
               icon="chevron-back"
-              onPress={() => navigation.goBack()}
+              onPress={() => goBack()}
               accessibilityLabel="Back"
             />
             {!self ? (
@@ -795,7 +798,7 @@ export default function PublicProfileScreen() {
           targetId={userId}
           ownerUserId={userId}
           ownerName={displayName}
-          onSubmitted={() => navigation.goBack()}
+          onSubmitted={() => goBack()}
         />
       ) : null}
     </View>

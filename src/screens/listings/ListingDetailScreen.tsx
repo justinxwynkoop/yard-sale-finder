@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { useStackBack } from '../../hooks/useStackBack';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
@@ -58,6 +59,8 @@ export default function ListingDetailScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { listingId } = route.params;
+  // Stack-local back — ListingDetail lives in ListingsStack and ProfileStack.
+  const goBack = useStackBack('ListingsHome', 'ProfileHome');
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +147,7 @@ export default function ListingDetailScreen() {
                     Alert.alert('Could not block', error.message);
                     return;
                   }
-                  navigation.goBack();
+                  goBack();
                 },
               },
             ],
@@ -192,7 +195,7 @@ export default function ListingDetailScreen() {
         </Text>
         <Pressable
           style={{ marginTop: 24 }}
-          onPress={() => navigation.goBack()}
+          onPress={() => goBack()}
         >
           <Text style={{ color: BRAND, fontWeight: '600' }}>Go back</Text>
         </Pressable>
@@ -292,7 +295,7 @@ export default function ListingDetailScreen() {
             }}
           >
             <HeaderButton
-              onPress={() => navigation.goBack()}
+              onPress={() => goBack()}
               variant="glass"
               accessibilityLabel="Back"
             />
@@ -588,7 +591,7 @@ export default function ListingDetailScreen() {
         targetId={listing.id}
         ownerUserId={listing.user_id}
         ownerName={listing.title}
-        onSubmitted={() => navigation.goBack()}
+        onSubmitted={() => goBack()}
       />
 
       {/* Sticky CTA */}

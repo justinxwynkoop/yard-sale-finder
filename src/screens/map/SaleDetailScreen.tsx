@@ -23,6 +23,7 @@ import {
 } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useStackBack } from '../../hooks/useStackBack';
 
 import { Listing, MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -67,6 +68,8 @@ const ROSE = '#A23E2D';
 export default function SaleDetailScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<any>();
+  // Stack-local back — SaleDetail lives in MapStack, ListingsStack, ProfileStack.
+  const goBack = useStackBack('MapHome', 'ListingsHome', 'ProfileHome');
   const insets = useSafeAreaInsets();
   // Defer mounting the mini-map until after the push animation has
   // finished. When the user arrives here from RoutePlanner (which also
@@ -209,7 +212,7 @@ export default function SaleDetailScreen() {
                     Alert.alert('Could not block', error.message);
                     return;
                   }
-                  navigation.goBack();
+                  goBack();
                 },
               },
             ],
@@ -273,7 +276,7 @@ export default function SaleDetailScreen() {
         <Ionicons name="alert-circle-outline" size={48} color={INK_MUTED} />
         <Text style={{ marginTop: 12, color: INK_SOFT }}>Sale not found.</Text>
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={() => goBack()}
           style={{
             marginTop: 24,
             paddingHorizontal: 18,
@@ -386,7 +389,7 @@ export default function SaleDetailScreen() {
             }}
           >
             <HeaderButton
-              onPress={() => navigation.goBack()}
+              onPress={() => goBack()}
               variant="glass"
               accessibilityLabel="Back"
             />
@@ -952,7 +955,7 @@ export default function SaleDetailScreen() {
         targetId={sale.id}
         ownerUserId={sale.user_id}
         ownerName={sale.title}
-        onSubmitted={() => navigation.goBack()}
+        onSubmitted={() => goBack()}
       />
 
       {/* Sticky CTA */}
