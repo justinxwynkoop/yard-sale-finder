@@ -36,7 +36,7 @@ const PRICE_OPTIONS: { value: PriceBucket; label: string }[] = [
 ];
 
 /**
- * Modal filter sheet for the One-off items segment of the Listings tab.
+ * Modal filter sheet for the Items segment of the Listings tab.
  * Mirrors the Map FilterSheet's visual language: distance, then price
  * buckets, then categories. Live-counts the matches and applies on
  * "Show N items".

@@ -20,7 +20,7 @@ const BULLETS: {
   label: string;
 }[] = [
   { icon: 'map-outline', label: 'Sales near you on a live map' },
-  { icon: 'pricetag-outline', label: 'Buy and sell one-off finds' },
+  { icon: 'pricetag-outline', label: 'Buy and sell individual items' },
   { icon: 'add', label: 'Post your own sale in minutes' },
 ];
 
@@ -74,7 +74,7 @@ export default function WelcomeScreen() {
             lineHeight: 20,
           }}
         >
-          Yard sales, estate sales, and one-off finds — mapped across your
+          Yard sales, estate sales, and individual items — mapped across your
           neighborhood.
         </Text>
 

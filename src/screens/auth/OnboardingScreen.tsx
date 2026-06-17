@@ -35,7 +35,7 @@ const SLIDES: {
   {
     icon: 'pricetag-outline',
     title: 'Buy & sell the easy way',
-    body: 'Browse one-off finds nearby, or post your own sale or item in a couple of minutes.',
+    body: 'Browse individual items nearby, or post your own sale or item in a couple of minutes.',
   },
   {
     icon: 'heart-outline',

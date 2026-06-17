@@ -292,7 +292,7 @@ export default function ListingsScreen() {
             onPress={() => setSegment('sales')}
           />
           <SegmentButton
-            label={`One-off items · ${sortedListings.length}`}
+            label={`Items · ${sortedListings.length}`}
             active={segment === 'items'}
             onPress={() => setSegment('items')}
           />

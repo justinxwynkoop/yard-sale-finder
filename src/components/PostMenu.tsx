@@ -72,7 +72,7 @@ export function PostMenu({ visible, onClose, onPickSale, onPickListing }: Props)
             iconBg="bg-winding-bg"
             iconColor="#B8772C"
             iconName="pricetag-outline"
-            title="A single item"
+            title="An item"
             subtitle="Sell one thing — no yard required"
             onPress={() => {
               onClose();

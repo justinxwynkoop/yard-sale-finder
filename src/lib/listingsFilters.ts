@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ItemCategory } from '../types';
 
 /**
- * Module-level filter store for the Listings tab's One-off items
+ * Module-level filter store for the Listings tab's Items
  * segment. Same pattern as mapFilters.ts — the filter modal lives in
  * a sibling navigator and can't pass state back through Context.
  */
