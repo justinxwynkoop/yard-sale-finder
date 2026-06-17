@@ -336,6 +336,10 @@ export interface Conversation {
   last_message_at: string;
   buyer_last_read_at: string | null;
   seller_last_read_at: string | null;
+  // Per-user soft delete — set when that side deletes the thread. The inbox
+  // hides it for them unless a newer message arrives (last_message_at > this).
+  buyer_deleted_at: string | null;
+  seller_deleted_at: string | null;
   // Joined helpers (populated by useInbox via select hints):
   other_profile?: Profile;
   // Shallow target preview -- title + first image. Resolved by

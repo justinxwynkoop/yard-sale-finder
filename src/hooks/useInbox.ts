@@ -56,7 +56,15 @@ export function useInbox() {
       .select('*')
       .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
       .order('last_message_at', { ascending: false });
-    const rows = (convs ?? []) as Conversation[];
+    const allRows = (convs ?? []) as Conversation[];
+    // Per-user deletion: hide threads THIS user has deleted, unless a newer
+    // message has arrived since (last_message_at > their *_deleted_at), which
+    // brings the thread back — standard chat behavior.
+    const rows = allRows.filter((c) => {
+      const myDeletedAt =
+        c.buyer_id === user.id ? c.buyer_deleted_at : c.seller_deleted_at;
+      return !myDeletedAt || new Date(c.last_message_at) > new Date(myDeletedAt);
+    });
 
     if (rows.length === 0) {
       setConversations([]);
@@ -215,10 +223,12 @@ export function useInbox() {
     //    filter this ID out, so the row can never flash back.
     deletedIdsRef.current.add(id);
     setConversations((prev) => prev.filter((c) => c.id !== id));
-    // 2. Delete from DB. The DELETE RLS policy allows participants to delete
-    //    their own conversations. Messages cascade automatically via the FK
-    //    ON DELETE CASCADE on messages.conversation_id.
-    await supabase.from('conversations').delete().eq('id', id);
+    // 2. Hide for THIS user only via the security-definer RPC — never a hard
+    //    delete of the shared row. The old `.delete()` removed the thread AND
+    //    its whole message history for the OTHER participant too. The RPC
+    //    stamps only the caller's *_deleted_at; the thread reappears for them
+    //    if a newer message arrives (see the doFetch filter).
+    await supabase.rpc('hide_conversation', { p_conversation_id: id });
   }, []);
 
   const markAsUnread = useCallback(async (id: string) => {
