@@ -9,6 +9,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   StyleSheet,
+  Switch,
 } from 'react-native';
 import MapView, { Marker, MapPressEvent, Region } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
@@ -77,6 +78,7 @@ export default function CreateSaleScreen() {
   const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [allowMessages, setAllowMessages] = useState(true);
 
   // What
   const [title, setTitle] = useState('');
@@ -367,6 +369,7 @@ export default function CreateSaleScreen() {
           end_time: endTime,
           categories: selectedCategories,
           pricing_notes: pricingNotes.trim() || null,
+          allow_messages: allowMessages,
           status: 'active',
         })
         .select()
@@ -787,6 +790,24 @@ export default function CreateSaleScreen() {
             <Text className="mt-1 text-right text-xs text-zinc-400">
               {pricingNotes.length}/{MAX_PRICING}
             </Text>
+          </PostSection>
+
+          {/* MESSAGING SECTION (optional, not in progress count) */}
+          <PostSection
+            title="Messaging"
+            subtitle="Let shoppers message you about this sale."
+          >
+            <View className="flex-row items-center justify-between">
+              <Text className="flex-1 pr-3 text-sm font-semibold text-zinc-800">
+                Allow messages
+              </Text>
+              <Switch
+                value={allowMessages}
+                onValueChange={setAllowMessages}
+                trackColor={{ true: '#1F4D3A', false: '#E5DECC' }}
+                thumbColor="#fff"
+              />
+            </View>
           </PostSection>
         </ScrollView>
 

@@ -832,7 +832,7 @@ export default function SaleDetailScreen() {
                   </View>
                 </View>
               </Pressable>
-              {!isOwnSale && (
+              {!isOwnSale && sale.allow_messages !== false && (
                 <Pressable
                   onPress={handleMessageSeller}
                   disabled={startingConversation}

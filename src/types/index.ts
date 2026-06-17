@@ -137,6 +137,8 @@ export interface Sale {
   /** Host-supplied descriptors ("early_bird", "cash_only", etc). Empty array if unset. */
   vibe_tags: string[];
   pricing_notes: string | null;
+  /** When false, the host has turned off messaging for this sale. */
+  allow_messages?: boolean;
   /** Snapshot of the host's address-privacy preference at post time. */
   location_privacy?: LocationPrivacy | null;
   blur_radius_blocks?: number | null;

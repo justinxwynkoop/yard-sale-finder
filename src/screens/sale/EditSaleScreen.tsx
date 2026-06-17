@@ -9,6 +9,7 @@ import {
   Platform,
   Pressable,
   Image,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SubHeader } from '../../components/SubHeader';
@@ -71,6 +72,7 @@ export default function EditSaleScreen() {
   const [endTime, setEndTime] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<ItemCategory[]>([]);
   const [pricingNotes, setPricingNotes] = useState('');
+  const [allowMessages, setAllowMessages] = useState(true);
   const [status, setStatus] = useState<SaleStatus>('active');
 
   // Existing media we loaded and a parallel set of ids the user wants to delete
@@ -109,6 +111,7 @@ export default function EditSaleScreen() {
         setEndTime((data.end_time ?? '').slice(0, 5));
         setSelectedCategories(data.categories ?? []);
         setPricingNotes(data.pricing_notes ?? '');
+        setAllowMessages(data.allow_messages ?? true);
         setStatus(data.status);
         const media: SaleMedia[] = (data.media ?? []).sort(
           (a: SaleMedia, b: SaleMedia) => a.order - b.order,
@@ -255,6 +258,7 @@ export default function EditSaleScreen() {
           end_time: endTime,
           categories: selectedCategories,
           pricing_notes: pricingNotes.trim() || null,
+          allow_messages: allowMessages,
           status,
         })
         .eq('id', saleId);
@@ -567,6 +571,26 @@ export default function EditSaleScreen() {
             <Text className="mt-1 text-right text-xs text-zinc-400">
               {pricingNotes.length}/{MAX_PRICING}
             </Text>
+          </View>
+
+          {/* MESSAGING */}
+          <View>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <Text className="text-sm font-medium text-zinc-700">
+                  Allow messages
+                </Text>
+                <Text className="mt-0.5 text-xs text-zinc-500">
+                  Let shoppers message you about this sale
+                </Text>
+              </View>
+              <Switch
+                value={allowMessages}
+                onValueChange={setAllowMessages}
+                trackColor={{ true: '#1F4D3A', false: '#E5DECC' }}
+                thumbColor="#fff"
+              />
+            </View>
           </View>
 
           {/* STATUS */}
