@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
   // ── 2. Look up the recipient's push token + display name ──────────────
   const { data: recipient } = await supabase
     .from('profiles')
-    .select('expo_push_token, display_name')
+    .select('expo_push_token, display_name, notify_messages')
     .eq('id', recipientId)
     .single();
 
@@ -85,6 +85,11 @@ Deno.serve(async (req: Request) => {
     // No token — user hasn't granted permission or hasn't opened the app
     // on this device yet. Silently succeed.
     return new Response('No push token', { status: 200 });
+  }
+
+  // Respect the recipient's Messages notification preference (default on).
+  if (recipient.notify_messages === false) {
+    return new Response('Recipient muted messages', { status: 200 });
   }
 
   // ── 3. Look up the sender's display name for the notification title ────

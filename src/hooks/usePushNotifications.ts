@@ -77,6 +77,13 @@ export function usePushNotifications() {
           lightColor: '#1F4D3A',
           sound: 'default',
         });
+        // New sales posted within your radius (notify-new-sale → nearby).
+        await Notifications.setNotificationChannelAsync('nearby', {
+          name: 'New sales near you',
+          importance: Notifications.AndroidImportance.DEFAULT,
+          lightColor: '#1F4D3A',
+          sound: 'default',
+        });
       }
 
       // ── 4. Fetch Expo Push Token ───────────────────────────────────

@@ -70,6 +70,7 @@ export interface Profile {
   notify_offers?: boolean;
   notify_weekly_digest?: boolean;
   notify_tips?: boolean;
+  nearby_radius_miles?: number;
   // Account v7 — verification + payment + address-privacy.
   email_verified?: boolean;
   phone_verified?: boolean;

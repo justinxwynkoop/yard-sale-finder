@@ -16,6 +16,7 @@ import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/usePro
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useInbox } from '../hooks/useInbox';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useNearbyLocationSync } from '../hooks/useNearbyLocationSync';
 import {
   navigationRef,
   navigateToConversation,
@@ -403,6 +404,9 @@ function MainTabs() {
   // Register device for push notifications and persist the token to
   // the user's profile. Runs once per sign-in, bails on simulators.
   usePushNotifications();
+  // Persist coarse location for "new sale near you" pushes (only while the
+  // notify_sales_nearby toggle is on).
+  useNearbyLocationSync();
 
   // Handle notification taps → open the relevant conversation.
   // Two cases:
