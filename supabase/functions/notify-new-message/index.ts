@@ -45,9 +45,12 @@ Deno.serve(async (req: Request) => {
 
   const conversationId = record.conversation_id as string;
   const senderId       = record.sender_id as string;
-  const messageBody    = record.body as string;
+  const messageBody    = (record.body as string) ?? '';
+  const imageUrl       = record.image_url as string | null;
 
-  if (!conversationId || !senderId || !messageBody) {
+  // A message is valid with text OR an image. Image-only messages used to
+  // fail this check and silently send no notification.
+  if (!conversationId || !senderId || (!messageBody && !imageUrl)) {
     return new Response('Missing fields', { status: 400 });
   }
 
@@ -102,13 +105,15 @@ Deno.serve(async (req: Request) => {
   const senderName = sender?.display_name ?? 'Someone';
 
   // ── 4. Fire the Expo push notification ────────────────────────────────
+  // Image-only messages have no text — show a "photo" placeholder body.
+  const notifBody = messageBody
+    ? (messageBody.length > 120 ? messageBody.slice(0, 117) + '…' : messageBody)
+    : '📷 Photo';
   const pushMessage = {
     to: recipient.expo_push_token,
     sound: 'default',
     title: senderName,
-    body: messageBody.length > 120
-      ? messageBody.slice(0, 117) + '…'
-      : messageBody,
+    body: notifBody,
     // data is forwarded to the app and used to navigate to the conversation.
     data: { conversationId },
     channelId: 'messages', // Android channel (matches usePushNotifications)
