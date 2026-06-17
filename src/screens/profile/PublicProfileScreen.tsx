@@ -68,6 +68,34 @@ export default function PublicProfileScreen() {
   const route = useRoute<Route>();
   const { userId, self } = route.params;
 
+  // Open a sale/listing detail robustly from whichever stack this profile is
+  // mounted on. PublicProfile is registered in 4 stacks (Map, Listings,
+  // Messages, Profile) but not all of them register the detail routes — the
+  // Messages stack has neither SaleDetail nor ListingDetail, and the Map stack
+  // has no ListingDetail. A flat navigate from those stacks throws "not handled
+  // by any navigator". So: navigate in-tab when the current stack already
+  // registers the route (keeps the back stack on PublicProfile), otherwise jump
+  // to the tab whose stack always has it.
+  const openSale = (saleId: string) => {
+    const routeNames = navigation.getState()?.routeNames ?? [];
+    if (routeNames.includes('SaleDetail')) {
+      navigation.navigate('SaleDetail', { saleId });
+    } else {
+      navigation.navigate('Map', { screen: 'SaleDetail', params: { saleId } });
+    }
+  };
+  const openListing = (listingId: string) => {
+    const routeNames = navigation.getState()?.routeNames ?? [];
+    if (routeNames.includes('ListingDetail')) {
+      navigation.navigate('ListingDetail', { listingId });
+    } else {
+      navigation.navigate('Listings', {
+        screen: 'ListingDetail',
+        params: { listingId },
+      });
+    }
+  };
+
   const {
     profile,
     sales,
@@ -374,9 +402,7 @@ export default function PublicProfileScreen() {
                 return (
                   <Pressable
                     key={sale.id}
-                    onPress={() =>
-                      navigation.navigate('SaleDetail', { saleId: sale.id })
-                    }
+                    onPress={() => openSale(sale.id)}
                     style={{
                       width: 200,
                       borderRadius: 14,
@@ -516,11 +542,7 @@ export default function PublicProfileScreen() {
                 return (
                   <Pressable
                     key={listing.id}
-                    onPress={() =>
-                      navigation.navigate('ListingDetail', {
-                        listingId: listing.id,
-                      })
-                    }
+                    onPress={() => openListing(listing.id)}
                     style={{
                       width: '47%',
                       backgroundColor: '#fff',
