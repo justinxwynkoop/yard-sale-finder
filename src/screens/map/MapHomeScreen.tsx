@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  ScrollView,
   ActivityIndicator,
   StyleSheet,
   Dimensions,
@@ -30,18 +29,14 @@ import { saleDisplayLocation } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
 import { useFavorites } from '../../hooks/useFavorites';
-import { MapStackParamList, ItemCategory, Sale } from '../../types';
+import { MapStackParamList, Sale } from '../../types';
 import { MapPin } from '../../components/MapPin';
 import { SelectedPinCallout } from '../../components/SelectedPinCallout';
 import { BottomSheet, SheetState } from '../../components/BottomSheet';
 import SaleCard from '../../components/SaleCard';
-import { Chip } from '../../components/ui';
 import { haversineMeters } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
-import {
-  setMapFilters,
-  useMapFilters,
-} from '../../lib/mapFilters';
+import { useMapFilters } from '../../lib/mapFilters';
 import { saleMatchesFilters } from '../../lib/filterSales';
 import { useSearchArea, setSearchArea } from '../../lib/searchArea';
 import { useViewport, setViewport, regionContains } from '../../lib/viewport';
@@ -79,7 +74,6 @@ const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
 
-type QuickCat = 'furniture' | 'tools';
 
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
@@ -102,15 +96,6 @@ export default function MapHomeScreen() {
   // Filter state — driven by the shared mapFilters store so the
   // FilterSheet modal can read/write the same object.
   const filters = useMapFilters();
-  const openNowFilter = filters.openNow;
-  const savedOnly = filters.savedOnly;
-  const todayOnly = filters.when === 'today';
-  // Quick-access chip-row selections for furniture / tools live inside
-  // filters.categories. The map-level chip toggles them in/out.
-  const quickCats = useMemo(
-    () => new Set(filters.categories.filter((c) => c === 'furniture' || c === 'tools') as QuickCat[]),
-    [filters.categories],
-  );
 
   // The map's current visible region drives which sales show — Zillow
   // style, the viewport IS the filter. Updated on every settle below.
@@ -382,16 +367,6 @@ export default function MapHomeScreen() {
     [user, positionCalloutFor],
   );
 
-  const toggleQuickCat = useCallback(
-    (cat: QuickCat) => {
-      const cur = new Set(filters.categories);
-      if (cur.has(cat)) cur.delete(cat);
-      else cur.add(cat);
-      setMapFilters({ categories: Array.from(cur) as ItemCategory[] });
-    },
-    [filters.categories],
-  );
-
   const goToUserLocation = useCallback(async () => {
     // Tapping locate clears any active area search and returns to "me".
     setSearchArea(null);
@@ -631,47 +606,6 @@ export default function MapHomeScreen() {
           onFilters={handleFilterOpen}
         />
 
-        {/* Chip row */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 10, paddingRight: 12 }}
-          style={{ marginHorizontal: -12, paddingHorizontal: 12 }}
-        >
-          <Chip
-            label="Open now"
-            icon="flame"
-            tone={openNowFilter ? 'active' : 'default'}
-            onPress={() => setMapFilters({ openNow: !openNowFilter })}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label={`Saved · ${savedCount}`}
-            icon="heart-outline"
-            tone={savedOnly ? 'active' : 'default'}
-            onPress={() => setMapFilters({ savedOnly: !savedOnly })}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label="Furniture"
-            tone={quickCats.has('furniture') ? 'active' : 'default'}
-            onPress={() => toggleQuickCat('furniture')}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label="Tools"
-            tone={quickCats.has('tools') ? 'active' : 'default'}
-            onPress={() => toggleQuickCat('tools')}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label="Today"
-            tone={todayOnly ? 'active' : 'default'}
-            onPress={() =>
-              setMapFilters({ when: todayOnly ? null : 'today' })
-            }
-          />
-        </ScrollView>
       </View>
 
       {/* Route planner pill — hidden behind ROUTE_PLANNER_ENABLED while

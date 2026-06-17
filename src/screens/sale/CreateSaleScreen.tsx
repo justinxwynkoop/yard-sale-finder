@@ -298,6 +298,11 @@ export default function CreateSaleScreen() {
     if (!startDate || !endDate) return 'Please pick a start and end date.';
     if (!startTime || !endTime) return 'Please pick a start and end time.';
     if (endDate < startDate) return 'End date must be after start date.';
+    // Times are 'HH:MM' (24h) and dates 'YYYY-MM-DD', so the combined
+    // "<date>T<time>" string compares chronologically. End must be strictly
+    // after start — no equal-to or before (e.g. same-day 2pm–2pm or 2pm–1pm).
+    if (`${endDate}T${endTime}` <= `${startDate}T${startTime}`)
+      return 'End time must be after the start time.';
     return null;
   };
 

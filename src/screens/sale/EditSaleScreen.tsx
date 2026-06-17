@@ -231,6 +231,16 @@ export default function EditSaleScreen() {
       Alert.alert('Date issue', 'End date must be after start date.');
       return;
     }
+    // End must be strictly after start (times are 'HH:MM' 24h, dates ISO, so
+    // "<date>T<time>" compares chronologically). Blocks same-day end == start
+    // or end < start.
+    if (
+      startDate && endDate && startTime && endTime &&
+      `${endDate}T${endTime}` <= `${startDate}T${startTime}`
+    ) {
+      Alert.alert('Time issue', 'End time must be after the start time.');
+      return;
+    }
     setSaving(true);
     try {
       // 1. Update the sale row
