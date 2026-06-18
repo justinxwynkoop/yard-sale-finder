@@ -20,6 +20,7 @@ type Nav = NativeStackNavigationProp<ProfileStackParamList, 'Following'>;
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
+const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
 const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
@@ -40,7 +41,7 @@ function locationOf(p: Profile): string | null {
 export default function FollowingScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
-  const { following, loading, unfollow } = useFollowing(user?.id);
+  const { following, loading, unfollow, setNotify } = useFollowing(user?.id);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
@@ -92,75 +93,99 @@ export default function FollowingScreen() {
       ) : (
         <FlatList
           data={following}
-          keyExtractor={(p) => p.id}
+          keyExtractor={(f) => f.profile.id}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingBottom: 32,
           }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() =>
-                navigation.navigate('PublicProfile', { userId: item.id })
-              }
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#fff',
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: HAIRLINE,
-                padding: 10,
-                marginTop: 10,
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${nameOf(item)}'s profile`}
-            >
-              <Avatar uri={item.avatar_url} name={nameOf(item)} px={44} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text
-                  numberOfLines={1}
-                  style={{ fontSize: 15, fontWeight: '700', color: INK }}
-                >
-                  {nameOf(item)}
-                </Text>
-                {locationOf(item) ? (
-                  <Text
-                    numberOfLines={1}
-                    style={{ marginTop: 2, fontSize: 12, color: INK_MUTED }}
-                  >
-                    {locationOf(item)}
-                  </Text>
-                ) : null}
-              </View>
+          renderItem={({ item }) => {
+            const p = item.profile;
+            return (
               <Pressable
-                onPress={() => unfollow(item.id)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Unfollow ${nameOf(item)}`}
+                onPress={() =>
+                  navigation.navigate('PublicProfile', { userId: p.id })
+                }
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
+                  backgroundColor: '#fff',
+                  borderRadius: 14,
                   borderWidth: 1,
                   borderColor: HAIRLINE,
-                  borderRadius: 99,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
+                  padding: 10,
+                  marginTop: 10,
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${nameOf(p)}'s profile`}
               >
-                <Ionicons name="checkmark" size={13} color={BRAND} />
-                <Text
+                <Avatar uri={p.avatar_url} name={nameOf(p)} px={44} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: 15, fontWeight: '700', color: INK }}
+                  >
+                    {nameOf(p)}
+                  </Text>
+                  {locationOf(p) ? (
+                    <Text
+                      numberOfLines={1}
+                      style={{ marginTop: 2, fontSize: 12, color: INK_MUTED }}
+                    >
+                      {locationOf(p)}
+                    </Text>
+                  ) : null}
+                </View>
+                {/* Bell — toggles notifications when this person posts. */}
+                <Pressable
+                  onPress={() => setNotify(p.id, !item.notify)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    item.notify
+                      ? `Mute notifications from ${nameOf(p)}`
+                      : `Get notified when ${nameOf(p)} posts`
+                  }
                   style={{
-                    marginLeft: 4,
-                    fontSize: 12,
-                    fontWeight: '700',
-                    color: BRAND,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 99,
+                    borderWidth: 1,
+                    borderColor: item.notify ? BRAND : HAIRLINE,
+                    backgroundColor: item.notify ? BRAND_SOFT : '#fff',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8,
                   }}
                 >
-                  Following
-                </Text>
+                  <Ionicons
+                    name={item.notify ? 'notifications' : 'notifications-off-outline'}
+                    size={15}
+                    color={item.notify ? BRAND : INK_MUTED}
+                  />
+                </Pressable>
+                {/* Unfollow */}
+                <Pressable
+                  onPress={() => unfollow(p.id)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Unfollow ${nameOf(p)}`}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: HAIRLINE,
+                    borderRadius: 99,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 12, fontWeight: '700', color: INK }}
+                  >
+                    Following
+                  </Text>
+                </Pressable>
               </Pressable>
-            </Pressable>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View
               style={{

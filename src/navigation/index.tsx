@@ -21,6 +21,7 @@ import {
   navigationRef,
   navigateToConversation,
   navigateToSale,
+  navigateToListing,
 } from '../lib/navigationRef';
 import {
   RootStackParamList,
@@ -414,6 +415,7 @@ function MainTabs() {
     const route = (data: any) => {
       if (data?.conversationId) navigateToConversation(data.conversationId as string);
       else if (data?.saleId) navigateToSale(data.saleId as string);
+      else if (data?.listingId) navigateToListing(data.listingId as string);
     };
     Notifications.getLastNotificationResponseAsync().then((response) => {
       route(response?.notification.request.content.data);

@@ -3,14 +3,17 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
 /**
- * Follow/unfollow helper for a single target user. Returns the live
- * follow state, the target's follower count, and a toggle.
+ * Follow/unfollow helper for a single target user. Returns the live follow
+ * state, the target's follower count, the per-follow notification preference
+ * (the "bell" — when on you get pushed when they post a sale or list an item),
+ * and toggles for both.
  */
 export function useFollow(targetUserId: string | undefined) {
   const { user } = useAuth();
   const myId = user?.id;
 
   const [following, setFollowing] = useState(false);
+  const [notify, setNotify] = useState(true);
   const [followerCount, setFollowerCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +29,7 @@ export function useFollow(targetUserId: string | undefined) {
         myId
           ? supabase
               .from('follows')
-              .select('follower_id')
+              .select('notify')
               .eq('follower_id', myId)
               .eq('followed_id', targetUserId)
               .maybeSingle()
@@ -34,6 +37,7 @@ export function useFollow(targetUserId: string | undefined) {
       ]);
       setFollowerCount(count ?? 0);
       setFollowing(!!mineCheck.data);
+      setNotify(mineCheck.data?.notify ?? true);
     } finally {
       setLoading(false);
     }
@@ -48,6 +52,7 @@ export function useFollow(targetUserId: string | undefined) {
     // Optimistic flip — revert on error.
     setFollowing((prev) => !prev);
     setFollowerCount((c) => c + (following ? -1 : 1));
+    if (!following) setNotify(true); // a fresh follow starts notified (DB default)
     const op = following
       ? supabase
           .from('follows')
@@ -64,5 +69,25 @@ export function useFollow(targetUserId: string | undefined) {
     }
   }, [targetUserId, myId, following]);
 
-  return { following, followerCount, loading, toggle, isSelf: targetUserId === myId };
+  const toggleNotify = useCallback(async () => {
+    if (!targetUserId || !myId || !following) return;
+    const next = !notify;
+    setNotify(next); // optimistic
+    const { error } = await supabase
+      .from('follows')
+      .update({ notify: next })
+      .eq('follower_id', myId)
+      .eq('followed_id', targetUserId);
+    if (error) setNotify(!next);
+  }, [targetUserId, myId, following, notify]);
+
+  return {
+    following,
+    notify,
+    followerCount,
+    loading,
+    toggle,
+    toggleNotify,
+    isSelf: targetUserId === myId,
+  };
 }

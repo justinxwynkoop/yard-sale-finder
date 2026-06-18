@@ -111,7 +111,8 @@ export default function PublicProfileScreen() {
     alreadyReviewed,
     refetch: refetchCanReview,
   } = useCanReview(userId);
-  const { following, toggle: toggleFollow, isSelf } = useFollow(userId);
+  const { following, notify, toggle: toggleFollow, toggleNotify, isSelf } =
+    useFollow(userId);
   const { block, blockedIds } = useBlockedUsers();
   const { start: startConversation } = useStartConversation();
   const { user } = useAuth();
@@ -711,7 +712,7 @@ export default function PublicProfileScreen() {
             accessibilityLabel={following ? 'Unfollow' : 'Follow'}
           >
             <Ionicons
-              name={following ? 'notifications' : 'notifications-outline'}
+              name={following ? 'checkmark' : 'person-add-outline'}
               size={15}
               color={following ? BRAND : INK}
             />
@@ -725,6 +726,35 @@ export default function PublicProfileScreen() {
               {following ? 'Following' : 'Follow'}
             </Text>
           </Pressable>
+          {/* Notification bell — only while following. Controls whether you
+              get a push when this person posts a sale or lists an item. */}
+          {following ? (
+            <Pressable
+              onPress={toggleNotify}
+              style={{
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderWidth: 1,
+                borderColor: notify ? BRAND : HAIRLINE,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: notify ? BRAND_SOFT : '#fff',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                notify
+                  ? 'Turn off notifications for their posts'
+                  : 'Get notified when they post'
+              }
+            >
+              <Ionicons
+                name={notify ? 'notifications' : 'notifications-off-outline'}
+                size={15}
+                color={notify ? BRAND : INK}
+              />
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={handleMessage}
             style={{

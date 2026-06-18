@@ -52,3 +52,17 @@ export function navigateToSale(saleId: string) {
     params: { screen: 'SaleDetail', params: { saleId } },
   } as any);
 }
+
+/**
+ * Open an item listing's detail on the Listings tab — used by the "new item
+ * from someone you follow" push-notification tap. Focus the Listings tab
+ * first, then push the detail via the nested-screen form.
+ */
+export function navigateToListing(listingId: string) {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Main' as any, { screen: 'Listings' } as any);
+  navigationRef.navigate('Main' as any, {
+    screen: 'Listings',
+    params: { screen: 'ListingDetail', params: { listingId } },
+  } as any);
+}

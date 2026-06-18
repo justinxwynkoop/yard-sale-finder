@@ -89,7 +89,8 @@ Deno.serve(async (req: Request) => {
   const { data: followers, error: fErr } = await supabase
     .from('follows')
     .select('follower_id')
-    .eq('followed_id', sellerId);
+    .eq('followed_id', sellerId)
+    .eq('notify', true);
   if (fErr) console.error('follows lookup failed:', fErr.message);
   const followerIds = (followers ?? []).map((f) => f.follower_id as string);
   if (followerIds.length > 0) {
