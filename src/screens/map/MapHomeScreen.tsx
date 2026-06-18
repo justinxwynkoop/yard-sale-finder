@@ -78,8 +78,6 @@ const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
-const ROSE = '#A23E2D'; // saved ring
-const AMBER = '#E0922F'; // new accent
 
 
 export default function MapHomeScreen() {
@@ -729,10 +727,6 @@ export default function MapHomeScreen() {
         </Pressable>
       )}
 
-      {/* Pin legend — compact key, bottom-left. Rendered before the sheet so
-          it's occluded when the list opens (same trick as the FAB). */}
-      <MapLegend />
-
       {/* My-location FAB — FIXED just above the peek sheet, never moves.
           Rendered BEFORE <BottomSheet/> in the tree, so when the sheet
           expands to the open snap it slides up and over the FAB,
@@ -832,106 +826,6 @@ export default function MapHomeScreen() {
           />
         ) : null}
       </BottomSheet>
-    </View>
-  );
-}
-
-// A single legend swatch — a mini MapPin. `saved` draws the rose ring,
-// `isNew` the amber corner dot, matching the real pins.
-function LegendSwatch({
-  fill,
-  saved,
-  isNew,
-}: {
-  fill: string;
-  saved?: boolean;
-  isNew?: boolean;
-}) {
-  return (
-    <View style={{ width: 16, height: 16 }}>
-      <View
-        style={{
-          width: 16,
-          height: 16,
-          borderRadius: 8,
-          backgroundColor: fill,
-          borderWidth: saved ? 2.5 : 2,
-          borderColor: saved ? ROSE : '#fff',
-        }}
-      />
-      {isNew && (
-        <View
-          style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: AMBER,
-            borderWidth: 1.5,
-            borderColor: '#fff',
-          }}
-        />
-      )}
-    </View>
-  );
-}
-
-function LegendRow({
-  swatch,
-  label,
-}: {
-  swatch: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <View
-      style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 3 }}
-    >
-      {swatch}
-      <Text
-        style={{
-          marginLeft: 8,
-          fontSize: 11,
-          fontWeight: '600',
-          color: INK_SOFT,
-        }}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function MapLegend() {
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: 12,
-        bottom: SHEET_PEEK + 14,
-        backgroundColor: 'rgba(255,255,255,0.96)',
-        borderRadius: 12,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
-      }}
-    >
-      <LegendRow swatch={<LegendSwatch fill={BRAND} />} label="Live now" />
-      <LegendRow
-        swatch={<LegendSwatch fill={INK_MUTED} isNew />}
-        label="New"
-      />
-      <LegendRow
-        swatch={<LegendSwatch fill={INK_MUTED} saved />}
-        label="Saved"
-      />
     </View>
   );
 }

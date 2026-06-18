@@ -1,30 +1,32 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SaleStatus } from '../types';
 
 const BRAND = '#1F4D3A'; // live (open now)
 const GRAY = '#8A857C'; // active but not open now
 const ROUTE_COLOR = '#4F46E5'; // in the route plan
-const ROSE = '#A23E2D'; // saved (ring)
-const AMBER = '#E0922F'; // new (corner accent)
+const ROSE = '#A23E2D'; // saved
+const AMBER = '#E0922F'; // new
+
+const SHADOW = {
+  shadowColor: '#000',
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 4,
+} as const;
 
 /**
- * A colored dot that reads three things at a glance via three independent
- * channels — so any combination shows at once:
- *   • FILL   — live status: green = open right now, gray = not open
- *              (indigo when the sale is in the route plan)
- *   • RING   — a rose border instead of the white one = saved by you
- *   • CORNER — a small amber dot = newly posted (≤ 3 days)
+ * Map marker for a sale, drawn so its kind is obvious without a legend:
+ *   • SAVED → a rose heart
+ *   • NEW (posted ≤ 3 days) → a small "NEW" tag
+ *   • otherwise → a colored dot: green = open now, gray = not open
+ *     (indigo = in the route plan)
  *
- * Nothing is drawn INSIDE the dot (keeps it clean). All three are pure
- * functions of the sale's data, drawn as a static View.
- *
- * History note: a previous version layered an Animated.View pulse behind the
- * pin. Under the iOS new architecture (Fabric), native-driven Animated
- * children inside AIRMap markers raced the mount path and produced
- *   NSInvalidArgumentException: -[__NSArrayM insertObject:atIndex:]:
- *   object cannot be nil ... -[AIRMap insertReactSubview:atIndex:]
- * on zoom / refetch. Keep this static — no Animated children.
+ * Saved takes precedence over new (a saved+new sale shows the heart). Every
+ * variant is a single element centered on the coordinate, and all are static
+ * (no Animated) so they can't revive the AIRMap insertReactSubview crash.
  */
 function MapPinInner({
   status,
@@ -34,51 +36,77 @@ function MapPinInner({
   openNow,
 }: {
   status: SaleStatus;
-  /** Saved by the current user → draws the rose ring. */
+  /** Saved by the current user → heart. */
   favorited?: boolean;
-  /** True when this sale has been added to the route planner. */
+  /** In the route planner → indigo dot. */
   inRoute?: boolean;
-  /** Posted within the last ~3 days → draws the amber corner dot. */
+  /** Posted within the last ~3 days → "NEW" tag. */
   isNew?: boolean;
-  /** True when the sale's hours include the current time. */
+  /** The sale's hours include the current time → green. */
   openNow?: boolean;
 }) {
+  // Saved — a white-outlined rose heart (the white heart behind gives the
+  // contrast a plain glyph would lack on the map).
+  if (favorited && !inRoute) {
+    return (
+      <View
+        style={{ width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Ionicons
+          name="heart"
+          size={26}
+          color="#fff"
+          style={{ position: 'absolute' }}
+        />
+        <Ionicons name="heart" size={19} color={ROSE} />
+      </View>
+    );
+  }
+
+  // New — a small tag instead of a dot.
+  if (isNew && !inRoute) {
+    return (
+      <View
+        style={{
+          backgroundColor: AMBER,
+          borderRadius: 5,
+          paddingHorizontal: 5,
+          paddingVertical: 2,
+          borderWidth: 1.5,
+          borderColor: '#fff',
+          ...SHADOW,
+        }}
+      >
+        <Text
+          style={{
+            color: '#fff',
+            fontSize: 9,
+            fontWeight: '800',
+            letterSpacing: 0.4,
+            includeFontPadding: false,
+          }}
+        >
+          NEW
+        </Text>
+      </View>
+    );
+  }
+
+  // Otherwise a colored dot.
   const isLive = status === 'active' && openNow;
   const fill = inRoute ? ROUTE_COLOR : isLive ? BRAND : GRAY;
   return (
-    <View>
-      <View
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: 11,
-          backgroundColor: fill,
-          // Saved sales get a rose ring; everything else the usual white edge.
-          borderWidth: favorited ? 3 : 2.5,
-          borderColor: favorited ? ROSE : '#fff',
-          shadowColor: '#000',
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 4,
-        }}
-      />
-      {isNew && (
-        <View
-          style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
-            width: 11,
-            height: 11,
-            borderRadius: 5.5,
-            backgroundColor: AMBER,
-            borderWidth: 2,
-            borderColor: '#fff',
-          }}
-        />
-      )}
-    </View>
+    <View
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: fill,
+        borderWidth: 2.5,
+        borderColor: '#fff',
+        ...SHADOW,
+      }}
+    />
   );
 }
 
