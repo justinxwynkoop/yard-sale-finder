@@ -346,6 +346,10 @@ export interface Conversation {
   // hides it for them unless a newer message arrives (last_message_at > this).
   buyer_deleted_at: string | null;
   seller_deleted_at: string | null;
+  // Per-user archive — set when that side archives the thread. It moves to the
+  // Archived view unless a newer message arrives (last_message_at > this).
+  buyer_archived_at: string | null;
+  seller_archived_at: string | null;
   // Joined helpers (populated by useInbox via select hints):
   other_profile?: Profile;
   // Shallow target preview -- title + first image. Resolved by

@@ -24,8 +24,11 @@ const BRAND = '#1F4D3A';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
+const ROSE = '#A23E2D';
+const HAIRLINE = '#E5DECC';
 
 type Filter = 'all' | 'unread' | 'buying' | 'selling';
+type ViewMode = 'inbox' | 'archived';
 
 function formatMessageDate(iso: string): string {
   const date = new Date(iso);
@@ -53,16 +56,22 @@ export default function InboxScreen() {
   const { user } = useAuth();
   const {
     conversations,
+    archived,
     loading,
     refreshing,
     refetch,
     silentRefetch,
-    deleteConversation,
+    deleteConversations,
+    archiveConversations,
+    unarchiveConversations,
     markAsUnread,
     unreadCount,
   } = useInbox();
 
   const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useState<ViewMode>('inbox');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useFocusEffect(
     useCallback(() => {
@@ -70,14 +79,66 @@ export default function InboxScreen() {
     }, [silentRefetch]),
   );
 
+  const exitSelect = useCallback(() => {
+    setSelectMode(false);
+    setSelected(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const startSelect = useCallback((id: string) => {
+    setSelectMode(true);
+    setSelected(new Set([id]));
+  }, []);
+
+  const base = view === 'inbox' ? conversations : archived;
   const filtered = useMemo(() => {
-    return conversations.filter((c) => {
+    if (view === 'archived') return base;
+    return base.filter((c) => {
       if (filter === 'unread') return c.has_unread;
       if (filter === 'buying') return c.buyer_id === user?.id;
       if (filter === 'selling') return c.seller_id === user?.id;
       return true;
     });
-  }, [conversations, filter, user?.id]);
+  }, [base, view, filter, user?.id]);
+
+  const runBulk = (action: 'archive' | 'unarchive' | 'delete') => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (action === 'delete') {
+      Alert.alert(
+        `Delete ${ids.length} conversation${ids.length === 1 ? '' : 's'}?`,
+        'They’ll be removed from your inbox. The other person keeps their copy.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              deleteConversations(ids);
+              exitSelect();
+            },
+          },
+        ],
+      );
+      return;
+    }
+    if (action === 'archive') archiveConversations(ids);
+    else unarchiveConversations(ids);
+    exitSelect();
+  };
+
+  const switchView = (next: ViewMode) => {
+    exitSelect();
+    setView(next);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
@@ -98,64 +159,86 @@ export default function InboxScreen() {
               letterSpacing: -0.5,
             }}
           >
-            Inbox
+            {selectMode
+              ? `${selected.size} selected`
+              : view === 'inbox'
+                ? 'Inbox'
+                : 'Archived'}
           </Text>
-          {unreadCount > 0 ? (
-            <Pressable
-              onPress={() => {
-                /* future: mark-all-read */
-              }}
-              hitSlop={8}
-            >
-              <Text
-                style={{ fontSize: 12, fontWeight: '600', color: BRAND }}
-              >
-                Mark read
-              </Text>
-            </Pressable>
-          ) : null}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            {selectMode ? (
+              <Pressable onPress={exitSelect} hitSlop={8}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: BRAND }}>
+                  Cancel
+                </Text>
+              </Pressable>
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => switchView(view === 'inbox' ? 'archived' : 'inbox')}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    view === 'inbox' ? 'View archived' : 'Back to inbox'
+                  }
+                >
+                  <Ionicons
+                    name={view === 'inbox' ? 'archive-outline' : 'chatbubbles-outline'}
+                    size={22}
+                    color={BRAND}
+                  />
+                </Pressable>
+                {filtered.length > 0 ? (
+                  <Pressable onPress={() => setSelectMode(true)} hitSlop={8}>
+                    <Text
+                      style={{ fontSize: 14, fontWeight: '600', color: BRAND }}
+                    >
+                      Select
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
         </View>
 
-        {/* Chip row */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: 12, marginHorizontal: -16, paddingHorizontal: 16 }}
-        >
-          <Chip
-            label="All"
-            tone={filter === 'all' ? 'active' : 'default'}
-            onPress={() => setFilter('all')}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label={`Unread · ${unreadCount}`}
-            tone={filter === 'unread' ? 'active' : 'default'}
-            onPress={() => setFilter('unread')}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label="Buying"
-            tone={filter === 'buying' ? 'active' : 'default'}
-            onPress={() => setFilter('buying')}
-          />
-          <View style={{ width: 6 }} />
-          <Chip
-            label="Selling"
-            tone={filter === 'selling' ? 'active' : 'default'}
-            onPress={() => setFilter('selling')}
-          />
-        </ScrollView>
+        {/* Filter chips — inbox view only, hidden while selecting */}
+        {view === 'inbox' && !selectMode ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 12, marginHorizontal: -16, paddingHorizontal: 16 }}
+          >
+            <Chip
+              label="All"
+              tone={filter === 'all' ? 'active' : 'default'}
+              onPress={() => setFilter('all')}
+            />
+            <View style={{ width: 6 }} />
+            <Chip
+              label={`Unread · ${unreadCount}`}
+              tone={filter === 'unread' ? 'active' : 'default'}
+              onPress={() => setFilter('unread')}
+            />
+            <View style={{ width: 6 }} />
+            <Chip
+              label="Buying"
+              tone={filter === 'buying' ? 'active' : 'default'}
+              onPress={() => setFilter('buying')}
+            />
+            <View style={{ width: 6 }} />
+            <Chip
+              label="Selling"
+              tone={filter === 'selling' ? 'active' : 'default'}
+              onPress={() => setFilter('selling')}
+            />
+          </ScrollView>
+        ) : null}
       </View>
 
-      {loading && conversations.length === 0 ? (
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+      {loading && base.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={BRAND} />
         </View>
       ) : filtered.length === 0 ? (
@@ -167,18 +250,19 @@ export default function InboxScreen() {
             paddingHorizontal: 32,
           }}
         >
-          <Ionicons name="chatbubbles-outline" size={36} color={INK_MUTED} />
+          <Ionicons
+            name={view === 'archived' ? 'archive-outline' : 'chatbubbles-outline'}
+            size={36}
+            color={INK_MUTED}
+          />
           <Text
-            style={{
-              marginTop: 12,
-              fontSize: 16,
-              fontWeight: '700',
-              color: INK,
-            }}
+            style={{ marginTop: 12, fontSize: 16, fontWeight: '700', color: INK }}
           >
-            {filter === 'unread'
-              ? 'You’re all caught up'
-              : 'No messages yet'}
+            {view === 'archived'
+              ? 'Nothing archived'
+              : filter === 'unread'
+                ? 'You’re all caught up'
+                : 'No messages yet'}
           </Text>
           <Text
             style={{
@@ -188,7 +272,9 @@ export default function InboxScreen() {
               textAlign: 'center',
             }}
           >
-            When you message a seller, your conversation will show up here.
+            {view === 'archived'
+              ? 'Threads you archive will show up here.'
+              : 'When you message a seller, your conversation will show up here.'}
           </Text>
         </View>
       ) : (
@@ -197,22 +283,32 @@ export default function InboxScreen() {
           keyExtractor={(c) => c.id}
           refreshing={refreshing}
           onRefresh={refetch}
+          contentContainerStyle={
+            selectMode && selected.size > 0 ? { paddingBottom: 84 } : undefined
+          }
           renderItem={({ item }) => (
             <ConversationRow
               conversation={item}
-              onPress={() =>
-                navigation.navigate('Conversation', { conversationId: item.id })
-              }
+              selectMode={selectMode}
+              selected={selected.has(item.id)}
+              onPress={() => {
+                if (selectMode) toggleSelect(item.id);
+                else
+                  navigation.navigate('Conversation', {
+                    conversationId: item.id,
+                  });
+              }}
+              onLongPress={() => startSelect(item.id)}
               onDelete={(id) => {
                 Alert.alert(
                   'Delete conversation',
-                  'This will permanently delete this conversation and all messages.',
+                  'It’ll be removed from your inbox. The other person keeps their copy.',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: 'Delete',
                       style: 'destructive',
-                      onPress: () => deleteConversation(id),
+                      onPress: () => deleteConversations([id]),
                     },
                   ],
                 );
@@ -222,18 +318,88 @@ export default function InboxScreen() {
           )}
         />
       )}
+
+      {/* Bulk action bar */}
+      {selectMode && selected.size > 0 ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            flexDirection: 'row',
+            backgroundColor: '#fff',
+            borderTopWidth: 1,
+            borderTopColor: HAIRLINE,
+            paddingVertical: 12,
+            paddingBottom: 24,
+          }}
+        >
+          {view === 'inbox' ? (
+            <ActionButton
+              icon="archive-outline"
+              label="Archive"
+              color={BRAND}
+              onPress={() => runBulk('archive')}
+            />
+          ) : (
+            <ActionButton
+              icon="arrow-undo-outline"
+              label="Unarchive"
+              color={BRAND}
+              onPress={() => runBulk('unarchive')}
+            />
+          )}
+          <ActionButton
+            icon="trash-outline"
+            label="Delete"
+            color={ROSE}
+            onPress={() => runBulk('delete')}
+          />
+        </View>
+      ) : null}
     </SafeAreaView>
+  );
+}
+
+function ActionButton({
+  icon,
+  label,
+  color,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  color: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ flex: 1, alignItems: 'center', gap: 3 }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Ionicons name={icon} size={22} color={color} />
+      <Text style={{ fontSize: 11, fontWeight: '700', color }}>{label}</Text>
+    </Pressable>
   );
 }
 
 function ConversationRow({
   conversation,
+  selectMode,
+  selected,
   onPress,
+  onLongPress,
   onDelete,
   onMarkUnread,
 }: {
   conversation: Conversation;
+  selectMode: boolean;
+  selected: boolean;
   onPress: () => void;
+  onLongPress: () => void;
   onDelete: (id: string) => void;
   onMarkUnread: (id: string) => void;
 }) {
@@ -246,6 +412,127 @@ function ConversationRow({
     : '';
   const unread = !!conversation.has_unread;
 
+  const Body = (
+    <Pressable
+      onPress={onPress}
+      onLongPress={selectMode ? undefined : onLongPress}
+      delayLongPress={250}
+      style={{
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: selected ? '#EFE8D6' : BONE,
+      }}
+    >
+      {selectMode ? (
+        <Ionicons
+          name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+          size={22}
+          color={selected ? BRAND : INK_MUTED}
+          style={{ marginRight: 12 }}
+        />
+      ) : null}
+
+      {/* Avatar with unread dot */}
+      <View style={{ position: 'relative', marginRight: 12 }}>
+        {other?.avatar_url ? (
+          <Image
+            source={{ uri: other.avatar_url }}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EFE8D6' }}
+            contentFit="cover"
+          />
+        ) : conversation.target_image_url ? (
+          <Image
+            source={{ uri: conversation.target_image_url }}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EFE8D6' }}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: '#EFE8D6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="person-outline" size={20} color={BRAND} />
+          </View>
+        )}
+        {unread && !selectMode && (
+          <View
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              width: 11,
+              height: 11,
+              borderRadius: 99,
+              backgroundColor: BRAND,
+              borderWidth: 2,
+              borderColor: BONE,
+            }}
+          />
+        )}
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <Text
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              fontSize: 14,
+              fontWeight: unread ? '700' : '600',
+              color: INK,
+            }}
+          >
+            {other?.display_name ?? 'Unknown'}
+          </Text>
+          <Text
+            style={{
+              fontSize: 11,
+              color: INK_MUTED,
+              fontVariant: ['tabular-nums'],
+              marginLeft: 6,
+            }}
+          >
+            {formattedDate}
+          </Text>
+        </View>
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '700',
+            color: BRAND,
+            letterSpacing: 0.4,
+            marginTop: 2,
+          }}
+          numberOfLines={1}
+        >
+          RE: {targetTitle.toUpperCase()}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={{
+            marginTop: 3,
+            fontSize: 12.5,
+            color: unread ? INK : INK_SOFT,
+            fontWeight: unread ? '500' : '400',
+          }}
+        >
+          {preview}
+        </Text>
+      </View>
+    </Pressable>
+  );
+
+  // In select mode, swipe actions are disabled (tap toggles selection).
+  if (selectMode) return Body;
+
   const renderLeftActions = () => (
     <Pressable
       onPress={() => {
@@ -254,7 +541,7 @@ function ConversationRow({
       }}
       style={{
         width: 80,
-        backgroundColor: '#A23E2D',
+        backgroundColor: ROSE,
         justifyContent: 'center',
         alignItems: 'center',
       }}
@@ -295,124 +582,7 @@ function ConversationRow({
       renderLeftActions={renderLeftActions}
       renderRightActions={unread ? undefined : renderRightActions}
     >
-      <Pressable
-        onPress={onPress}
-        style={{
-          paddingHorizontal: 16,
-          paddingVertical: 14,
-          flexDirection: 'row',
-          backgroundColor: BONE,
-        }}
-      >
-        {/* Avatar with unread dot */}
-        <View style={{ position: 'relative', marginRight: 12 }}>
-          {other?.avatar_url ? (
-            <Image
-              source={{ uri: other.avatar_url }}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: '#EFE8D6',
-              }}
-              contentFit="cover"
-            />
-          ) : conversation.target_image_url ? (
-            <Image
-              source={{ uri: conversation.target_image_url }}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: '#EFE8D6',
-              }}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: '#EFE8D6',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="person-outline" size={20} color={BRAND} />
-            </View>
-          )}
-          {unread && (
-            <View
-              style={{
-                position: 'absolute',
-                top: -2,
-                right: -2,
-                width: 11,
-                height: 11,
-                borderRadius: 99,
-                backgroundColor: BRAND,
-                borderWidth: 2,
-                borderColor: BONE,
-              }}
-            />
-          )}
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-            }}
-          >
-            <Text
-              numberOfLines={1}
-              style={{
-                flex: 1,
-                fontSize: 14,
-                fontWeight: unread ? '700' : '600',
-                color: INK,
-              }}
-            >
-              {other?.display_name ?? 'Unknown'}
-            </Text>
-            <Text
-              style={{
-                fontSize: 11,
-                color: INK_MUTED,
-                fontVariant: ['tabular-nums'],
-                marginLeft: 6,
-              }}
-            >
-              {formattedDate}
-            </Text>
-          </View>
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '700',
-              color: BRAND,
-              letterSpacing: 0.4,
-              marginTop: 2,
-            }}
-            numberOfLines={1}
-          >
-            RE: {targetTitle.toUpperCase()}
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={{
-              marginTop: 3,
-              fontSize: 12.5,
-              color: unread ? INK : INK_SOFT,
-              fontWeight: unread ? '500' : '400',
-            }}
-          >
-            {preview}
-          </Text>
-        </View>
-      </Pressable>
+      {Body}
     </Swipeable>
   );
 }

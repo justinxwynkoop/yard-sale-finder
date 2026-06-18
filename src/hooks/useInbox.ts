@@ -18,6 +18,8 @@ import { useAuth } from './useAuth';
 export function useInbox() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // Archived threads (per-user) live in their own list / view.
+  const [archived, setArchived] = useState<Conversation[]>([]);
   // loading = true only on the very first fetch (no conversations yet).
   // refreshing = true only during an explicit pull-to-refresh.
   // Focus-triggered silent refetches change neither — no spinner shown.
@@ -181,7 +183,15 @@ export function useInbox() {
     // Filter out any IDs deleted in this session (guards against a
     // focus-triggered refetch racing the DB delete).
     const visible = hydrated.filter((c) => !deletedIdsRef.current.has(c.id));
-    setConversations(visible);
+    // Split inbox vs archived. A thread is archived-for-me only while no newer
+    // message has arrived since I archived it (then it returns to the inbox).
+    const isArchived = (c: Conversation) => {
+      const a =
+        c.buyer_id === user.id ? c.buyer_archived_at : c.seller_archived_at;
+      return !!a && new Date(c.last_message_at) <= new Date(a);
+    };
+    setConversations(visible.filter((c) => !isArchived(c)));
+    setArchived(visible.filter(isArchived));
     setLoading(false);
     setRefreshing(false);
   }, [user]);
@@ -217,19 +227,55 @@ export function useInbox() {
     };
   }, [user, doFetch]);
 
-  const deleteConversation = useCallback(async (id: string) => {
-    // 1. Track the ID immediately — every subsequent fetch result (including
-    //    the focus-triggered refetch when the user returns to the tab) will
-    //    filter this ID out, so the row can never flash back.
-    deletedIdsRef.current.add(id);
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    // 2. Hide for THIS user only via the security-definer RPC — never a hard
-    //    delete of the shared row. The old `.delete()` removed the thread AND
-    //    its whole message history for the OTHER participant too. The RPC
-    //    stamps only the caller's *_deleted_at; the thread reappears for them
-    //    if a newer message arrives (see the doFetch filter).
-    await supabase.rpc('hide_conversation', { p_conversation_id: id });
+  // Per-user delete (bulk). hide_conversation stamps only the caller's
+  // *_deleted_at, so the other participant keeps their copy; the thread
+  // reappears for me on a newer message (see the doFetch filter).
+  const deleteConversations = useCallback(async (ids: string[]) => {
+    ids.forEach((id) => deletedIdsRef.current.add(id));
+    setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
+    setArchived((prev) => prev.filter((c) => !ids.includes(c.id)));
+    await Promise.all(
+      ids.map((id) =>
+        supabase.rpc('hide_conversation', { p_conversation_id: id }),
+      ),
+    );
   }, []);
+  const deleteConversation = useCallback(
+    (id: string) => deleteConversations([id]),
+    [deleteConversations],
+  );
+
+  // Move threads to / from the Archived view (per-user, bulk).
+  const archiveConversations = useCallback(
+    async (ids: string[]) => {
+      setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
+      await Promise.all(
+        ids.map((id) =>
+          supabase.rpc('set_conversation_archived', {
+            p_conversation_id: id,
+            p_archived: true,
+          }),
+        ),
+      );
+      doFetch();
+    },
+    [doFetch],
+  );
+  const unarchiveConversations = useCallback(
+    async (ids: string[]) => {
+      setArchived((prev) => prev.filter((c) => !ids.includes(c.id)));
+      await Promise.all(
+        ids.map((id) =>
+          supabase.rpc('set_conversation_archived', {
+            p_conversation_id: id,
+            p_archived: false,
+          }),
+        ),
+      );
+      doFetch();
+    },
+    [doFetch],
+  );
 
   const markAsUnread = useCallback(async (id: string) => {
     if (!user) return;
@@ -255,7 +301,11 @@ export function useInbox() {
     // silentRefetch — used by useFocusEffect (no spinner)
     silentRefetch: () => doFetch(),
     unreadCount: conversations.filter((c) => c.has_unread).length,
+    archived,
     deleteConversation,
+    deleteConversations,
+    archiveConversations,
+    unarchiveConversations,
     markAsUnread,
   };
 }
