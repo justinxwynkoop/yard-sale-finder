@@ -42,11 +42,11 @@ function MapPinInner({
     <View>
       <View
         style={{
-          width: 30,
-          height: 30,
-          borderRadius: 15,
+          width: 22,
+          height: 22,
+          borderRadius: 11,
           backgroundColor: color,
-          borderWidth: 3,
+          borderWidth: 2.5,
           borderColor: '#fff',
           alignItems: 'center',
           justifyContent: 'center',
@@ -58,12 +58,12 @@ function MapPinInner({
         }}
       >
         {inRoute ? (
-          <Ionicons name="checkmark" size={14} color="#fff" />
+          <Ionicons name="checkmark" size={12} color="#fff" />
         ) : typeof num === 'number' ? (
           <Text
             style={{
               color: '#fff',
-              fontSize: 11.5,
+              fontSize: 10,
               fontWeight: '700',
               includeFontPadding: false,
             }}
@@ -73,7 +73,7 @@ function MapPinInner({
         ) : (
           <Ionicons
             name={favorited ? 'heart' : 'pricetag'}
-            size={14}
+            size={12}
             color="#fff"
           />
         )}
@@ -82,13 +82,13 @@ function MapPinInner({
         <View
           style={{
             position: 'absolute',
-            top: -2,
-            right: -2,
-            width: 13,
-            height: 13,
-            borderRadius: 6.5,
+            top: -1,
+            right: -1,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
             backgroundColor: ROSE,
-            borderWidth: 2,
+            borderWidth: 1.5,
             borderColor: '#fff',
           }}
         />

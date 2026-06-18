@@ -11,11 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import RNMapView, { Marker, Region } from 'react-native-maps';
-// Clustered drop-in for react-native-maps' MapView. It groups nearby pins into
-// count bubbles and de-clusters on zoom. Its own `ref` points at the wrapper;
-// the underlying native map comes through the `mapRef` callback prop (below).
-import MapView from 'react-native-map-clustering';
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import {
   useNavigation,
@@ -78,70 +74,12 @@ const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
 
-// Custom cluster bubble. The library's default draws a faded halo at the FULL
-// bubble width and scales up to 84px — dwarfing the 30px pins ("massive").
-// This renders one compact brand circle (matched to MapPin's look) with the
-// count inside. Static View + tracksViewChanges=false + a stable key keep it
-// on the same crash-safe footing as the leaf pins.
-function renderSaleCluster(cluster: {
-  id: number;
-  geometry: { coordinates: [number, number] };
-  properties: { point_count: number; point_count_abbreviated?: string | number };
-  onPress: () => void;
-}) {
-  const { id, geometry, properties, onPress } = cluster;
-  const count = properties.point_count;
-  // Gentle growth, hard-capped so a 200-pin cluster stays only a touch bigger
-  // than a single pin.
-  const size = count < 10 ? 32 : count < 100 ? 38 : 44;
-  return (
-    <Marker
-      key={`cluster-${id}`}
-      coordinate={{
-        longitude: geometry.coordinates[0],
-        latitude: geometry.coordinates[1],
-      }}
-      onPress={onPress}
-      tracksViewChanges={false}
-    >
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: BRAND,
-          borderWidth: 3,
-          borderColor: '#fff',
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 4,
-        }}
-      >
-        <Text
-          style={{
-            color: '#fff',
-            fontSize: count < 100 ? 13 : 11.5,
-            fontWeight: '700',
-            includeFontPadding: false,
-          }}
-        >
-          {properties.point_count_abbreviated ?? count}
-        </Text>
-      </View>
-    </Marker>
-  );
-}
-
 
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<RNMapView>(null);
+  const mapRef = useRef<MapView>(null);
 
   const { sales, loading, refetch: refetchSales } = useSales();
   const { user } = useAuth();
@@ -550,24 +488,7 @@ export default function MapHomeScreen() {
       ) : null}
       {isFocused ? (
       <MapView
-        // The clustering wrapper's own ref is the wrapper, not the map. Grab
-        // the underlying react-native-maps instance through this callback so
-        // animateToRegion / pointForCoordinate keep working.
-        mapRef={(r) => {
-          mapRef.current = r as unknown as RNMapView;
-        }}
-        // Pin grouping. animationEnabled is OFF on purpose: otherwise the lib
-        // fires a LayoutAnimation on every iOS region change, and animating
-        // marker add/remove churn is exactly what used to trigger the
-        // -[AIRMap insertReactSubview:atIndex:] nil-insert crash. spiralEnabled
-        // is OFF for the same reason (the spiral adds Polylines + re-cloned
-        // markers); tapping a cluster zooms to fit its pins instead.
-        clusteringEnabled
-        animationEnabled={false}
-        spiralEnabled={false}
-        radius={35}
-        minPoints={2}
-        renderCluster={renderSaleCluster}
+        ref={mapRef}
         style={[
           StyleSheet.absoluteFill,
           { opacity: mapReady ? 1 : 0 },
