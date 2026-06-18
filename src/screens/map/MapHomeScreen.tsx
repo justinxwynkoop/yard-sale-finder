@@ -81,7 +81,7 @@ export default function MapHomeScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
 
-  const { sales, loading } = useSales();
+  const { sales, loading, refetch: refetchSales } = useSales();
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const userLocation = useUserLocation();
@@ -196,11 +196,15 @@ export default function MapHomeScreen() {
   // pop-back, so the user lands where they left off.
   const isFocused = useIsFocused();
 
-  // Refresh favorites when Map is re-focused so saved-state is current.
+  // Refresh sales + favorites when Map is re-focused. Realtime pushes live
+  // updates, but it's best-effort (events are lost across socket drops /
+  // backgrounding / bursts), so this focus refetch reconciles any sales that
+  // appeared while we weren't listening — otherwise the map can go stale.
   useFocusEffect(
     useCallback(() => {
+      refetchSales();
       refetchFavorites();
-    }, [refetchFavorites]),
+    }, [refetchSales, refetchFavorites]),
   );
 
   // A focus target ("show on map" / deep link) is consumed by
