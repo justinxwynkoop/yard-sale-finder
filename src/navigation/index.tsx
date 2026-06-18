@@ -66,6 +66,7 @@ import SavedScreen from '../screens/profile/SavedScreen';
 import MySalesScreenV3 from '../screens/profile/MySalesScreen';
 import MyListingsScreen from '../screens/profile/MyListingsScreen';
 import PublicProfileScreen from '../screens/profile/PublicProfileScreen';
+import FollowingScreen from '../screens/profile/FollowingScreen';
 import SavedListingsScreen from '../screens/listings/SavedListingsScreen';
 import InboxScreen from '../screens/messages/InboxScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
@@ -297,6 +298,11 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="MyListings"
         component={MyListingsScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Following"
+        component={FollowingScreen}
         options={{ headerShown: false }}
       />
       <ProfileStack.Screen

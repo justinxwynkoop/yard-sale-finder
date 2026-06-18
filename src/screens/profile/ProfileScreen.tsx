@@ -23,6 +23,7 @@ import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useReviews } from '../../hooks/useReviews';
+import { useFollowing } from '../../hooks/useFollowing';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 import { ProfileStackParamList } from '../../types';
 import { Avatar, Button } from '../../components/ui';
@@ -53,6 +54,7 @@ export default function ProfileScreen() {
   const { listings } = useMyListings(profile?.id);
   const { favorites } = useFavorites();
   const { summary: reviewSummary } = useReviews(profile?.id);
+  const { count: followingCount } = useFollowing(profile?.id);
   const [debugOpen, setDebugOpen] = useState(false);
 
   // Sublabel breakdowns shown on the Manage rows — match the
@@ -315,6 +317,16 @@ export default function ProfileScreen() {
                 : `${liveListingsCount} live · ${soldListingsCount} sold`
             }
             onPress={() => navigation.navigate('MyListings')}
+          />
+          <Row
+            icon="people-outline"
+            label="Following"
+            sublabel={
+              followingCount > 0
+                ? `${followingCount} ${followingCount === 1 ? 'person' : 'people'}`
+                : 'People you follow'
+            }
+            onPress={() => navigation.navigate('Following')}
           />
           <Row
             icon="heart-outline"
