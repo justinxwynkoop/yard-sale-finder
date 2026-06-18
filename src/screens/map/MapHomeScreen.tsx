@@ -78,6 +78,64 @@ const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
 
+// Custom cluster bubble. The library's default draws a faded halo at the FULL
+// bubble width and scales up to 84px — dwarfing the 30px pins ("massive").
+// This renders one compact brand circle (matched to MapPin's look) with the
+// count inside. Static View + tracksViewChanges=false + a stable key keep it
+// on the same crash-safe footing as the leaf pins.
+function renderSaleCluster(cluster: {
+  id: number;
+  geometry: { coordinates: [number, number] };
+  properties: { point_count: number; point_count_abbreviated?: string | number };
+  onPress: () => void;
+}) {
+  const { id, geometry, properties, onPress } = cluster;
+  const count = properties.point_count;
+  // Gentle growth, hard-capped so a 200-pin cluster stays only a touch bigger
+  // than a single pin.
+  const size = count < 10 ? 32 : count < 100 ? 38 : 44;
+  return (
+    <Marker
+      key={`cluster-${id}`}
+      coordinate={{
+        longitude: geometry.coordinates[0],
+        latitude: geometry.coordinates[1],
+      }}
+      onPress={onPress}
+      tracksViewChanges={false}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: BRAND,
+          borderWidth: 3,
+          borderColor: '#fff',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOpacity: 0.25,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 4,
+        }}
+      >
+        <Text
+          style={{
+            color: '#fff',
+            fontSize: count < 100 ? 13 : 11.5,
+            fontWeight: '700',
+            includeFontPadding: false,
+          }}
+        >
+          {properties.point_count_abbreviated ?? count}
+        </Text>
+      </View>
+    </Marker>
+  );
+}
+
 
 export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
@@ -507,10 +565,9 @@ export default function MapHomeScreen() {
         clusteringEnabled
         animationEnabled={false}
         spiralEnabled={false}
-        radius={45}
+        radius={35}
         minPoints={2}
-        clusterColor={BRAND}
-        clusterTextColor="#fff"
+        renderCluster={renderSaleCluster}
         style={[
           StyleSheet.absoluteFill,
           { opacity: mapReady ? 1 : 0 },
