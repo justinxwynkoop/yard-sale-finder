@@ -133,6 +133,8 @@ export interface Sale {
   start_time: string;
   end_time: string;
   status: SaleStatus;
+  view_count?: number;
+  save_count?: number;
   categories: ItemCategory[];
   /** Host-supplied descriptors ("early_bird", "cash_only", etc). Empty array if unset. */
   vibe_tags: string[];
@@ -183,6 +185,8 @@ export interface Listing {
   pickup_lat: number;
   pickup_lng: number;
   status: ListingStatus;
+  view_count?: number;
+  save_count?: number;
   /** Optional link to a yard sale this listing will be sold at. */
   sale_id: string | null;
   created_at: string;

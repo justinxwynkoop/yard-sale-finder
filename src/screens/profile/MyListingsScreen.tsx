@@ -175,8 +175,8 @@ function ListingManageRow({
     quality: 75,
   });
   // Stats placeholder until analytics ship.
-  const views = 0;
-  const saves = 0;
+  const views = listing.view_count ?? 0;
+  const saves = listing.save_count ?? 0;
   return (
     <View
       style={{

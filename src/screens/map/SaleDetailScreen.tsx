@@ -145,6 +145,8 @@ export default function SaleDetailScreen() {
       if (cancelled) return;
       setSale({ ...saleData, profile: profileData ?? undefined });
       setLoading(false);
+      // Count this view (the RPC skips the owner's own views).
+      void supabase.rpc('increment_sale_view', { p_id: saleId });
 
       // Best-effort fetch of listings the host linked to this sale.
       // Featured Items rail renders from this; empty → falls back

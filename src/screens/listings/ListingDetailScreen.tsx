@@ -109,6 +109,8 @@ export default function ListingDetailScreen() {
         }
         setLoading(false);
       });
+    // Count this view (the RPC skips the owner's own views).
+    void supabase.rpc('increment_listing_view', { p_id: listingId });
   }, [listingId]);
 
   const handleMessageSeller = async () => {

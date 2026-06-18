@@ -265,8 +265,11 @@ function SaleManageCard({
     resize: 'cover',
     quality: 75,
   });
-  // Engagement stats are placeholders until analytics infra exists.
-  const stats = { views: 0, saved: 0, chats: 0 };
+  const stats = {
+    views: sale.view_count ?? 0,
+    saved: sale.save_count ?? 0,
+    chats: 0,
+  };
   const dateLabel = ended
     ? `Ended ${formatSaleDate(sale.end_date, sale.end_date)}`
     : `${formatSaleDate(sale.start_date, sale.end_date)} · ${formatSaleTime(
