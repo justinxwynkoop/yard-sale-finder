@@ -12,7 +12,6 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Alert,
-  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -31,6 +30,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
 import { navigateToConversation } from '../../lib/navigationRef';
+import { shareListing } from '../../lib/share';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import {
@@ -335,16 +335,7 @@ export default function ListingDetailScreen() {
               icon="share-outline"
               size={38}
               iconSize={18}
-              onPress={async () => {
-                try {
-                  await Share.share({
-                    title: listing.title,
-                    message: `${listing.title}\n${listing.pickup_display}`,
-                  });
-                } catch {
-                  /* dismissed */
-                }
-              }}
+              onPress={() => shareListing(listing)}
               accessibilityLabel="Share"
             />
             {!isOwnListing && (

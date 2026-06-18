@@ -8,10 +8,9 @@ import {
   ActivityIndicator,
   Dimensions,
   Pressable,
-  Share,
   Alert,
 } from 'react-native';
-import * as ExpoLinking from 'expo-linking';
+import { shareSale } from '../../lib/share';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import MapView, { Marker, Circle } from 'react-native-maps';
@@ -409,21 +408,13 @@ export default function SaleDetailScreen() {
               icon="share-outline"
               size={38}
               iconSize={18}
-              onPress={async () => {
-                const url = ExpoLinking.createURL(`sale/${sale.id}`);
-                const locationLine = loc?.showExactAddress
-                  ? sale.address
-                  : approximateAreaLabel(sale);
-                try {
-                  await Share.share({
-                    title: sale.title,
-                    message: `${sale.title}\n${locationLine}\n${url}`,
-                    url,
-                  });
-                } catch {
-                  /* user dismissed sheet */
-                }
-              }}
+              onPress={() =>
+                shareSale(sale, {
+                  where: loc?.showExactAddress
+                    ? sale.address
+                    : approximateAreaLabel(sale),
+                })
+              }
               accessibilityLabel="Share"
             />
             {!isOwnSale && (

@@ -5,7 +5,6 @@ import {
   Pressable,
   FlatList,
   Alert,
-  Share,
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -20,6 +19,7 @@ import { Sale, SaleStatus } from '../../types';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import { toast } from '../../lib/toast';
+import { shareSale } from '../../lib/share';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -109,9 +109,7 @@ export default function MySalesScreen() {
   };
 
   const handleShare = (sale: Sale) => {
-    Share.share({
-      message: `${sale.title}\n${sale.address}\nhttps://trove.app/sale/${sale.id}`,
-    });
+    shareSale(sale, { where: sale.address });
   };
 
   return (

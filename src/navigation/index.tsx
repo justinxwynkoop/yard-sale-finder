@@ -694,6 +694,11 @@ const linking: LinkingOptions<RootStackParamList> = {
               SaleDetail: 'sale/:saleId',
             },
           },
+          Listings: {
+            screens: {
+              ListingDetail: 'listing/:listingId',
+            },
+          },
         },
       },
     },
