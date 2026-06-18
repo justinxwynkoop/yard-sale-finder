@@ -348,17 +348,9 @@ export default function PublicProfileScreen() {
               value={itemsSoldTotal.toString()}
               label="Items sold"
             />
-            {/* "Replies in" needs message-timing analytics we don't have
-                yet. Until that's wired we surface the review count as a
-                third trust signal — it's the closest existing proxy. */}
-            <TrustStat
-              value={
-                summary.review_count > 0
-                  ? summary.review_count.toString()
-                  : '—'
-              }
-              label={summary.review_count > 0 ? 'Reviews' : 'Replies in'}
-            />
+            {/* Review count is already shown on the rating line under the
+                name (with the average), so we don't repeat it as a trust
+                stat here — that read as the count showing twice. */}
           </View>
         </View>
 
