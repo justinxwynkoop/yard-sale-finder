@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   FlatList,
   Pressable,
   ActivityIndicator,
@@ -50,6 +51,18 @@ const LISTINGS_SORT_LABEL: Record<ListingsSort, string> = {
   price_high: 'Price: high to low',
 };
 
+// Inline keyword match: every word in the query must appear somewhere across
+// the provided fields (title, description, categories, …). Case-insensitive.
+function matchesQuery(
+  parts: (string | null | undefined)[],
+  q: string,
+): boolean {
+  const query = q.trim().toLowerCase();
+  if (!query) return true;
+  const hay = parts.filter(Boolean).join(' ').toLowerCase();
+  return query.split(/\s+/).every((t) => hay.includes(t));
+}
+
 export default function ListingsScreen() {
   const navigation = useNavigation<Nav>();
   const userLocation = useUserLocation();
@@ -70,6 +83,7 @@ export default function ListingsScreen() {
   const { refetch: refetchFavorites } = useFavorites();
 
   const [segment, setSegment] = useState<Segment>('sales');
+  const [query, setQuery] = useState('');
   const [salesSort, setSalesSort] = useState<SalesSort>('nearest');
   const [listingsSort, setListingsSort] = useState<ListingsSort>('nearest');
   const activeFilterCount = countActiveListingsFilters(listingsFilters);
@@ -148,6 +162,29 @@ export default function ListingsScreen() {
     }
     return within;
   }, [listings, userLocation, listingsFilters.radiusMiles, listingsSort]);
+
+  // Inline search filters the current sorted list in place (no modal).
+  const filteredSales = useMemo(
+    () =>
+      query.trim()
+        ? sortedSales.filter((s) =>
+            matchesQuery(
+              [s.title, s.description, s.address, ...(s.categories ?? [])],
+              query,
+            ),
+          )
+        : sortedSales,
+    [sortedSales, query],
+  );
+  const filteredListings = useMemo(
+    () =>
+      query.trim()
+        ? sortedListings.filter((l) =>
+            matchesQuery([l.title, l.description, ...(l.categories ?? [])], query),
+          )
+        : sortedListings,
+    [sortedListings, query],
+  );
 
   const openSortMenu = useCallback(() => {
     if (segment === 'sales') {
@@ -254,24 +291,50 @@ export default function ListingsScreen() {
                 )}
               </Pressable>
             )}
-            <Pressable
-              onPress={() => navigation.navigate('Search')}
-              accessibilityRole="button"
-              accessibilityLabel="Search"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: '#fff',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: HAIRLINE,
-              }}
-            >
-              <Ionicons name="search-outline" size={18} color={INK} />
-            </Pressable>
           </View>
+        </View>
+
+        {/* Inline search — filters the current tab in place (no modal). */}
+        <View
+          style={{
+            marginTop: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#fff',
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            height: 42,
+            borderWidth: 1,
+            borderColor: HAIRLINE,
+          }}
+        >
+          <Ionicons name="search-outline" size={18} color={INK_MUTED} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={
+              segment === 'sales' ? 'Search yard sales' : 'Search items'
+            }
+            placeholderTextColor={INK_MUTED}
+            returnKeyType="search"
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              fontSize: 15,
+              color: INK,
+              padding: 0,
+            }}
+          />
+          {query.length > 0 && (
+            <Pressable
+              onPress={() => setQuery('')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={INK_MUTED} />
+            </Pressable>
+          )}
         </View>
 
         {/* Segmented control */}
@@ -287,12 +350,12 @@ export default function ListingsScreen() {
           }}
         >
           <SegmentButton
-            label={`Yard sales · ${sortedSales.length}`}
+            label={`Yard sales · ${filteredSales.length}`}
             active={segment === 'sales'}
             onPress={() => setSegment('sales')}
           />
           <SegmentButton
-            label={`Items · ${sortedListings.length}`}
+            label={`Items · ${filteredListings.length}`}
             active={segment === 'items'}
             onPress={() => setSegment('items')}
           />
@@ -328,7 +391,7 @@ export default function ListingsScreen() {
       {segment === 'sales' ? (
         <FlatList
           key="sales-list"
-          data={sortedSales}
+          data={filteredSales}
           keyExtractor={(s) => s.id}
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
           renderItem={({ item, index }) => (
@@ -348,6 +411,11 @@ export default function ListingsScreen() {
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <ActivityIndicator color={BRAND} />
               </View>
+            ) : query.trim() ? (
+              <EmptyTab
+                title={`No yard sales match “${query.trim()}”`}
+                description="Try a different keyword."
+              />
             ) : (
               <EmptyTab
                 title="No yard sales near you"
@@ -359,7 +427,7 @@ export default function ListingsScreen() {
       ) : (
         <FlatList
           key="items-grid"
-          data={sortedListings}
+          data={filteredListings}
           keyExtractor={(l) => l.id}
           numColumns={2}
           columnWrapperStyle={{ gap: 10 }}
@@ -385,6 +453,11 @@ export default function ListingsScreen() {
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <ActivityIndicator color={BRAND} />
               </View>
+            ) : query.trim() ? (
+              <EmptyTab
+                title={`No items match “${query.trim()}”`}
+                description="Try a different keyword."
+              />
             ) : (
               <EmptyTab
                 title="No items listed yet"

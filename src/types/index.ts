@@ -263,7 +263,6 @@ export type ListingsStackParamList = {
   SavedListings: undefined;
   SaleDetail: { saleId: string };
   ListingsFilter: undefined;
-  Search: undefined;
   PublicProfile: { userId: string; self?: boolean };
 };
 

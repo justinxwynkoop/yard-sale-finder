@@ -47,7 +47,6 @@ import SaleDetailScreen from '../screens/map/SaleDetailScreen';
 import FilterSheet from '../screens/map/FilterSheet';
 import RoutePlannerScreen from '../screens/route/RoutePlannerScreen';
 import ActiveRouteScreen from '../screens/route/ActiveRouteScreen';
-import SearchScreen from '../screens/search/SearchScreen';
 import ListingsFilterSheet from '../screens/listings/ListingsFilterSheet';
 import MySalesScreen from '../screens/sale/MySalesScreen';
 import CreateSaleScreen from '../screens/sale/CreateSaleScreen';
@@ -179,15 +178,6 @@ function ListingsNavigator() {
         name="SaleDetail"
         component={SaleDetailScreen as any}
         options={{ headerShown: false }}
-      />
-      <ListingsStack.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
       />
       <ListingsStack.Screen
         name="ListingsFilter"
