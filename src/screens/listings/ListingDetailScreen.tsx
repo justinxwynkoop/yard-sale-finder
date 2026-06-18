@@ -26,6 +26,7 @@ import { toast } from '../../lib/toast';
 import { Listing, ListingMedia, ListingStatus, ListingsStackParamList } from '../../types';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
+import { PaymentAccepted } from '../../components/PaymentAccepted';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
@@ -526,6 +527,11 @@ export default function ListingDetailScreen() {
               {listing.description}
             </Text>
           ) : null}
+
+          <PaymentAccepted
+            methods={listing.profile?.accepted_payments}
+            style={{ marginTop: 16 }}
+          />
 
           {/* Categories */}
           {listing.categories.length > 0 && (

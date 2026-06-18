@@ -48,6 +48,7 @@ import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
 import { Avatar, HeaderButton } from '../../components/ui';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
+import { PaymentAccepted } from '../../components/PaymentAccepted';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
@@ -611,6 +612,11 @@ export default function SaleDetailScreen() {
               {sale.description}
             </Text>
           ) : null}
+
+          <PaymentAccepted
+            methods={sale.profile?.accepted_payments}
+            style={{ marginTop: 18 }}
+          />
 
           {/* Featured items rail — real linked listings when present,
               otherwise a photo preview rail from sale.media. */}
