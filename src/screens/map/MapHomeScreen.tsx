@@ -11,7 +11,11 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Region } from 'react-native-maps';
+import RNMapView, { Marker, Region } from 'react-native-maps';
+// Clustered drop-in for react-native-maps' MapView. It groups nearby pins into
+// count bubbles and de-clusters on zoom. Its own `ref` points at the wrapper;
+// the underlying native map comes through the `mapRef` callback prop (below).
+import MapView from 'react-native-map-clustering';
 import * as Location from 'expo-location';
 import {
   useNavigation,
@@ -79,7 +83,7 @@ export default function MapHomeScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<RNMapView>(null);
 
   const { sales, loading, refetch: refetchSales } = useSales();
   const { user } = useAuth();
@@ -488,7 +492,25 @@ export default function MapHomeScreen() {
       ) : null}
       {isFocused ? (
       <MapView
-        ref={mapRef}
+        // The clustering wrapper's own ref is the wrapper, not the map. Grab
+        // the underlying react-native-maps instance through this callback so
+        // animateToRegion / pointForCoordinate keep working.
+        mapRef={(r) => {
+          mapRef.current = r as unknown as RNMapView;
+        }}
+        // Pin grouping. animationEnabled is OFF on purpose: otherwise the lib
+        // fires a LayoutAnimation on every iOS region change, and animating
+        // marker add/remove churn is exactly what used to trigger the
+        // -[AIRMap insertReactSubview:atIndex:] nil-insert crash. spiralEnabled
+        // is OFF for the same reason (the spiral adds Polylines + re-cloned
+        // markers); tapping a cluster zooms to fit its pins instead.
+        clusteringEnabled
+        animationEnabled={false}
+        spiralEnabled={false}
+        radius={45}
+        minPoints={2}
+        clusterColor={BRAND}
+        clusterTextColor="#fff"
         style={[
           StyleSheet.absoluteFill,
           { opacity: mapReady ? 1 : 0 },
@@ -511,7 +533,7 @@ export default function MapHomeScreen() {
           setCalloutPoint(null);
         }}
       >
-        {mapSales.map((sale, idx) => {
+        {mapSales.map((sale) => {
           // Honor the host's address privacy: a 'reply'-mode sale shows a
           // deterministically-offset pin (near, not on, the real address)
           // to anyone but the owner. 'live'/legacy sales show exact.
@@ -543,7 +565,6 @@ export default function MapHomeScreen() {
               <MapPin
                 status={sale.status}
                 favorited={isFavorited(sale.id)}
-                num={idx + 1}
                 openNow={isOpenNow(sale)}
               />
             </Marker>
