@@ -169,10 +169,9 @@ export default function SaleDetailScreen() {
     const { id, error: convErr } = await startConversation('sale', sale.id);
     setStartingConversation(false);
     if (convErr) {
-      Alert.alert(
-        'Could not start conversation',
-        convErr.message ?? 'Please try again.',
-      );
+      // Generic copy — never echo the RPC's reason (e.g. a block), which would
+      // reveal to a blocked user that they're blocked.
+      Alert.alert('Could not start conversation', 'Please try again.');
       return;
     }
     if (id) {

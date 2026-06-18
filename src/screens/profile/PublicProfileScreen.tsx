@@ -114,7 +114,7 @@ export default function PublicProfileScreen() {
     refetch: refetchCanReview,
   } = useCanReview(userId);
   const { following, toggle: toggleFollow, isSelf } = useFollow(userId);
-  const { block } = useBlockedUsers();
+  const { block, blockedIds } = useBlockedUsers();
   const { start: startConversation } = useStartConversation();
   const { user } = useAuth();
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -191,6 +191,34 @@ export default function PublicProfileScreen() {
         }}
       >
         <ActivityIndicator color={BRAND} />
+      </View>
+    );
+  }
+
+  // Bidirectional, silent block: if either side blocked the other, the profile
+  // (and its sales/listings) is simply "unavailable" — identical copy whoever
+  // blocked whom, so nothing reveals the block.
+  const isBlockedEither = !!userId && !self && blockedIds.has(userId);
+  if (isBlockedEither) {
+    return (
+      <View style={{ flex: 1, backgroundColor: BONE }}>
+        <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 12 }}>
+          <HeaderButton onPress={goBack} accessibilityLabel="Back" />
+        </View>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            gap: 8,
+          }}
+        >
+          <Ionicons name="person-outline" size={40} color="#8A857C" />
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#171513' }}>
+            This profile isn&rsquo;t available
+          </Text>
+        </View>
       </View>
     );
   }

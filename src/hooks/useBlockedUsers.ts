@@ -32,8 +32,17 @@ export function useBlockedUsers() {
       .eq('blocker_id', user.id)
       .order('created_at', { ascending: false });
     const rows = (data ?? []) as BlockedUser[];
+    // `blocks` stays one-directional (only my outgoing blocks) — the manage
+    // screen lists these to unblock. But `ids` is BIDIRECTIONAL: it unions
+    // people I blocked with people who blocked me (via the SECURITY DEFINER
+    // my_blocked_user_ids RPC, which doesn't reveal direction). Every consumer
+    // (useSales/useListings/useFavorites/useInbox/...) then hides content both
+    // ways, so a user who blocked me also disappears from my app.
     setBlocks(rows);
-    setIds(new Set(rows.map((r) => r.blocked_id)));
+    const { data: bidi } = await supabase.rpc('my_blocked_user_ids');
+    const union = new Set<string>(rows.map((r) => r.blocked_id));
+    for (const id of (bidi ?? []) as string[]) union.add(id);
+    setIds(union);
     setLoading(false);
     // Depend on the stable user id, not the user object — otherwise this
     // refetches (and makes a new Set) on every auth-token tick.
