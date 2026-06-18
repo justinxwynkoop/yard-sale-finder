@@ -81,6 +81,15 @@ describe('pinPriority', () => {
     expect(saved).toBeGreaterThan(popular);
     expect(popular).toBeGreaterThan(quiet);
   });
+
+  it('boosts a recently-posted sale over an older one', () => {
+    const fresh = pinPriority(
+      mkSale({ created_at: new Date(Date.now() - 1000).toISOString() }),
+      false,
+    );
+    const old = pinPriority(mkSale({ created_at: '2020-01-01T00:00:00Z' }), false);
+    expect(fresh).toBeGreaterThan(old);
+  });
 });
 
 describe('thinPins', () => {

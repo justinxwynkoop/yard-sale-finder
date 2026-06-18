@@ -1,6 +1,6 @@
 import type { Region } from 'react-native-maps';
 import { Sale } from '../types';
-import { isOpenNow } from '../utils/saleStatus';
+import { isOpenNow, isRecentlyPosted } from '../utils/saleStatus';
 
 /**
  * Zillow-style level-of-detail thinning for map pins.
@@ -72,6 +72,8 @@ export function pinPriority(sale: Sale, favorited: boolean): number {
   if (favorited) score += 100_000;
   if (sale.status === 'active' && isOpenNow(sale)) score += 10_000;
   else if (sale.status === 'active') score += 5_000;
+  // Keep freshly-posted sales visible when zoomed out, even if not yet popular.
+  if (isRecentlyPosted(sale.created_at)) score += 7_500;
   score += Math.min(sale.save_count ?? 0, 500) * 20;
   score += Math.min(sale.view_count ?? 0, 5_000);
   return score;

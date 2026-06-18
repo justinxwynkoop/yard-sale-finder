@@ -35,6 +35,23 @@ export function isOpenNow(sale: Pick<Sale,
   return now >= start && now <= end;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * True if the sale/listing was posted within the last `withinDays` days.
+ * Used to flag "new" content (map pin accent, list tile badge). Tolerates a
+ * missing/malformed created_at by returning false.
+ */
+export function isRecentlyPosted(
+  createdAt: string | null | undefined,
+  withinDays = 3,
+): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < withinDays * DAY_MS;
+}
+
 /**
  * Returns the number of MINUTES until the sale closes today (using
  * end_time), or null if the sale isn't open right now / today isn't
