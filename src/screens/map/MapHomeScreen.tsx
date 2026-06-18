@@ -40,6 +40,7 @@ import { useMapFilters } from '../../lib/mapFilters';
 import { saleMatchesFilters } from '../../lib/filterSales';
 import { useSearchArea, setSearchArea } from '../../lib/searchArea';
 import { useViewport, setViewport, regionContains } from '../../lib/viewport';
+import { zoomBucket, thinPins } from '../../lib/pinThinning';
 import { toast } from '../../lib/toast';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 
@@ -66,6 +67,10 @@ const SHEET_PEEK = 76;
 // visible up top) so you can actually browse the whole list, not a
 // 420pt window of it. Adapts to the device height.
 const SHEET_OPEN = Math.round(Dimensions.get('window').height * 0.66);
+
+// Screen size drives how coarse the pin-thinning grid is (so a cell lands at a
+// sensible on-screen spacing). Read once — the map is portrait-locked.
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -294,7 +299,7 @@ export default function MapHomeScreen() {
   // constantly, which crashes under the new architecture
   // (-[AIRMap insertReactSubview:atIndex:] object cannot be nil). Keeping
   // the marker set stable across pans avoids that churn. Sorted by distance
-  // from the user so pin numbers don't reshuffle as you move the map.
+  // from the user so the closest sale wins on a priority tie while thinning.
   const mapSales = useMemo(() => {
     let result = sales.filter((s) => saleMatchesFilters(s, filters));
     if (filters.savedOnly) result = result.filter((s) => isFavorited(s.id));
@@ -310,6 +315,58 @@ export default function MapHomeScreen() {
     }
     return result;
   }, [sales, filters, isFavorited, userLocation]);
+
+  // VISUAL pin thinning (Zillow-style level of detail). CRUCIAL: we do NOT
+  // add/remove markers to thin them. Under the new architecture, ANY change to
+  // the mounted marker set churns AIRMap subviews and crashes
+  // (-[AIRMap insertReactSubview:atIndex:] object cannot be nil) — that's why
+  // the marker set is the full, stable mapSales. So every pin stays mounted
+  // always; thinning just fades the non-representative ones to opacity 0 (a
+  // prop update on an existing view, never a subview insert).
+  //
+  // `grid` is derived from the ZOOM only (a snapped integer bucket), so the
+  // visible set changes only when zoom crosses a threshold, not on pan. Before
+  // the first settle publishes a viewport we bucket off initialRegion. The
+  // selected pin is always kept visible so its callout never floats over an
+  // empty spot.
+  const grid = useMemo(
+    () =>
+      zoomBucket(
+        viewport ?? initialRegion ?? DEFAULT_REGION,
+        SCREEN_W,
+        SCREEN_H,
+      ),
+    [viewport, initialRegion],
+  );
+  // The thinned set, keyed ONLY on inputs that actually change it — so it
+  // doesn't recompute on every pin tap/deselect.
+  const baseVisibleIds = useMemo(
+    () =>
+      new Set(
+        thinPins(mapSales, grid.kx, grid.ky, isFavorited).map((s) => s.id),
+      ),
+    [mapSales, grid.kx, grid.ky, isFavorited],
+  );
+  // Layer the selected pin on top (kept visible through a zoom that thinned it
+  // out). When nothing is selected — or it's already shown — reuse the base set
+  // so the markers' opacity props don't thrash on selection.
+  const visibleIds = useMemo(() => {
+    if (!selectedSaleId || baseVisibleIds.has(selectedSaleId)) {
+      return baseVisibleIds;
+    }
+    return new Set(baseVisibleIds).add(selectedSaleId);
+  }, [baseVisibleIds, selectedSaleId]);
+
+  // Clear a selection whose sale has left the rendered set entirely (e.g. a
+  // filter toggle removed it from mapSales while the FilterSheet was open).
+  // Otherwise the callout overlay — driven by the full `sales` list, not
+  // mapSales — would float over a now-empty spot with no pin beneath it.
+  useEffect(() => {
+    if (selectedSaleId && !mapSales.some((s) => s.id === selectedSaleId)) {
+      setSelectedSaleId(null);
+      setCalloutPoint(null);
+    }
+  }, [mapSales, selectedSaleId]);
 
   // LIST (bottom-sheet) set — the markers scoped to what's currently in the
   // map viewport (Zillow-style), sorted by distance from the map center.
@@ -518,11 +575,12 @@ export default function MapHomeScreen() {
           const loc = saleDisplayLocation(sale, {
             isOwner: !!user && sale.user_id === user.id,
           });
-          // Pins NEVER swap their child or change key — they stay static
-          // MapPins. The selected callout is a separate overlay (see
-          // below). Swapping a Marker's child to a wide custom view
-          // mispositions it to the map's top-left on iOS, and changing
-          // the key to fix that reintroduces the AIRMap subview crash.
+          // Zillow-style thinning WITHOUT churning the marker set: EVERY pin
+          // stays mounted (adding/removing markers crashes AIRMap under the
+          // new arch); thinned-out pins are merely faded to opacity 0 and made
+          // non-interactive. Pins never swap their child or change key — they
+          // stay static MapPins; the selected callout is a separate overlay.
+          const visible = visibleIds.has(sale.id);
           return (
             <Marker
               key={sale.id}
@@ -530,14 +588,19 @@ export default function MapHomeScreen() {
                 latitude: loc.latitude,
                 longitude: loc.longitude,
               }}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                if (sale.id === selectedSaleId) {
-                  handleSaleTap(sale.id);
-                } else {
-                  selectPin(sale);
-                }
-              }}
+              opacity={visible ? 1 : 0}
+              onPress={
+                visible
+                  ? (e) => {
+                      e.stopPropagation?.();
+                      if (sale.id === selectedSaleId) {
+                        handleSaleTap(sale.id);
+                      } else {
+                        selectPin(sale);
+                      }
+                    }
+                  : undefined
+              }
               tracksViewChanges={false}
             >
               <MapPin
