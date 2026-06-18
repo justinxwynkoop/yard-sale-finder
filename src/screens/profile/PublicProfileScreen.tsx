@@ -103,8 +103,6 @@ export default function PublicProfileScreen() {
     profile,
     sales,
     listings,
-    salesHostedTotal,
-    itemsSoldTotal,
     loading,
   } = useUserProfile(userId);
   const { reviews, summary, refetch: refetchReviews } = useReviews(userId);
@@ -332,26 +330,6 @@ export default function PublicProfileScreen() {
             </View>
           </View>
 
-          {/* trust stats */}
-          <View
-            style={{
-              flexDirection: 'row',
-              gap: 8,
-              marginTop: 16,
-            }}
-          >
-            <TrustStat
-              value={salesHostedTotal.toString()}
-              label="Sales hosted"
-            />
-            <TrustStat
-              value={itemsSoldTotal.toString()}
-              label="Items sold"
-            />
-            {/* Review count is already shown on the rating line under the
-                name (with the average), so we don't repeat it as a trust
-                stat here — that read as the count showing twice. */}
-          </View>
         </View>
 
         {/* Verification badges */}
@@ -821,43 +799,6 @@ export default function PublicProfileScreen() {
           onSubmitted={() => goBack()}
         />
       ) : null}
-    </View>
-  );
-}
-
-function TrustStat({ value, label }: { value: string; label: string }) {
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 10,
-        paddingVertical: 8,
-        paddingHorizontal: 10,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 16,
-          fontWeight: '800',
-          color: '#fff',
-          lineHeight: 16,
-        }}
-      >
-        {value}
-      </Text>
-      <Text
-        style={{
-          fontSize: 9.5,
-          fontWeight: '600',
-          color: 'rgba(255,255,255,0.75)',
-          letterSpacing: 0.4,
-          textTransform: 'uppercase',
-          marginTop: 3,
-        }}
-      >
-        {label}
-      </Text>
     </View>
   );
 }

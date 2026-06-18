@@ -25,6 +25,10 @@ type Props = {
 function ListingTileInner({ listing, userLat, userLng, onPress }: Props) {
   const { isFavorited, toggle } = useFavoriteListings();
   const saved = isFavorited(listing.id);
+  const isNew =
+    !!listing.created_at &&
+    Date.now() - new Date(listing.created_at).getTime() <
+      3 * 24 * 60 * 60 * 1000;
   const firstImage = listing.media?.find((m) => m.type === 'image');
   const thumb = transformedImageUrl(firstImage?.url, {
     width: 320,
@@ -94,12 +98,34 @@ function ListingTileInner({ listing, userLat, userLng, onPress }: Props) {
             color={saved ? ROSE : INK}
           />
         </Pressable>
+        {isNew && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              backgroundColor: BRAND,
+              paddingHorizontal: 7,
+              paddingVertical: 3,
+              borderRadius: 99,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 9,
+                fontWeight: '800',
+                color: '#fff',
+                letterSpacing: 0.5,
+              }}
+            >
+              NEW
+            </Text>
+          </View>
+        )}
       </View>
       <View style={{ padding: 10 }}>
         <Text style={{ fontSize: 16, fontWeight: '700', color: INK }}>
-          {listing.price === 0
-            ? 'Free'
-            : `$${listing.price % 1 === 0 ? listing.price : listing.price.toFixed(2)}`}
+          {listing.price === 0 ? 'Free' : `$${listing.price.toFixed(2)}`}
         </Text>
         <Text
           numberOfLines={2}
