@@ -78,9 +78,13 @@ export default function SearchScreen() {
       let s = 0;
       for (const t of tokens) {
         const idx = lower.indexOf(t);
-        if (idx === -1) return 0;
-        // Title-position bonus + token weight.
-        s += 10 - Math.min(idx, 10);
+        if (idx === -1) return 0; // every token must appear somewhere
+        // Always credit a match (base 5), plus a bonus for matches nearer the
+        // start (title beats description). The base is the fix: previously a
+        // token found past character 10 scored 0, so the whole result was
+        // dropped despite matching — e.g. searching "table" never surfaced
+        // "Mid-century Coffee Table" (the word starts at index 19).
+        s += 5 + Math.max(0, 10 - idx);
       }
       return s;
     };
