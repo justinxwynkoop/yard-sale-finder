@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { shareSale } from '../../lib/share';
+import { useSeenSales } from '../../hooks/useSeenSales';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import MapView, { Marker, Circle } from 'react-native-maps';
@@ -89,6 +90,13 @@ export default function SaleDetailScreen() {
     return () => clearTimeout(t);
   }, [isFocused]);
   const { saleId } = route.params;
+  const { markSeen } = useSeenSales();
+
+  // Opening a sale marks it "seen" for this user, which drops its NEW tag on
+  // the map (it's no longer new to someone who's already looked at it).
+  useEffect(() => {
+    markSeen(saleId);
+  }, [saleId, markSeen]);
 
   const [sale, setSale] = useState<Sale | null>(null);
   const [linkedListings, setLinkedListings] = useState<Listing[]>([]);

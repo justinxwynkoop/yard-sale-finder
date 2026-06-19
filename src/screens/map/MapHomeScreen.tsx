@@ -30,6 +30,7 @@ import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useVisited } from '../../hooks/useVisited';
+import { useSeenSales } from '../../hooks/useSeenSales';
 import { MapStackParamList, Sale } from '../../types';
 import { MapPin } from '../../components/MapPin';
 import { SelectedPinCallout } from '../../components/SelectedPinCallout';
@@ -91,6 +92,7 @@ export default function MapHomeScreen() {
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const { isVisited, visitedCount } = useVisited();
+  const { isSeen } = useSeenSales();
   const userLocation = useUserLocation();
   const { region: lastRegion, save: saveLastRegion } = useLastMapRegion();
 
@@ -613,7 +615,9 @@ export default function MapHomeScreen() {
               <MapPin
                 status={sale.status}
                 favorited={isFavorited(sale.id)}
-                isNew={isRecentlyPosted(sale.created_at)}
+                isNew={
+                  isRecentlyPosted(sale.created_at) && !isSeen(sale.id)
+                }
                 visited={isVisited(sale.id)}
                 openNow={isOpenNow(sale)}
               />
