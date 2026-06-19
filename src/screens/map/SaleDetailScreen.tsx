@@ -563,6 +563,41 @@ export default function SaleDetailScreen() {
           {/* Stat strip */}
           <StatStrip sale={sale} />
 
+          {/* Pricing — full width + wrapping so longer notes (several options)
+              show in full instead of being cut off in a tile. */}
+          {sale.pricing_notes ? (
+            <View
+              style={{
+                marginTop: 12,
+                backgroundColor: BONE,
+                borderRadius: 12,
+                padding: 12,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: '700',
+                  color: INK_MUTED,
+                  letterSpacing: 0.5,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Pricing
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: INK,
+                  marginTop: 4,
+                }}
+              >
+                {sale.pricing_notes}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Category chips */}
           {sale.categories.length > 0 && (
             <View
@@ -1188,13 +1223,12 @@ function OpenNowChip({ sale }: { sale: Sale }) {
 }
 
 function StatStrip({ sale }: { sale: Sale }) {
-  // Day 1 / Day 2 stat tiles based on start_date and end_date.
-  // For single-day sales, show the day label + hours twice.
+  // Day 1 (+ Day 2 for multi-day sales) hours, then the date range. Pricing is
+  // NOT shown here — it's a full-width row below (see the Pricing block in the
+  // detail body) so longer notes with several options aren't cut off.
   const day1Label = weekdayLabel(sale.start_date);
   const day1Hours = `${formatHM(sale.start_time.slice(0, 5))}–${formatHM(sale.end_time.slice(0, 5))}`;
-  const day2Label = sale.end_date !== sale.start_date ? weekdayLabel(sale.end_date) : 'PRICING';
-  const day2Hours =
-    sale.end_date !== sale.start_date ? day1Hours : sale.pricing_notes?.slice(0, 16) || '—';
+  const isMultiDay = sale.end_date !== sale.start_date;
   return (
     <View
       style={{
@@ -1203,7 +1237,9 @@ function StatStrip({ sale }: { sale: Sale }) {
       }}
     >
       <StatTile label={day1Label} value={day1Hours} flex first />
-      <StatTile label={day2Label} value={day2Hours} flex />
+      {isMultiDay ? (
+        <StatTile label={weekdayLabel(sale.end_date)} value={day1Hours} flex />
+      ) : null}
       <StatTile
         label="WHEN"
         value={formatSaleDate(sale.start_date, sale.end_date)}
