@@ -18,11 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "icon": {
-        "light": "./assets/icon.png",
-        "dark": "./assets/icon-dark.png",
-        "tinted": "./assets/icon-tinted.png"
-      },
+      "icon": "./assets/icon.png",
       "bundleIdentifier": "com.jwynkoop.trove",
       "buildNumber": "1",
       "usesAppleSignIn": true,
