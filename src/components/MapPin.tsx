@@ -8,6 +8,7 @@ const GRAY = '#8A857C'; // active but not open now
 const ROUTE_COLOR = '#4F46E5'; // in the route plan
 const ROSE = '#A23E2D'; // saved
 const AMBER = '#E0922F'; // new
+const VISITED = '#A89C88'; // already visited (muted taupe + check)
 
 const SHADOW = {
   shadowColor: '#000',
@@ -20,7 +21,8 @@ const SHADOW = {
 /**
  * Map marker for a sale, drawn so its kind is obvious without a legend:
  *   • SAVED → a rose heart
- *   • NEW (posted ≤ 3 days) → a small "NEW" tag
+ *   • NEW (posted ≤ 3 days, and not yet visited) → a small "NEW" tag
+ *   • VISITED → a muted taupe dot with a check (and never "NEW")
  *   • otherwise → a colored dot: green = open now, gray = not open
  *     (indigo = in the route plan)
  *
@@ -33,6 +35,7 @@ function MapPinInner({
   favorited,
   inRoute,
   isNew,
+  visited,
   openNow,
 }: {
   status: SaleStatus;
@@ -42,6 +45,8 @@ function MapPinInner({
   inRoute?: boolean;
   /** Posted within the last ~3 days → "NEW" tag. */
   isNew?: boolean;
+  /** The current user has marked this sale visited → muted dot + check. */
+  visited?: boolean;
   /** The sale's hours include the current time → green. */
   openNow?: boolean;
 }) {
@@ -63,8 +68,9 @@ function MapPinInner({
     );
   }
 
-  // New — a small tag instead of a dot.
-  if (isNew && !inRoute) {
+  // New — a small tag instead of a dot. A visited sale is no longer "new"
+  // to you, so the tag is suppressed once you've marked it visited.
+  if (isNew && !visited && !inRoute) {
     return (
       <View
         style={{
@@ -92,9 +98,16 @@ function MapPinInner({
     );
   }
 
-  // Otherwise a colored dot.
+  // Otherwise a colored dot. Visited sales get a muted taupe fill + a check
+  // so you can see at a glance which ones you've already been to.
   const isLive = status === 'active' && openNow;
-  const fill = inRoute ? ROUTE_COLOR : isLive ? BRAND : GRAY;
+  const fill = inRoute
+    ? ROUTE_COLOR
+    : visited
+      ? VISITED
+      : isLive
+        ? BRAND
+        : GRAY;
   return (
     <View
       style={{
@@ -104,9 +117,15 @@ function MapPinInner({
         backgroundColor: fill,
         borderWidth: 2.5,
         borderColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
         ...SHADOW,
       }}
-    />
+    >
+      {visited && !inRoute ? (
+        <Ionicons name="checkmark" size={12} color="#fff" />
+      ) : null}
+    </View>
   );
 }
 

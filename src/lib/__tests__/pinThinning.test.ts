@@ -90,6 +90,12 @@ describe('pinPriority', () => {
     const old = pinPriority(mkSale({ created_at: '2020-01-01T00:00:00Z' }), false);
     expect(fresh).toBeGreaterThan(old);
   });
+
+  it('sinks a visited sale below a comparable un-visited one', () => {
+    const fresh = pinPriority(mkSale({ save_count: 5 }), false, false);
+    const seen = pinPriority(mkSale({ save_count: 5 }), false, true);
+    expect(seen).toBeLessThan(fresh);
+  });
 });
 
 describe('thinPins', () => {
@@ -139,5 +145,12 @@ describe('thinPins', () => {
     const s3 = mkSale({ id: '3', latitude: 40.70, longitude: -85.90 });
     const out = thinPins([s1, s2, s3], FINE, FINE, none);
     expect(out.map((s) => s.id)).toEqual(['1', '2', '3']);
+  });
+
+  it('keeps the un-visited sale over a visited one in the same cell', () => {
+    const seen = mkSale({ id: 'seen', latitude: 40.2, longitude: -85.4 });
+    const fresh = mkSale({ id: 'fresh', latitude: 40.21, longitude: -85.41 });
+    const out = thinPins([seen, fresh], COARSE, COARSE, none, (id) => id === 'seen');
+    expect(out.map((s) => s.id)).toEqual(['fresh']);
   });
 });

@@ -29,6 +29,7 @@ import { saleDisplayLocation } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useVisited } from '../../hooks/useVisited';
 import { MapStackParamList, Sale } from '../../types';
 import { MapPin } from '../../components/MapPin';
 import { SelectedPinCallout } from '../../components/SelectedPinCallout';
@@ -89,6 +90,7 @@ export default function MapHomeScreen() {
   const { sales, loading, refetch: refetchSales } = useSales();
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
+  const { isVisited, visitedCount } = useVisited();
   const userLocation = useUserLocation();
   const { region: lastRegion, save: saveLastRegion } = useLastMapRegion();
 
@@ -343,9 +345,14 @@ export default function MapHomeScreen() {
   const baseVisibleIds = useMemo(
     () =>
       new Set(
-        thinPins(mapSales, grid.kx, grid.ky, isFavorited).map((s) => s.id),
+        thinPins(mapSales, grid.kx, grid.ky, isFavorited, isVisited).map(
+          (s) => s.id,
+        ),
       ),
-    [mapSales, grid.kx, grid.ky, isFavorited],
+    // visitedCount changes when a visit is toggled (isVisited is stable), so
+    // it's the dep that re-thins after you mark a sale visited.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapSales, grid.kx, grid.ky, isFavorited, isVisited, visitedCount],
   );
   // Layer the selected pin on top (kept visible through a zoom that thinned it
   // out). When nothing is selected — or it's already shown — reuse the base set
@@ -607,6 +614,7 @@ export default function MapHomeScreen() {
                 status={sale.status}
                 favorited={isFavorited(sale.id)}
                 isNew={isRecentlyPosted(sale.created_at)}
+                visited={isVisited(sale.id)}
                 openNow={isOpenNow(sale)}
               />
             </Marker>

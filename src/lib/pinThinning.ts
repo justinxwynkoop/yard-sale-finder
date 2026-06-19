@@ -67,7 +67,11 @@ export function zoomBucket(
  * popularity (saves, then views) breaks the rest. Pure — no randomness, no
  * dependence on pan — so the winner is stable frame to frame.
  */
-export function pinPriority(sale: Sale, favorited: boolean): number {
+export function pinPriority(
+  sale: Sale,
+  favorited: boolean,
+  visited = false,
+): number {
   let score = 0;
   if (favorited) score += 100_000;
   if (sale.status === 'active' && isOpenNow(sale)) score += 10_000;
@@ -76,6 +80,9 @@ export function pinPriority(sale: Sale, favorited: boolean): number {
   if (isRecentlyPosted(sale.created_at)) score += 7_500;
   score += Math.min(sale.save_count ?? 0, 500) * 20;
   score += Math.min(sale.view_count ?? 0, 5_000);
+  // You've already been here — sink it so fresh, un-visited sales win a cell
+  // when zoomed out. (A saved+visited sale still ranks high; saved wins.)
+  if (visited) score -= 50_000;
   return score;
 }
 
@@ -92,6 +99,7 @@ export function thinPins(
   kx: number,
   ky: number,
   favorited: (id: string) => boolean,
+  visited: (id: string) => boolean = () => false,
 ): Sale[] {
   // At the finest buckets every sale is effectively alone — skip the work.
   if (sales.length < 2) return sales;
@@ -102,7 +110,7 @@ export function thinPins(
     const cx = Math.floor((s.longitude + 180) / lngSize);
     const cy = Math.floor((s.latitude + 90) / latSize);
     const key = `${cx}:${cy}`;
-    const score = pinPriority(s, favorited(s.id));
+    const score = pinPriority(s, favorited(s.id), visited(s.id));
     const cur = winners.get(key);
     // Strict >, so an equal-priority later (farther) sale never displaces the
     // first-seen (closer) one.
