@@ -33,6 +33,14 @@ Deno.serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
+  // Only the DB webhook may invoke this — it sends the service-role key as a
+  // Bearer token. Reject anything else (the function is deployed --no-verify-jwt
+  // and is otherwise publicly routable).
+  const webhookToken = Deno.env.get('NOTIFY_WEBHOOK_TOKEN');
+  if (!webhookToken || req.headers.get('Authorization') !== `Bearer ${webhookToken}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   let payload: { record?: Record<string, unknown> };
   try {
     payload = await req.json();
