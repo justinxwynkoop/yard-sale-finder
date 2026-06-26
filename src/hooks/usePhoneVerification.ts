@@ -45,8 +45,12 @@ export function usePhoneVerification() {
       if (auth.user) {
         await supabase
           .from('profiles')
-          .update({ phone, phone_verified: true })
+          .update({ phone_verified: true })
           .eq('id', auth.user.id);
+        // phone (PII) lives in the owner-only private table.
+        await supabase
+          .from('private_profiles')
+          .upsert({ user_id: auth.user.id, phone }, { onConflict: 'user_id' });
         invalidateProfile();
       }
       return { error: null };

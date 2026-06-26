@@ -583,9 +583,7 @@ export default function ListingDetailScreen() {
             >
               <Avatar
                 uri={listing.profile.avatar_url}
-                name={
-                  listing.profile.display_name ?? listing.profile.email ?? ''
-                }
+                name={listing.profile.display_name ?? 'Seller'}
                 size="md"
               />
               <View style={{ flex: 1, marginLeft: 12 }}>

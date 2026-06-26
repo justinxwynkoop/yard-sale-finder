@@ -64,8 +64,21 @@ export function useProfile() {
         .eq('id', user.id)
         .maybeSingle();
       if (error) throw error;
+      // PII (email/phone/birthdate/zip_code) lives in the owner-only
+      // private_profiles table — merge it back so the rest of the app, and the
+      // profile-completion gate (which needs birthdate + zip_code), see a
+      // complete profile object.
+      let profile = data as Profile | null;
+      if (data) {
+        const { data: priv } = await supabase
+          .from('private_profiles')
+          .select('email, phone, birthdate, zip_code')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (priv) profile = { ...data, ...priv } as Profile;
+      }
       hasLoadedRef.current = true;
-      setState({ profile: data ?? null, loading: false, error: null });
+      setState({ profile, loading: false, error: null });
     } catch (e: any) {
       hasLoadedRef.current = true;
       setState({
@@ -99,15 +112,51 @@ export function useProfile() {
  * Supabase error (or null). Used by the Account screen's FieldEditor
  * commits and the Notifications toggles.
  */
+/** Columns that live on the owner-only private_profiles table, not profiles. */
+export const PRIVATE_PROFILE_COLUMNS = [
+  'email',
+  'phone',
+  'birthdate',
+  'zip_code',
+] as const;
+
+/**
+ * Split a profile patch into the part that belongs on `profiles` and the part
+ * that belongs on the owner-only `private_profiles` table.
+ */
+export function splitProfilePatch(patch: Partial<Profile>): {
+  profilesPatch: Record<string, unknown>;
+  privatePatch: Record<string, unknown>;
+} {
+  const priv = PRIVATE_PROFILE_COLUMNS as readonly string[];
+  const profilesPatch: Record<string, unknown> = {};
+  const privatePatch: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (priv.includes(k)) privatePatch[k] = v;
+    else profilesPatch[k] = v;
+  }
+  return { profilesPatch, privatePatch };
+}
+
 export function useUpdateProfile() {
   const { user } = useAuth();
   return useCallback(
     async (patch: Partial<Profile>) => {
       if (!user) return { error: new Error('Not signed in') };
-      const { error } = await supabase
-        .from('profiles')
-        .update(patch)
-        .eq('id', user.id);
+      const { profilesPatch, privatePatch } = splitProfilePatch(patch);
+      let error: { message: string } | null = null;
+      if (Object.keys(profilesPatch).length > 0) {
+        error = (
+          await supabase.from('profiles').update(profilesPatch).eq('id', user.id)
+        ).error;
+      }
+      if (!error && Object.keys(privatePatch).length > 0) {
+        error = (
+          await supabase
+            .from('private_profiles')
+            .upsert({ user_id: user.id, ...privatePatch }, { onConflict: 'user_id' })
+        ).error;
+      }
       if (!error) invalidateProfile();
       return { error };
     },

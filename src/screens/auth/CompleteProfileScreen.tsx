@@ -139,18 +139,26 @@ export default function CompleteProfileScreen() {
       const { error } = await supabase.from('profiles').upsert(
         {
           id: user.id,
-          email: user.email ?? '',
           display_name: firstName.trim(),
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           city: city.trim(),
           state,
-          zip_code: zip.trim(),
-          birthdate: iso,
         },
         { onConflict: 'id' },
       );
       if (error) { Alert.alert('Could not save', error.message); return; }
+      // PII (email, zip, birthdate) goes to the owner-only private table.
+      const { error: privError } = await supabase.from('private_profiles').upsert(
+        {
+          user_id: user.id,
+          email: user.email ?? '',
+          zip_code: zip.trim(),
+          birthdate: iso,
+        },
+        { onConflict: 'user_id' },
+      );
+      if (privError) { Alert.alert('Could not save', privError.message); return; }
       await refetch();
       invalidateProfile();
     } catch (e: any) {

@@ -844,7 +844,7 @@ export default function SaleDetailScreen() {
               >
                 <Avatar
                   uri={sale.profile.avatar_url}
-                  name={sale.profile.display_name ?? sale.profile.email}
+                  name={sale.profile.display_name ?? 'Seller'}
                   size="md"
                 />
                 <View style={{ flex: 1, marginLeft: 12 }}>
