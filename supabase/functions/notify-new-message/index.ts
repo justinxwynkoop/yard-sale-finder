@@ -77,22 +77,29 @@ Deno.serve(async (req: Request) => {
   const recipientId =
     conv.buyer_id === senderId ? conv.seller_id : conv.buyer_id;
 
-  // ── 2. Look up the recipient's push token + display name ──────────────
+  // ── 2. Check the recipient's Messages pref, then look up their token ───
   const { data: recipient } = await supabase
     .from('profiles')
-    .select('expo_push_token, display_name, notify_messages')
+    .select('notify_messages')
     .eq('id', recipientId)
     .single();
 
-  if (!recipient?.expo_push_token) {
+  // Respect the recipient's Messages notification preference (default on).
+  if (recipient?.notify_messages === false) {
+    return new Response('Recipient muted messages', { status: 200 });
+  }
+
+  // Token lives in the owner-only user_push_tokens table (read via service role).
+  const { data: tokenRow } = await supabase
+    .from('user_push_tokens')
+    .select('token')
+    .eq('user_id', recipientId)
+    .single();
+
+  if (!tokenRow?.token) {
     // No token — user hasn't granted permission or hasn't opened the app
     // on this device yet. Silently succeed.
     return new Response('No push token', { status: 200 });
-  }
-
-  // Respect the recipient's Messages notification preference (default on).
-  if (recipient.notify_messages === false) {
-    return new Response('Recipient muted messages', { status: 200 });
   }
 
   // ── 3. Look up the sender's display name for the notification title ────
@@ -110,7 +117,7 @@ Deno.serve(async (req: Request) => {
     ? (messageBody.length > 120 ? messageBody.slice(0, 117) + '…' : messageBody)
     : '📷 Photo';
   const pushMessage = {
-    to: recipient.expo_push_token,
+    to: tokenRow.token,
     sound: 'default',
     title: senderName,
     body: notifBody,

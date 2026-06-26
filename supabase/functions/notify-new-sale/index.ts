@@ -95,12 +95,11 @@ Deno.serve(async (req: Request) => {
   const followerIds = (followers ?? []).map((f) => f.follower_id as string);
   if (followerIds.length > 0) {
     const { data: recipients } = await supabase
-      .from('profiles')
-      .select('expo_push_token')
-      .in('id', followerIds)
-      .not('expo_push_token', 'is', null);
+      .from('user_push_tokens')
+      .select('token')
+      .in('user_id', followerIds);
     for (const r of recipients ?? []) {
-      const to = r.expo_push_token as string;
+      const to = r.token as string;
       if (to) {
         followerMessages.push({
           to,

@@ -93,14 +93,13 @@ Deno.serve(async (req: Request) => {
   if (followerIds.length === 0) return new Response('No recipients', { status: 200 });
 
   const { data: recipients } = await supabase
-    .from('profiles')
-    .select('expo_push_token')
-    .in('id', followerIds)
-    .not('expo_push_token', 'is', null);
+    .from('user_push_tokens')
+    .select('token')
+    .in('user_id', followerIds);
 
   const messages: PushMessage[] = [];
   for (const r of recipients ?? []) {
-    const to = r.expo_push_token as string;
+    const to = r.token as string;
     if (to) {
       messages.push({
         to,
