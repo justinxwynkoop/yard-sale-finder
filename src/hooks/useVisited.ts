@@ -69,25 +69,34 @@ export function useVisited() {
   const toggle = useCallback(
     async (saleId: string) => {
       if (!user) return;
+      const prev = _ids; // snapshot for rollback
       if (_ids.has(saleId)) {
         // Optimistic remove.
         const next = new Set(_ids);
         next.delete(saleId);
         _ids = next;
         _broadcast();
-        await supabase
+        const { error } = await supabase
           .from('sale_visits')
           .delete()
           .eq('user_id', user.id)
           .eq('sale_id', saleId);
+        if (error) {
+          _ids = prev;
+          _broadcast();
+        }
       } else {
         const next = new Set(_ids);
         next.add(saleId);
         _ids = next;
         _broadcast();
-        await supabase
+        const { error } = await supabase
           .from('sale_visits')
           .insert({ user_id: user.id, sale_id: saleId });
+        if (error) {
+          _ids = prev;
+          _broadcast();
+        }
       }
     },
     [user],

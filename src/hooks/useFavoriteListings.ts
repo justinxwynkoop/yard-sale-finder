@@ -57,16 +57,26 @@ export function useFavoriteListings() {
           return next;
         });
         setFavorites((prev) => prev.filter((l) => l.id !== listingId));
-        await supabase
+        const { error } = await supabase
           .from('listing_favorites')
           .delete()
           .eq('user_id', user.id)
           .eq('listing_id', listingId);
+        if (error) fetchFavorites(); // delete failed → reconcile to DB truth
       } else {
         setIds((prev) => new Set(prev).add(listingId));
-        await supabase
+        const { error } = await supabase
           .from('listing_favorites')
           .insert({ user_id: user.id, listing_id: listingId });
+        if (error) {
+          // insert failed → undo the optimistic add
+          setIds((prev) => {
+            const next = new Set(prev);
+            next.delete(listingId);
+            return next;
+          });
+          return;
+        }
         fetchFavorites();
       }
     },

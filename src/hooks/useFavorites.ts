@@ -125,24 +125,38 @@ export function useFavorites() {
     async (saleId: string) => {
       if (!user) return;
       if (_ids.has(saleId)) {
-        // Optimistic remove — broadcast instantly, then persist.
+        // Optimistic remove — broadcast instantly, then persist. Roll back if
+        // the delete fails so the heart doesn't lie.
+        const prevIds = _ids;
+        const prevFavorites = _favorites;
         const nextIds = new Set(_ids);
         nextIds.delete(saleId);
         _ids = nextIds;
         _favorites = _favorites.filter((s) => s.id !== saleId);
         _broadcast();
-        await supabase
+        const { error } = await supabase
           .from('favorites')
           .delete()
           .eq('user_id', user.id)
           .eq('sale_id', saleId);
+        if (error) {
+          _ids = prevIds;
+          _favorites = prevFavorites;
+          _broadcast();
+        }
       } else {
         // Optimistic add — broadcast instantly, then persist + sync full row.
+        const prevIds = _ids;
         _ids = new Set(_ids).add(saleId);
         _broadcast();
-        await supabase
+        const { error } = await supabase
           .from('favorites')
           .insert({ user_id: user.id, sale_id: saleId });
+        if (error) {
+          _ids = prevIds;
+          _broadcast();
+          return;
+        }
         // Background sync to pull the full Sale row (media, etc.) into
         // _favorites without blocking the UI.
         fetchFavorites();

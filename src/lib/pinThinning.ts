@@ -74,8 +74,10 @@ export function pinPriority(
 ): number {
   let score = 0;
   if (favorited) score += 100_000;
-  if (sale.status === 'active' && isOpenNow(sale)) score += 10_000;
-  else if (sale.status === 'active') score += 5_000;
+  // Any non-ended sale (active OR winding_down) gets a base score — open now
+  // ranks higher. Excluding winding_down here used to sink open ending-soon
+  // sales below closed active ones when a cell was crowded.
+  if (sale.status !== 'ended') score += isOpenNow(sale) ? 10_000 : 5_000;
   // Keep freshly-posted sales visible when zoomed out, even if not yet popular.
   if (isRecentlyPosted(sale.created_at)) score += 7_500;
   score += Math.min(sale.save_count ?? 0, 500) * 20;

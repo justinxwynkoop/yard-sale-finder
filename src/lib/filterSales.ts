@@ -3,7 +3,11 @@ import { MapFilters, WhenFilter } from './mapFilters';
 import { isOpenNow } from '../utils/saleStatus';
 
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // LOCAL date components, not toISOString() (UTC) — otherwise a user west of
+  // UTC in the evening gets tomorrow's date, shifting the "today"/"this
+  // weekend" filters by a day. Matches saleStatus.todayString().
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /**
