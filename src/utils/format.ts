@@ -81,22 +81,6 @@ export function formatHM(t: string): string {
 }
 
 /**
- * "Today, 9 AM – 2 PM" / "Sat May 24, 8:30 AM – 1 PM" — the combined
- * line we show on cards and details. Single-day sales only render
- * date once; multi-day shows the range.
- */
-export function formatSaleWhen(
-  startDate: string,
-  endDate: string,
-  startTime: string,
-  endTime: string,
-): string {
-  const date = formatSaleDate(startDate, endDate);
-  const time = formatSaleTime(startTime, endTime);
-  return `${date}, ${time}`;
-}
-
-/**
  * Human-friendly "when was this posted" label for listing detail screens.
  *   < 1 day  → "Posted today"
  *   1 day    → "Posted yesterday"

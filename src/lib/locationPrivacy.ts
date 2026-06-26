@@ -1,5 +1,4 @@
 import { Sale } from '../types';
-import { isOpenNow } from '../utils/saleStatus';
 
 /**
  * Address-privacy rendering rules for sales.
@@ -66,11 +65,6 @@ export function saleDisplayLocation(
   };
 }
 
-/** Sales are always shown exactly now, so this is always false. */
-export function isApproximate(_sale: Sale, _ctx: PrivacyContext = {}): boolean {
-  return false;
-}
-
 /**
  * A friendly label for an approximate sale's location, e.g.
  * "Approximate area · Maplewood, NJ". Falls back to "Approximate area".
@@ -82,9 +76,4 @@ export function approximateAreaLabel(sale: Sale): string {
   const parts = (sale.address ?? '').split(',').map((s) => s.trim());
   const area = parts.length > 1 ? parts.slice(1).join(', ') : '';
   return area ? `Approximate area · ${area}` : 'Approximate area';
-}
-
-/** Sale is open AND uses 'live' exact mode (used for "exact while live"). */
-export function isLiveExact(sale: Sale): boolean {
-  return sale.location_privacy === 'live' && isOpenNow(sale);
 }

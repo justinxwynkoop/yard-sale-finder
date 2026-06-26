@@ -10,14 +10,6 @@ export interface ListingFilters {
   priceMax: number | null;
 }
 
-export const PRICE_RANGES: { label: string; min: number | null; max: number | null }[] = [
-  { label: 'Free',      min: 0,    max: 0    },
-  { label: 'Under $10', min: null, max: 10   },
-  { label: '$10–$50',   min: 10,   max: 50   },
-  { label: '$50–$100',  min: 50,   max: 100  },
-  { label: '$100+',     min: 100,  max: null },
-];
-
 export function useListings(filters: ListingFilters) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);

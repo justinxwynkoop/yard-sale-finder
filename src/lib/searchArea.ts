@@ -19,10 +19,6 @@ export interface SearchArea {
 let _area: SearchArea | null = null;
 const _listeners = new Set<(a: SearchArea | null) => void>();
 
-export function getSearchArea(): SearchArea | null {
-  return _area;
-}
-
 export function setSearchArea(area: SearchArea | null): void {
   _area = area;
   _listeners.forEach((fn) => fn(_area));

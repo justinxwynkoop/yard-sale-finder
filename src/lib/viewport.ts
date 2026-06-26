@@ -11,10 +11,6 @@ import type { Region } from 'react-native-maps';
 let _region: Region | null = null;
 const _listeners = new Set<(r: Region | null) => void>();
 
-export function getViewport(): Region | null {
-  return _region;
-}
-
 export function setViewport(region: Region | null): void {
   _region = region;
   _listeners.forEach((fn) => fn(_region));

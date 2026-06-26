@@ -114,12 +114,6 @@ export interface ReviewSummary {
   review_count: number;
 }
 
-export interface Follow {
-  follower_id: string;
-  followed_id: string;
-  created_at: string;
-}
-
 export interface Sale {
   id: string;
   user_id: string;
@@ -156,18 +150,6 @@ export interface SaleMedia {
   url: string;
   type: 'image' | 'video';
   order: number;
-  created_at: string;
-}
-
-export interface Favorite {
-  user_id: string;
-  sale_id: string;
-  created_at: string;
-}
-
-export interface ListingFavorite {
-  user_id: string;
-  listing_id: string;
   created_at: string;
 }
 
@@ -290,7 +272,6 @@ export type SaleStackParamList = {
 export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
-  BlockedUsers: undefined;
   DeleteAccount: undefined;
   // initialTab lets Profile → "Yard Sales" and Profile → "Listings" open
   // MySalesScreen on the right tab without exposing the other tab.
