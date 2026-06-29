@@ -9,7 +9,7 @@
     "newArchEnabled": true,
     "scheme": "trove",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "splash": {
       "image": "./assets/splash-icon.png",
