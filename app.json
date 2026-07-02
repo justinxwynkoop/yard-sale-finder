@@ -79,7 +79,14 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication",
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "lumerion",
+          "project": "react-native",
+          "url": "https://sentry.io/"
+        }
+      ],
       [
         "expo-splash-screen",
         {
