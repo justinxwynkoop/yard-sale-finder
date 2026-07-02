@@ -24,17 +24,32 @@ export function useFavoriteListings() {
       return;
     }
     setLoading(true);
-    const { data } = await supabase
-      .from('listing_favorites')
-      .select('listing_id, listing:listings(*, media:listing_media(*))')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    const listings: Listing[] = (data ?? [])
-      .map((row: any) => row.listing)
-      .filter(Boolean);
-    setFavorites(listings);
-    setIds(new Set(listings.map((l) => l.id)));
-    setLoading(false);
+    // Guard against a hung request (the supabase client has no timeout;
+    // auth-lock / token-refresh can stall) so loading always clears and the
+    // next focus can retry — mirrors the useFavorites Saved-Sales spinner fix.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    try {
+      const { data, error } = await supabase
+        .from('listing_favorites')
+        .select('listing_id, listing:listings(*, media:listing_media(*))')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .abortSignal(controller.signal);
+      // Keep the current list on a transient error rather than blanking it;
+      // the finally still clears loading so the UI isn't stuck.
+      if (error) return;
+      const listings: Listing[] = (data ?? [])
+        .map((row: any) => row.listing)
+        .filter(Boolean);
+      setFavorites(listings);
+      setIds(new Set(listings.map((l) => l.id)));
+    } catch {
+      // network failure / abort / hang — finally clears loading; next retry.
+    } finally {
+      clearTimeout(timer);
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {

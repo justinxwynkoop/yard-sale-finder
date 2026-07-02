@@ -71,35 +71,56 @@ export function useFavorites() {
   // Fetch from Supabase once per user session (or when explicitly called).
   const fetchFavorites = useCallback(async () => {
     if (!user) {
-      _reset();
+      // No user yet — e.g. a focus-refetch fired before useAuth's async
+      // getSession() resolved, or during token-refresh churn. Do NOT pin the
+      // shared loading flag on (that stranded SavedScreen on a permanent
+      // spinner); genuine sign-out is handled by the mount effect's _reset().
+      _setLoading(false);
       return;
     }
     _setLoading(true);
-    const { data } = await supabase
-      .from('favorites')
-      // No profile embed: PostgREST's auto-INNER-JOIN on the NOT NULL
-      // sales.user_id FK would drop sales whose owner has no profile.
-      .select('sale_id, sale:sales(*, media:sale_media(*))')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    const rows = data ?? [];
-    const sales: Sale[] = rows.map((row: any) => row.sale).filter(Boolean);
-    _setFavorites(sales);
-    _setLoading(false);
-
-    // Reap orphaned favorites: rows whose sale was deleted resolve to a
-    // null `sale` here. Left in place they inflate the saved count above
-    // the visible list ("3 saved" → opens to nothing → count drops to 0).
-    // Fire-and-forget delete so the table matches what we can actually show.
-    const orphanIds = rows
-      .filter((r: any) => !r.sale)
-      .map((r: any) => r.sale_id);
-    if (orphanIds.length > 0) {
-      supabase
+    // The supabase client has no request timeout, and auth-lock / token-refresh
+    // stalls can make a query hang indefinitely. Abort after 12s so loading
+    // always clears and the next screen focus can retry, instead of spinning
+    // forever over an empty list.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    try {
+      const { data, error } = await supabase
         .from('favorites')
-        .delete()
+        // No profile embed: PostgREST's auto-INNER-JOIN on the NOT NULL
+        // sales.user_id FK would drop sales whose owner has no profile.
+        .select('sale_id, sale:sales(*, media:sale_media(*))')
         .eq('user_id', user.id)
-        .in('sale_id', orphanIds);
+        .order('created_at', { ascending: false })
+        .abortSignal(controller.signal);
+      // On a transient error/abort, keep the current list rather than blanking
+      // it to empty — the finally below still clears loading so it isn't stuck.
+      if (error) return;
+      const rows = data ?? [];
+      const sales: Sale[] = rows.map((row: any) => row.sale).filter(Boolean);
+      _setFavorites(sales);
+
+      // Reap orphaned favorites: rows whose sale was deleted resolve to a
+      // null `sale` here. Left in place they inflate the saved count above
+      // the visible list ("3 saved" → opens to nothing → count drops to 0).
+      // Fire-and-forget delete so the table matches what we can actually show.
+      const orphanIds = rows
+        .filter((r: any) => !r.sale)
+        .map((r: any) => r.sale_id);
+      if (orphanIds.length > 0) {
+        supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .in('sale_id', orphanIds);
+      }
+    } catch {
+      // Network failure / abort / hang — swallow; the finally clears loading
+      // and the next screen focus retries.
+    } finally {
+      clearTimeout(timer);
+      _setLoading(false);
     }
     // Stable user id, not the churning user object (see useAuth).
     // eslint-disable-next-line react-hooks/exhaustive-deps
