@@ -55,7 +55,7 @@ function _reset() {
  * everywhere without waiting for a refetch.
  */
 export function useFavorites() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { blockedIds } = useBlockedUsers();
 
   // forceRender lets this component instance re-render when the shared store
@@ -130,15 +130,22 @@ export function useFavorites() {
   // re-fetching when a second component mounts mid-session — _userId tracks
   // whether the current user's data is already loaded.
   useEffect(() => {
+    // useAuth resolves its session asynchronously and is per-hook-instance, so
+    // a freshly-mounted screen (e.g. SavedScreen) reports user=null for a beat
+    // even when signed in. Do NOT treat that as sign-out: the old code called
+    // _reset() here, wiping the shared favorites and pinning loading=true on
+    // EVERY mount, which stranded SavedScreen on a spinner over an empty list
+    // until a full reload finished. Wait for auth to actually settle first.
+    if (authLoading) return;
     if (!user) {
-      if (_userId !== null) _reset();
+      if (_userId !== null) _reset(); // genuine sign-out
       return;
     }
     if (_userId === user.id) return; // already loaded for this user
     _userId = user.id;
     fetchFavorites();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, fetchFavorites]);
+  }, [user?.id, authLoading, fetchFavorites]);
 
   // Immediate optimistic toggle — updates the shared store synchronously so
   // every subscriber re-renders before the Supabase round-trip completes.

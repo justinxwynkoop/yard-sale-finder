@@ -3,11 +3,12 @@ import { useFavorites } from '../useFavorites'; // jest.mock calls below are hoi
 
 // Controllable mocks — jest.mock factories may only close over vars prefixed `mock`.
 let mockUser: { id: string } | null = { id: 'u1' };
+let mockAuthLoading = false;
 let mockQueryImpl: () => Promise<any> = () =>
   Promise.resolve({ data: [], error: null });
 
 jest.mock('../useAuth', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({ user: mockUser, loading: mockAuthLoading }),
 }));
 jest.mock('../useBlockedUsers', () => ({
   useBlockedUsers: () => ({ blockedIds: new Set() }),
@@ -31,6 +32,7 @@ jest.mock('../../lib/supabase', () => {
 describe('useFavorites — loading never gets stuck (Saved Sales spinner bug)', () => {
   beforeEach(() => {
     mockUser = { id: 'u1' };
+    mockAuthLoading = false;
     mockQueryImpl = () => Promise.resolve({ data: [], error: null });
   });
 
@@ -52,5 +54,32 @@ describe('useFavorites — loading never gets stuck (Saved Sales spinner bug)', 
       await result.current.refetch();
     });
     expect(result.current.loading).toBe(false);
+  });
+
+  it('does not wipe the shared store when a new screen mounts before auth resolves', async () => {
+    // 1. A signed-in instance loads a favorite into the shared module store.
+    mockUser = { id: 'u1' };
+    mockAuthLoading = false;
+    mockQueryImpl = () =>
+      Promise.resolve({
+        data: [{ sale_id: 's1', sale: { id: 's1', user_id: 'u1', media: [] } }],
+        error: null,
+      });
+    const first = await renderHook(() => useFavorites());
+    await act(async () => {
+      await first.result.current.refetch();
+    });
+    expect(first.result.current.favorites).toHaveLength(1);
+
+    // 2. A second screen (e.g. SavedScreen) mounts while ITS useAuth hasn't
+    //    resolved yet: user=null, loading=true. The regression: the mount
+    //    effect used to call _reset() here — blanking the list and pinning
+    //    loading=true, i.e. a spinner over an empty list on every open.
+    //    With the auth-loading gate it must be a no-op: store preserved.
+    mockUser = null;
+    mockAuthLoading = true;
+    const second = await renderHook(() => useFavorites());
+    expect(second.result.current.favorites).toHaveLength(1);
+    expect(second.result.current.loading).toBe(false);
   });
 });
