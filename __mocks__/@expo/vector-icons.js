@@ -3,8 +3,12 @@
 // `name` as <Text> so tests can assert which icon shows (e.g. 'heart','NEW').
 const React = require('react');
 const { Text } = require('react-native');
-const makeIconSet = () => (props) =>
-  React.createElement(Text, { ...props }, props && props.name ? String(props.name) : null);
+const makeIconSet = () => {
+  const Icon = (props) =>
+    React.createElement(Text, { ...props }, props && props.name ? String(props.name) : null);
+  Icon.displayName = 'MockIcon';
+  return Icon;
+};
 module.exports = new Proxy(
   {},
   { get: (_target, prop) => (prop === '__esModule' ? false : makeIconSet()) },
