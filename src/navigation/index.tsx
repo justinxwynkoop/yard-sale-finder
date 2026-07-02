@@ -8,6 +8,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
+import * as SplashScreen from 'expo-splash-screen';
 import { Ionicons } from '@expo/vector-icons';
 
 import * as Notifications from 'expo-notifications';
@@ -625,7 +626,18 @@ function MainGate() {
   // and bounces the user out of whatever tab/stack they were in. Also wait
   // for the onboarding flag to load so we don't flash MainTabs then jump
   // to the onboarding slides.
-  if ((profileLoading && !profile) || onboardingLoading) {
+  const booting = (profileLoading && !profile) || onboardingLoading;
+
+  // Keep the native splash up until we can render a real gate screen (MainTabs
+  // or a setup step), so cold start is splash → app rather than
+  // splash → spinner → spinner → app. The spinner below stays covered by the
+  // splash until this fires; hideAsync is idempotent with Navigation's
+  // signed-out hide and App's safety timeout.
+  useEffect(() => {
+    if (!booting) SplashScreen.hideAsync().catch(() => {});
+  }, [booting]);
+
+  if (booting) {
     return (
       <View
         style={{
@@ -707,6 +719,18 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export default function Navigation() {
   const { session, loading, inRecovery } = useAuth();
+
+  // Hide the native splash once we know we're showing a signed-out screen
+  // (Welcome) or the recovery screen — both are ready the moment auth settles.
+  // The signed-in path instead defers to MainGate, which also waits for the
+  // profile + onboarding load, so the splash covers the whole cold-start chain
+  // (no auth-spinner / profile-spinner flashes). While `loading` is true the
+  // splash stays up over the Loading screen.
+  useEffect(() => {
+    if (!loading && (!session || inRecovery)) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading, session, inRecovery]);
 
   // NavigationContainer is mounted unconditionally. While auth is
   // still resolving we render a Loading screen INSIDE the navigator

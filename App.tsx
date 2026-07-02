@@ -33,11 +33,14 @@ if (SENTRY_DSN) {
 }
 
 function App() {
-  // Dismiss the native splash once the JS tree has mounted.
-  // Without this the launch screen sits on top of the real UI forever
-  // (visible as a frozen logo while taps still go through underneath).
+  // The navigation gates (navigation/index) now hide the splash once the first
+  // REAL screen is ready, so cold start is splash → app instead of
+  // splash → auth-spinner → profile-spinner → app. This is only a safety net:
+  // if a gate never settles (e.g. a hung fetch), drop the splash after 5s so
+  // the launch screen can never stick on top of the UI forever.
   useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 5000);
+    return () => clearTimeout(t);
   }, []);
 
   // Listen for Supabase auth deep links (email confirmation + password reset).
