@@ -47,7 +47,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "false",
         "EXPO_PUBLIC_SUPABASE_URL": "https://dxahcamntwtuzftxbxgx.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_mpxg4esDmwVJ6CkJTTJ6CA__-6QrZqJ",
         "EXPO_PUBLIC_SENTRY_DSN": "https://68b0fe5e46784d2365d6d0b567899c53@o4511097041977344.ingest.us.sentry.io/4511663585755136"

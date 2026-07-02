@@ -56,3 +56,5 @@ secrets/
 *.p8
 google-services.json
 GoogleService-Info.plist
+
+.env.local
