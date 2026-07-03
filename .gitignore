@@ -58,6 +58,3 @@ google-services.json
 GoogleService-Info.plist
 
 .env.local
-
-# Vercel project link (trove.sale legal/support site)
-.vercel
