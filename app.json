@@ -82,8 +82,8 @@
       [
         "@sentry/react-native/expo",
         {
-          "organization": "lumerion",
-          "project": "react-native",
+          "organization": "trove-b0f",
+          "project": "trove",
           "url": "https://sentry.io/"
         }
       ],
