@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   useNavigation,
   useRoute,
@@ -194,6 +195,18 @@ export default function MapHomeScreen() {
     return null;
   }, [focusLat, focusLng, searchArea, userLocation, gpsTimedOut, lastRegion]);
   const mapReady = initialRegion != null;
+
+  // Cold-start handoff from the native splash: MainGate leaves the splash up
+  // when routing to MainTabs, and we drop it here only once the map is truly
+  // presentable — region resolved (mapReady) AND the native map initialized
+  // (onMapReady). Hiding on either alone flashes this screen's loading
+  // placeholder (the "white screen with a spinner" between splash and map).
+  // hideAsync is idempotent; App.tsx keeps a 5s safety net if neither fires.
+  const [nativeMapReady, setNativeMapReady] = useState(false);
+  useEffect(() => {
+    if (mapReady && nativeMapReady) SplashScreen.hideAsync().catch(() => {});
+  }, [mapReady, nativeMapReady]);
+
   // Only one AIRMap instance can safely exist at a time under the new
   // architecture. Push transitions to SaleDetail / RoutePlanner mount
   // an additional MapView; if this one stays alive in the background
@@ -560,6 +573,7 @@ export default function MapHomeScreen() {
           { opacity: mapReady ? 1 : 0 },
         ]}
         initialRegion={initialRegion ?? DEFAULT_REGION}
+        onMapReady={() => setNativeMapReady(true)}
         onRegionChangeComplete={onRegionChangeComplete}
         onPanDrag={() => {
           // Dismiss the callout when the user starts panning so it never

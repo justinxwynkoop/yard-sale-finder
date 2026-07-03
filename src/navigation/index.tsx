@@ -628,14 +628,22 @@ function MainGate() {
   // to the onboarding slides.
   const booting = (profileLoading && !profile) || onboardingLoading;
 
-  // Keep the native splash up until we can render a real gate screen (MainTabs
-  // or a setup step), so cold start is splash → app rather than
-  // splash → spinner → spinner → app. The spinner below stays covered by the
-  // splash until this fires; hideAsync is idempotent with Navigation's
-  // signed-out hide and App's safety timeout.
+  // Which screen this gate will render once boot settles. The native splash
+  // stays up through the whole decision: gate screens hide it here the moment
+  // they render, but the MainTabs path delegates hiding to MapHomeScreen,
+  // which drops it only once the map is actually presentable (region resolved
+  // + native map initialized). Otherwise cold start flashes the map screen's
+  // loading placeholder: splash → spinner → map. hideAsync is idempotent with
+  // Navigation's signed-out hide and App's 5s safety timeout.
+  const destination = booting
+    ? null
+    : !isProfileComplete(profile) || !hasAcceptedTerms(profile) || !onboardingDone
+      ? 'gate'
+      : 'tabs';
+
   useEffect(() => {
-    if (!booting) SplashScreen.hideAsync().catch(() => {});
-  }, [booting]);
+    if (destination === 'gate') SplashScreen.hideAsync().catch(() => {});
+  }, [destination]);
 
   if (booting) {
     return (
@@ -691,11 +699,14 @@ function LoadingScreen() {
 }
 
 // Deep-link config: maps incoming URLs (trove://sale/<id>,
-// https://trove.app/sale/<id>) to the right screen + params. Used
-// by the Share button on SaleDetail to generate URLs friends can tap
-// to jump straight to that sale in-app.
+// https://trove.sale/sale/<id>) to the right screen + params. Share links
+// (src/lib/share.ts) are https://trove.sale/... — recipients without the app
+// land on the trove.sale "open in Trove" page, whose button fires the
+// trove:// scheme handled here. The https prefix only routes in-app once an
+// associatedDomains entitlement ships in a future native build (harmless
+// until then).
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [Linking.createURL('/'), 'https://trove.app'],
+  prefixes: [Linking.createURL('/'), 'https://trove.sale'],
   config: {
     screens: {
       Main: {

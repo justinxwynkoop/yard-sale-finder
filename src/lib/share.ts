@@ -1,17 +1,20 @@
 import { Share } from 'react-native';
-import * as Linking from 'expo-linking';
 import { Sale, Listing } from '../types';
 
 /**
  * One place for all "share this" actions so every entry point shares the same
- * thing. Each builds a deep link via Linking.createURL — in a standalone build
- * that's `trove://sale/<id>` / `trove://listing/<id>`, which the navigation
- * `linking` config routes to the right detail screen. (A `https://trove.app`
- * link is NOT used: that domain isn't registered and there's no universal-link
- * config, so those links go nowhere. Truly universal share links — tappable
- * everywhere, with a preview + an install prompt for people who don't have the
- * app — need a real web domain; this is the best we can do app-to-app.)
+ * thing. Links are `https://trove.sale/sale/<id>` / `/listing/<id>` — tappable
+ * for EVERYONE: recipients without the app land on trove.sale's "open in
+ * Trove" page (site/open.html, Vercel rewrites /sale/:id + /listing/:id),
+ * which offers the trove:// deep link into the app. Recipients with the app
+ * who tap that button get routed by the navigation `linking` config. (The old
+ * scheme-only `trove://` links were dead ends for anyone without the app.
+ * One-tap open-the-app-directly — universal links — additionally needs an
+ * apple-app-site-association file + associatedDomains entitlement, which
+ * requires a new native build; the web landing page works for build 21.)
  */
+
+const WEB_ORIGIN = 'https://trove.sale';
 
 async function present(title: string, message: string): Promise<void> {
   try {
@@ -25,13 +28,13 @@ async function present(title: string, message: string): Promise<void> {
 }
 
 export function shareSale(sale: Sale, opts?: { where?: string | null }): Promise<void> {
-  const url = Linking.createURL(`sale/${sale.id}`);
+  const url = `${WEB_ORIGIN}/sale/${sale.id}`;
   const lines = [sale.title, opts?.where, url].filter(Boolean) as string[];
   return present(sale.title, lines.join('\n'));
 }
 
 export function shareListing(listing: Listing): Promise<void> {
-  const url = Linking.createURL(`listing/${listing.id}`);
+  const url = `${WEB_ORIGIN}/listing/${listing.id}`;
   const price = `$${(listing.price ?? 0).toFixed(2)}`;
   const lines = [
     `${listing.title} — ${price}`,

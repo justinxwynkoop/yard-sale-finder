@@ -1,6 +1,0 @@
-# Deploy ONLY the static site/ folder (legal + support pages for trove.sale).
-# The React Native app is never built or deployed on Vercel.
-*
-!site
-!site/**
-!vercel.json
