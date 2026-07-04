@@ -36,10 +36,14 @@ function App() {
   // The navigation gates (navigation/index) now hide the splash once the first
   // REAL screen is ready, so cold start is splash → app instead of
   // splash → auth-spinner → profile-spinner → app. This is only a safety net:
-  // if a gate never settles (e.g. a hung fetch), drop the splash after 5s so
-  // the launch screen can never stick on top of the UI forever.
+  // if a gate never settles (e.g. a hung fetch), drop the splash so the launch
+  // screen can never stick on top of the UI forever. Must stay LONGER than the
+  // slowest legitimate gate it backstops — MapHomeScreen's GPS-timeout fallback
+  // (src/screens/map/MapHomeScreen.tsx) is 6s; a shorter net here fires first
+  // on every cold-GPS launch and defeats the whole "wait for the real screen"
+  // fix by exposing that screen's own loading spinner once the splash drops.
   useEffect(() => {
-    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 5000);
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 10000);
     return () => clearTimeout(t);
   }, []);
 
