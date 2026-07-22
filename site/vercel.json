@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
+    {
+      "src": "^/\\.well-known/apple-app-site-association$",
+      "headers": { "Content-Type": "application/json" },
+      "dest": "/.well-known/apple-app-site-association"
+    },
     { "handle": "filesystem" },
     { "src": "^/(?:sale|listing)/[^/]+$", "dest": "/open.html" },
     { "src": "^/privacy$", "dest": "/privacy.html" },
