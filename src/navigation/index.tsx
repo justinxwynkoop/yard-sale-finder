@@ -24,6 +24,7 @@ import {
   navigateToSale,
   navigateToListing,
 } from '../lib/navigationRef';
+import { promptSignIn } from '../lib/guestGate';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -379,6 +380,7 @@ function PostPlaceholder() {
 }
 
 function MainTabs() {
+  const { user } = useAuth();
   const { profile } = useProfile();
 
   // Lifted to the navigator level so any tab can open the Post sheet.
@@ -525,7 +527,11 @@ function MainTabs() {
           tabBarButton: (props) => (
             <PostTabButton
               accessibilityState={props.accessibilityState}
-              onPress={() => setPostMenuOpen(true)}
+              onPress={() =>
+                user
+                  ? setPostMenuOpen(true)
+                  : promptSignIn('post a yard sale or list an item')
+              }
             />
           ),
         }}
@@ -616,6 +622,7 @@ function PostTabButton({
  * the profile fetch settles so we don't flicker between screens.
  */
 function MainGate() {
+  const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { completed: onboardingDone, loading: onboardingLoading } =
     useOnboarding();
@@ -626,24 +633,35 @@ function MainGate() {
   // and bounces the user out of whatever tab/stack they were in. Also wait
   // for the onboarding flag to load so we don't flash MainTabs then jump
   // to the onboarding slides.
-  const booting = (profileLoading && !profile) || onboardingLoading;
+  // Guests skip every profile gate — browsing must work without an account
+  // (App Review 5.1.1(v)). Account-based actions are gated at their call
+  // sites via promptSignIn (src/lib/guestGate.ts).
+  const isGuest = !user;
+
+  const booting = !isGuest && ((profileLoading && !profile) || onboardingLoading);
 
   // Which screen this gate will render once boot settles. The native splash
   // stays up through the whole decision: gate screens hide it here the moment
-  // they render, but the MainTabs path delegates hiding to MapHomeScreen,
-  // which drops it only once the map is actually presentable (region resolved
-  // + native map initialized). Otherwise cold start flashes the map screen's
-  // loading placeholder: splash → spinner → map. hideAsync is idempotent with
-  // Navigation's signed-out hide and App's 5s safety timeout.
+  // they render, but the MainTabs path (signed-in OR guest) delegates hiding
+  // to MapHomeScreen, which drops it only once the map is actually presentable
+  // (region resolved + native map initialized). Otherwise cold start flashes
+  // the map screen's loading placeholder: splash → spinner → map. hideAsync is
+  // idempotent with Navigation's recovery-path hide and App's safety timeout.
   const destination = booting
     ? null
-    : !isProfileComplete(profile) || !hasAcceptedTerms(profile) || !onboardingDone
-      ? 'gate'
-      : 'tabs';
+    : isGuest
+      ? 'tabs'
+      : !isProfileComplete(profile) || !hasAcceptedTerms(profile) || !onboardingDone
+        ? 'gate'
+        : 'tabs';
 
   useEffect(() => {
     if (destination === 'gate') SplashScreen.hideAsync().catch(() => {});
   }, [destination]);
+
+  if (isGuest) {
+    return <MainTabs />;
+  }
 
   if (booting) {
     return (
@@ -731,17 +749,17 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function Navigation() {
   const { session, loading, inRecovery } = useAuth();
 
-  // Hide the native splash once we know we're showing a signed-out screen
-  // (Welcome) or the recovery screen — both are ready the moment auth settles.
-  // The signed-in path instead defers to MainGate, which also waits for the
-  // profile + onboarding load, so the splash covers the whole cold-start chain
-  // (no auth-spinner / profile-spinner flashes). While `loading` is true the
+  // Hide the native splash once the recovery screen is up — it's ready the
+  // moment auth settles. Every other path (signed-in AND guest) now flows
+  // through MainGate → MainTabs, where MapHomeScreen drops the splash once
+  // the map is actually presentable, so the splash covers the whole
+  // cold-start chain with no spinner flashes. While `loading` is true the
   // splash stays up over the Loading screen.
   useEffect(() => {
-    if (!loading && (!session || inRecovery)) {
+    if (!loading && inRecovery) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [loading, session, inRecovery]);
+  }, [loading, inRecovery]);
 
   // NavigationContainer is mounted unconditionally. While auth is
   // still resolving we render a Loading screen INSIDE the navigator
@@ -768,10 +786,18 @@ export default function Navigation() {
           </>
         ) : (
           <>
-            {/* Welcome is the signed-out landing; its CTAs push Auth in
-                the matching mode. */}
+            {/* Guests land straight in the app and browse freely (App Review
+                5.1.1(v) forbids a login wall for non-account features).
+                MainGate renders MainTabs in guest mode; the auth screens stay
+                registered below so account-gated actions can open the sign-in
+                flow (guestGate.promptSignIn → navigateToAuth). */}
+            <RootStack.Screen name="Main" component={MainGate} />
             <RootStack.Screen name="Welcome" component={WelcomeScreen} />
-            <RootStack.Screen name="Auth" component={AuthScreen} />
+            <RootStack.Screen
+              name="Auth"
+              component={AuthScreen}
+              options={{ presentation: 'modal' }}
+            />
             <RootStack.Screen
               name="ForgotPassword"
               component={ForgotPasswordScreen}

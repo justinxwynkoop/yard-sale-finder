@@ -166,12 +166,14 @@ export function useUpdateProfile() {
 
 export function isProfileComplete(profile: Profile | null): boolean {
   if (!profile) return false;
+  // ZIP is deliberately NOT required — App Review (5.1.1(v), Aug 2026) rejected
+  // requiring personal info that isn't essential to core functionality. City +
+  // state cover the local-marketplace need; ZIP remains an optional convenience.
   return (
     !!profile.first_name?.trim() &&
     !!profile.last_name?.trim() &&
     !!profile.city?.trim() &&
     !!profile.state?.trim() &&
-    !!profile.zip_code?.trim() &&
     !!profile.birthdate
   );
 }

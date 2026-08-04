@@ -75,6 +75,10 @@ export default function CompleteProfileScreen() {
   // Step 1
   const [firstName, setFirstName] = useState(profile?.first_name ?? '');
   const [lastName, setLastName] = useState(profile?.last_name ?? '');
+  // Sign in with Apple already provided a verified name (captured at sign-in,
+  // AuthScreen). Apple's review guidelines (4) require us not to re-ask for
+  // information the Authentication Services framework already supplied.
+  const nameKnown = !!(profile?.first_name?.trim() && profile?.last_name?.trim());
   const [bdMonth, setBdMonth] = useState('');
   const [bdDay, setBdDay] = useState('');
   const [bdYear, setBdYear] = useState('');
@@ -120,7 +124,10 @@ export default function CompleteProfileScreen() {
   const validateStep2 = (): string | null => {
     if (!city.trim()) return 'Please enter your city.';
     if (!state) return 'Please select your state.';
-    if (!zip.trim() || zip.trim().length < 5) return 'Please enter a valid ZIP code.';
+    // ZIP is optional (App Review 5.1.1(v)) — validate format only if provided.
+    if (zip.trim() && zip.trim().length < 5) {
+      return 'That ZIP code looks incomplete — enter 5 digits or leave it blank.';
+    }
     return null;
   };
 
@@ -153,7 +160,7 @@ export default function CompleteProfileScreen() {
         {
           user_id: user.id,
           email: user.email ?? '',
-          zip_code: zip.trim(),
+          zip_code: zip.trim() || null,
           birthdate: iso,
         },
         { onConflict: 'user_id' },
@@ -205,6 +212,7 @@ export default function CompleteProfileScreen() {
               bdYear={bdYear} setBdYear={setBdYear}
               dayRef={dayRef} yearRef={yearRef}
               email={user?.email ?? ''}
+              nameKnown={nameKnown}
             />
           ) : (
             <Step2
@@ -225,7 +233,7 @@ export default function CompleteProfileScreen() {
             ) : (
               <>
                 <Button size="lg" onPress={save} loading={saving}
-                  disabled={!city.trim() || !state || zip.trim().length < 5 || saving}
+                  disabled={!city.trim() || !state || saving}
                 >
                   Continue
                 </Button>
@@ -262,6 +270,7 @@ function Step1({
   bdYear, setBdYear,
   dayRef, yearRef,
   email,
+  nameKnown,
 }: {
   firstName: string; setFirstName: (v: string) => void;
   lastName: string;  setLastName:  (v: string) => void;
@@ -272,41 +281,53 @@ function Step1({
   dayRef: React.RefObject<TextInput | null>;
   yearRef: React.RefObject<TextInput | null>;
   email: string;
+  nameKnown: boolean;
 }) {
   return (
     <View style={{ gap: 20 }}>
       <View className="mb-2">
-        <Text className="text-2xl font-extrabold text-zinc-900">About you</Text>
+        <Text className="text-2xl font-extrabold text-zinc-900">
+          {nameKnown ? `Welcome, ${firstName}` : 'About you'}
+        </Text>
         <Text className="mt-1 text-sm text-zinc-500">
-          This information is used to verify your identity and confirm your eligibility.
+          {nameKnown
+            ? 'Just your date of birth to confirm eligibility — that’s it for this step.'
+            : 'This information is used to verify your identity and confirm your eligibility.'}
         </Text>
       </View>
 
-      <Input
-        label="First name"
-        value={firstName}
-        onChangeText={setFirstName}
-        placeholder="Jane"
-        autoCapitalize="words"
-        returnKeyType="next"
-      />
-      <Input
-        label="Last name"
-        value={lastName}
-        onChangeText={setLastName}
-        placeholder="Smith"
-        autoCapitalize="words"
-        returnKeyType="next"
-      />
+      {/* Name — only asked when sign-in didn't already provide it (Sign in
+          with Apple supplies the verified name; re-asking is an App Review
+          guideline 4 violation). */}
+      {!nameKnown && (
+        <>
+          <Input
+            label="First name"
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Jane"
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+          <Input
+            label="Last name"
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Smith"
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
 
-      {/* Email — read-only */}
-      <View>
-        <Text className="mb-1 text-sm font-semibold text-zinc-700">Email</Text>
-        <View className="flex-row items-center rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3" style={{ gap: 8 }}>
-          <Ionicons name="lock-closed-outline" size={15} color="#A1A1AA" />
-          <Text className="flex-1 text-sm text-zinc-400">{email}</Text>
-        </View>
-      </View>
+          {/* Email — read-only */}
+          <View>
+            <Text className="mb-1 text-sm font-semibold text-zinc-700">Email</Text>
+            <View className="flex-row items-center rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3" style={{ gap: 8 }}>
+              <Ionicons name="lock-closed-outline" size={15} color="#A1A1AA" />
+              <Text className="flex-1 text-sm text-zinc-400">{email}</Text>
+            </View>
+          </View>
+        </>
+      )}
 
       {/* Birthdate */}
       <View>
@@ -409,13 +430,16 @@ function Step2({
       <View className="mb-2">
         <Text className="text-2xl font-extrabold text-zinc-900">Your location</Text>
         <Text className="mt-1 text-sm text-zinc-500">
-          Enter your ZIP code and we&rsquo;ll fill in your city and state automatically.
+          Your city and state help us show sales near you. Enter a ZIP to fill
+          them in automatically, or type them yourself.
         </Text>
       </View>
 
-      {/* ZIP first — drives the auto-fill */}
+      {/* ZIP first — optional, but drives the city/state auto-fill */}
       <View>
-        <Text className="mb-1 text-sm font-semibold text-zinc-700">ZIP code</Text>
+        <Text className="mb-1 text-sm font-semibold text-zinc-700">
+          ZIP code <Text className="font-normal text-zinc-400">(optional)</Text>
+        </Text>
         <View className="flex-row items-center rounded-xl border border-zinc-200 bg-white px-4" style={{ gap: 8 }}>
           <TextInput
             value={zip}

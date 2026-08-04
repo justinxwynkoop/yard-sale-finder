@@ -30,6 +30,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
 import { navigateToConversation } from '../../lib/navigationRef';
+import { promptSignIn } from '../../lib/guestGate';
 import { shareListing } from '../../lib/share';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { useUserLocation } from '../../hooks/useUserLocation';
@@ -116,6 +117,10 @@ export default function ListingDetailScreen() {
 
   const handleMessageSeller = async () => {
     if (!listing) return;
+    if (!user) {
+      promptSignIn('message sellers about their listings');
+      return;
+    }
     setStartingConversation(true);
     const { id, error: convErr } = await startConversation(
       'listing',
@@ -325,7 +330,11 @@ export default function ListingDetailScreen() {
                   iconColor={favorited ? ROSE : INK}
                   size={38}
                   iconSize={18}
-                  onPress={() => toggleFavorite(listing.id)}
+                  onPress={() =>
+                    user
+                      ? toggleFavorite(listing.id)
+                      : promptSignIn('save listings you want to come back to')
+                  }
                   accessibilityLabel={favorited ? 'Unsave' : 'Save'}
                 />
                 <View style={{ width: 8 }} />

@@ -21,10 +21,11 @@
       "icon": "./assets/icon.png",
       "bundleIdentifier": "com.jwynkoop.trove",
       "usesAppleSignIn": true,
+      "associatedDomains": ["applinks:trove.sale"],
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "We use your location to show nearby yard sales and help you pin your own sale.",
-        "NSPhotoLibraryUsageDescription": "Upload photos of your sale items.",
-        "NSCameraUsageDescription": "Take photos of your sale items.",
+        "NSLocationWhenInUseUsageDescription": "Trove uses your location to center the map on yard sales near you and show how far away each sale is — for example, sorting nearby sales by driving distance.",
+        "NSPhotoLibraryUsageDescription": "Trove accesses your photo library so you can choose existing photos of items you're selling — for example, adding pictures of furniture or tools to your sale or listing — and to set your profile photo.",
+        "NSCameraUsageDescription": "Trove uses the camera so you can photograph items you're selling — for example, snapping pictures of furniture or tools to add to your yard sale post or item listing.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -39,7 +40,6 @@
         "backgroundColor": "#F7F2E8"
       },
       "package": "com.jwynkoop.trove",
-      "versionCode": 1,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -68,12 +68,19 @@
           "defaultChannel": "messages"
         }
       ],
-      "expo-location",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Trove uses your location to center the map on yard sales near you and show how far away each sale is — for example, sorting nearby sales by driving distance.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false
+        }
+      ],
       "expo-image-picker",
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Trove to access your camera."
+          "cameraPermission": "Trove uses the camera so you can photograph items you're selling — for example, snapping pictures of furniture or tools to add to your yard sale post or item listing."
         }
       ],
       "expo-web-browser",

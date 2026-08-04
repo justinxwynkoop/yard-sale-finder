@@ -28,6 +28,7 @@ import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
 import { toast } from '../../lib/toast';
 import { navigateToConversation } from '../../lib/navigationRef';
+import { promptSignIn } from '../../lib/guestGate';
 import { ProfileStackParamList, Review } from '../../types';
 import {
   PLACEHOLDER_BLURHASH,
@@ -134,6 +135,10 @@ export default function PublicProfileScreen() {
 
   const handleMessage = async () => {
     if (!userId) return;
+    if (!user) {
+      promptSignIn('message sellers');
+      return;
+    }
     // The PublicProfile screen doesn't have a target sale/listing
     // context, so we open a fresh thread tied to the most recent sale
     // (if any) or fall back to a placeholder. The startConversation
@@ -696,7 +701,11 @@ export default function PublicProfileScreen() {
           }}
         >
           <Pressable
-            onPress={toggleFollow}
+            onPress={() =>
+              user
+                ? toggleFollow()
+                : promptSignIn('follow sellers and get notified when they post')
+            }
             style={{
               paddingVertical: 12,
               paddingHorizontal: 16,

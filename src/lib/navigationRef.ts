@@ -40,6 +40,17 @@ export function navigateToConversation(
 }
 
 /**
+ * Jump to the sign-in / sign-up screen from anywhere — used by guest-mode
+ * gates when a browsing-only user taps an account-based action (save,
+ * message, post, follow). Guests browse freely (App Review 5.1.1(v));
+ * this is the door back into the account flow.
+ */
+export function navigateToAuth(mode: 'signin' | 'signup' = 'signup') {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Auth' as any, { mode } as any);
+}
+
+/**
  * Open a sale's detail on the Map tab — used by the "new sale from a host
  * you follow" push-notification tap. Focus the Map tab first so SaleDetail
  * has the map below it, then push the detail via the nested-screen form.

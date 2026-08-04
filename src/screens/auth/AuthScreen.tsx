@@ -20,6 +20,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { invalidateProfile } from '../../hooks/useProfile';
 import { HeaderButton } from '../../components/ui';
 import { RootStackParamList } from '../../types';
 
@@ -70,11 +71,26 @@ export default function AuthScreen() {
       if (!credential.identityToken) {
         throw new Error('Apple did not return an identity token.');
       }
-      const { error } = await supabase.auth.signInWithIdToken({
+      const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
       });
       if (error) throw error;
+
+      // Apple supplies the user's verified name ONLY on the very first
+      // authorization — persist it now so CompleteProfile never has to ask
+      // (re-asking for info the Authentication Services framework already
+      // provided is an App Review guideline 4 rejection). Best-effort: a
+      // failure here just means the profile gate asks like email signup.
+      const given = credential.fullName?.givenName?.trim();
+      const family = credential.fullName?.familyName?.trim();
+      if (data.user && given && family) {
+        await supabase
+          .from('profiles')
+          .update({ display_name: given, first_name: given, last_name: family })
+          .eq('id', data.user.id)
+          .then(() => invalidateProfile(), () => {});
+      }
     } catch (e: any) {
       // User cancelled — silent.
       if (e?.code === 'ERR_REQUEST_CANCELED') return;

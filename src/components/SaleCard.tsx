@@ -10,6 +10,7 @@ import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
 import { saleDisplayLocation, approximateAreaLabel } from '../lib/locationPrivacy';
 import { useFavorites } from '../hooks/useFavorites';
 import { useAuth } from '../hooks/useAuth';
+import { promptSignIn } from '../lib/guestGate';
 
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
@@ -61,6 +62,10 @@ function SaleCardInner({
 
   const handleHeartPress = (e: any) => {
     e.stopPropagation?.();
+    if (!user) {
+      promptSignIn('save sales you want to revisit');
+      return;
+    }
     toggle(sale.id);
   };
 

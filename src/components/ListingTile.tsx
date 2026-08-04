@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Listing } from '../types';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
+import { useAuth } from '../hooks/useAuth';
+import { promptSignIn } from '../lib/guestGate';
 import { useFavoriteListings } from '../hooks/useFavoriteListings';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
 
@@ -24,6 +26,7 @@ type Props = {
 
 function ListingTileInner({ listing, userLat, userLng, onPress }: Props) {
   const { isFavorited, toggle } = useFavoriteListings();
+  const { user } = useAuth();
   const saved = isFavorited(listing.id);
   const isNew =
     !!listing.created_at &&
@@ -77,6 +80,10 @@ function ListingTileInner({ listing, userLat, userLng, onPress }: Props) {
         <Pressable
           onPress={(e) => {
             e.stopPropagation();
+            if (!user) {
+              promptSignIn('save listings you want to come back to');
+              return;
+            }
             toggle(listing.id);
           }}
           hitSlop={8}

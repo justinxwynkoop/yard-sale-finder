@@ -56,7 +56,7 @@ describe('splitProfilePatch', () => {
   });
 });
 
-describe('isProfileComplete (gate also depends on the merged birthdate + zip)', () => {
+describe('isProfileComplete (gate also depends on the merged birthdate)', () => {
   const complete = {
     first_name: 'A',
     last_name: 'B',
@@ -70,9 +70,12 @@ describe('isProfileComplete (gate also depends on the merged birthdate + zip)', 
     expect(isProfileComplete(complete)).toBe(true);
   });
 
-  it('false when the merged PII (birthdate / zip) is missing', () => {
+  it('false when the merged birthdate is missing', () => {
     expect(isProfileComplete({ ...complete, birthdate: null } as Profile)).toBe(false);
-    expect(isProfileComplete({ ...complete, zip_code: null } as Profile)).toBe(false);
+  });
+
+  it('true without a ZIP — optional per App Review 5.1.1(v), Aug 2026 rejection', () => {
+    expect(isProfileComplete({ ...complete, zip_code: null } as Profile)).toBe(true);
   });
 
   it('false when a profiles field is missing, and for null', () => {

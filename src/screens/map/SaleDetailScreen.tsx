@@ -39,6 +39,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
 import { navigateToConversation } from '../../lib/navigationRef';
+import { promptSignIn } from '../../lib/guestGate';
 import {
   saleDisplayLocation,
   approximateAreaLabel,
@@ -175,6 +176,10 @@ export default function SaleDetailScreen() {
 
   const handleMessageSeller = async () => {
     if (!sale) return;
+    if (!user) {
+      promptSignIn('message sellers about their sales');
+      return;
+    }
     setStartingConversation(true);
     const { id, error: convErr } = await startConversation('sale', sale.id);
     setStartingConversation(false);
@@ -408,7 +413,11 @@ export default function SaleDetailScreen() {
               iconColor={saved ? ROSE : INK}
               size={38}
               iconSize={18}
-              onPress={() => toggleFavorite(sale.id)}
+              onPress={() =>
+                user
+                  ? toggleFavorite(sale.id)
+                  : promptSignIn('save sales you want to revisit')
+              }
               accessibilityLabel={saved ? 'Unsave sale' : 'Save sale'}
             />
             <View style={{ width: 8 }} />
@@ -1023,7 +1032,11 @@ export default function SaleDetailScreen() {
             it reads as the primary affordance. */}
         {!isOwnSale && (
           <Pressable
-            onPress={() => toggleVisited(sale.id)}
+            onPress={() =>
+              user
+                ? toggleVisited(sale.id)
+                : promptSignIn('keep track of the sales you visit')
+            }
             style={{
               borderRadius: 12,
               paddingVertical: 11,
@@ -1059,7 +1072,11 @@ export default function SaleDetailScreen() {
 
         <View style={{ flexDirection: 'row' }}>
           <Pressable
-            onPress={() => toggleFavorite(sale.id)}
+            onPress={() =>
+              user
+                ? toggleFavorite(sale.id)
+                : promptSignIn('save sales you want to revisit')
+            }
           style={{
             borderWidth: 1,
             borderColor: HAIRLINE,

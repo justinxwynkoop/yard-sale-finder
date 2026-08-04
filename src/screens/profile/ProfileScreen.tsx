@@ -27,6 +27,7 @@ import { useFollowing } from '../../hooks/useFollowing';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
 import { ProfileStackParamList } from '../../types';
 import { Avatar, Button } from '../../components/ui';
+import { GuestCta } from '../../components/GuestCta';
 
 type Nav = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
@@ -47,7 +48,7 @@ const SUPPORT_EMAIL =
 
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile, loading, error, refetch } = useProfile();
   const { appVersion, buildNumber } = useAppVersion();
   const { sales } = useMySales(profile?.id);
@@ -84,6 +85,18 @@ export default function ProfileScreen() {
     );
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
+
+  // Guest mode: the profile tab is account-based — show the sign-in door.
+  // Must come before the loading gate (useProfile never resolves for guests).
+  if (!user) {
+    return (
+      <GuestCta
+        icon="person-circle-outline"
+        title="Your Trove profile"
+        description="Create a free account to post sales, list items, save favorites, follow sellers, and manage your notifications."
+      />
+    );
+  }
 
   if (loading) {
     return (

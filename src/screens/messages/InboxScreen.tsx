@@ -18,6 +18,7 @@ import { useInbox } from '../../hooks/useInbox';
 import { useAuth } from '../../hooks/useAuth';
 import { Conversation } from '../../types';
 import { Chip } from '../../components/ui';
+import { GuestCta } from '../../components/GuestCta';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -139,6 +140,18 @@ export default function InboxScreen() {
     exitSelect();
     setView(next);
   };
+
+  // Guest mode: messaging is account-based — show the sign-in door instead.
+  // (All hooks above already ran; they no-op without a user.)
+  if (!user) {
+    return (
+      <GuestCta
+        icon="chatbubble-ellipses-outline"
+        title="Message buyers and sellers"
+        description="Create a free account to chat about sales and listings — ask questions, make offers, and arrange pickups without sharing your phone number."
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
