@@ -59,7 +59,24 @@
     </style>
   </head>
   <body>
-    <div class="wrap">
+    <!-- Passcode gate: content stays hidden until the passphrase is entered.
+         Only the SHA-256 of the passphrase lives in this file, so view-source
+         doesn't reveal it. Soft lock by design — the counts behind it are
+         already publicly derivable; this just keeps the page itself private. -->
+    <div id="gate" style="display: none; max-width: 340px; margin: 18vh auto 0; text-align: center;">
+      <div style="width: 56px; height: 56px; border-radius: 16px; background: #1f4d3a; color: #fff; font-size: 26px; font-weight: 800; display: grid; place-items: center; margin: 0 auto 14px;">T</div>
+      <div style="font-size: 17px; font-weight: 800; margin-bottom: 4px;">Trove Ops</div>
+      <div style="font-size: 13px; color: var(--muted); margin-bottom: 14px;">Enter the passcode to view.</div>
+      <form id="gate-form" style="display: flex; gap: 8px;">
+        <input id="gate-input" type="password" autocomplete="current-password" placeholder="Passcode"
+          style="flex: 1; border: 1px solid var(--hairline); border-radius: 10px; padding: 10px 12px; font-size: 15px; background: var(--card); color: var(--ink);" />
+        <button type="submit"
+          style="border: 0; background: #1f4d3a; color: #fff; font-weight: 700; font-size: 14px; border-radius: 10px; padding: 10px 16px; cursor: pointer;">Open</button>
+      </form>
+      <div id="gate-err" style="font-size: 12.5px; color: #a23e2d; margin-top: 8px; min-height: 16px;"></div>
+    </div>
+
+    <div class="wrap" id="content" style="display: none">
       <header>
         <h1>Trove Ops</h1>
         <span class="pill live">Live</span>
@@ -216,14 +233,45 @@
         $('ago').textContent = s < 5 ? 'just now' : s < 60 ? s + 's ago' : Math.round(s / 60) + 'm ago';
       }
 
-      $('refresh-btn').addEventListener('click', refreshAll);
-      refreshAll();
-      setInterval(refreshAll, 5 * 60 * 1000);
-      setInterval(tickAgo, 1000);
-      // Also refresh when the tab regains focus after being backgrounded a while.
-      document.addEventListener('visibilitychange', function () {
-        if (!document.hidden && lastUpdated && Date.now() - lastUpdated > 60 * 1000) refreshAll();
-      });
+      // ── Passcode gate ─────────────────────────────────────────────────────
+      var GATE_HASH = '24f64ec2eb6fe7b160190fc4a806671084ed2ff0ec8e508f8f77598f60014378';
+      function sha256(text) {
+        return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+          return Array.from(new Uint8Array(buf)).map(function (b) {
+            return b.toString(16).padStart(2, '0');
+          }).join('');
+        });
+      }
+      function unlock() {
+        $('gate').style.display = 'none';
+        $('content').style.display = 'block';
+        $('refresh-btn').addEventListener('click', refreshAll);
+        refreshAll();
+        setInterval(refreshAll, 5 * 60 * 1000);
+        setInterval(tickAgo, 1000);
+        // Also refresh when the tab regains focus after being backgrounded a while.
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden && lastUpdated && Date.now() - lastUpdated > 60 * 1000) refreshAll();
+        });
+      }
+      if (localStorage.getItem('trove_ops_key') === GATE_HASH) {
+        unlock();
+      } else {
+        $('gate').style.display = 'block';
+        $('gate-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          sha256($('gate-input').value.trim()).then(function (h) {
+            if (h === GATE_HASH) {
+              localStorage.setItem('trove_ops_key', h);
+              unlock();
+            } else {
+              $('gate-err').textContent = 'Not it — try again.';
+              $('gate-input').select();
+            }
+          });
+        });
+        $('gate-input').focus();
+      }
     </script>
   </body>
 </html>
