@@ -91,11 +91,18 @@
         <div class="stat"><div class="num" id="s-users">—</div><div class="label">Accounts</div><div class="sub" id="s-users-48h"></div></div>
         <div class="stat"><div class="num" id="s-sales">—</div><div class="label">Live sales</div><div class="sub"></div></div>
         <div class="stat"><div class="num" id="s-listings">—</div><div class="label">Listings available</div><div class="sub"></div></div>
+        <div class="stat"><div class="num" id="s-newest">—</div><div class="label">Last signup</div><div class="sub"></div></div>
       </div>
-      <p style="font-size: 12px; color: var(--muted); margin: 8px 2px 0">
-        Messages, push devices, and reports are participant/owner-only under RLS — they can't be
-        read with the public key (by design). Check those in Supabase; crashes in Sentry.
-      </p>
+
+      <div class="eyebrow">Private — served only with your passcode</div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="p-convos">—</div><div class="label">Conversations</div><div class="sub"></div></div>
+        <div class="stat"><div class="num" id="p-messages">—</div><div class="label">Messages</div><div class="sub" id="p-messages-48h"></div></div>
+        <div class="stat"><div class="num" id="p-push">—</div><div class="label">Push devices</div><div class="sub"></div></div>
+        <div class="stat"><div class="num" id="p-reports">—</div><div class="label">Abuse reports</div><div class="sub"></div></div>
+        <div class="stat"><div class="num" id="p-blocks">—</div><div class="label">Blocks</div><div class="sub"></div></div>
+        <div class="stat"><div class="num" id="p-follows">—</div><div class="label">Follows</div><div class="sub"></div></div>
+      </div>
 
       <div class="eyebrow">App Store</div>
       <div class="rows">
@@ -120,10 +127,10 @@
       </div>
 
       <footer>
-        This page is unauthenticated but shows only aggregate counts that are already publicly
-        derivable through the app's own API (Supabase public read policies + Apple's public iTunes
-        API) &mdash; it exposes nothing new. Private data stays behind RLS and the linked consoles.
-        Bookmark this page.
+        Public tiles read already-public aggregates (Supabase public read policies + Apple's
+        public iTunes API). Private tiles are served by a passcode-checked API that holds the
+        privileged key server-side &mdash; nothing sensitive ships in this page. Aggregate counts
+        only; no user identities. Bookmark this page.
       </footer>
     </div>
 
@@ -220,9 +227,38 @@
         });
       }
 
+      function agoLabel(iso) {
+        if (!iso) return '—';
+        var mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+        if (mins < 60) return mins + 'm ago';
+        if (mins < 48 * 60) return Math.round(mins / 60) + 'h ago';
+        return Math.round(mins / 1440) + 'd ago';
+      }
+
+      // Private metrics come from the serverless API, which holds the
+      // privileged key and verifies the passcode server-side.
+      function refreshPrivate() {
+        var pass = localStorage.getItem('trove_ops_pass') || '';
+        fetch('/api/ops-stats', { headers: { 'x-ops-key': pass } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d) return;
+            setNum('p-convos', d.conversations);
+            setNum('p-messages', d.messages);
+            $('p-messages-48h').textContent = d.messages48h ? '+' + d.messages48h + ' in 48h' : '';
+            setNum('p-push', d.push);
+            setNum('p-reports', d.reports);
+            setNum('p-blocks', d.blocks);
+            setNum('p-follows', d.follows);
+            $('s-newest').textContent = agoLabel(d.newestSignupAt);
+          })
+          .catch(function () {});
+      }
+
       function refreshAll() {
         lastUpdated = Date.now();
         refreshSupabase();
+        refreshPrivate();
         refreshAppStore();
         refreshSite();
       }
@@ -254,15 +290,27 @@
           if (!document.hidden && lastUpdated && Date.now() - lastUpdated > 60 * 1000) refreshAll();
         });
       }
-      if (localStorage.getItem('trove_ops_key') === GATE_HASH) {
-        unlock();
+      // The remembered value is the passcode itself (on your own device only):
+      // it doubles as the bearer credential for /api/ops-stats, where the
+      // server re-hashes and verifies it. Sending the hash instead would be
+      // pointless — the hash is visible in this page's source.
+      var savedPass = localStorage.getItem('trove_ops_pass');
+      if (savedPass) {
+        sha256(savedPass).then(function (h) {
+          if (h === GATE_HASH) unlock();
+          else { localStorage.removeItem('trove_ops_pass'); showGate(); }
+        });
       } else {
+        showGate();
+      }
+      function showGate() {
         $('gate').style.display = 'block';
         $('gate-form').addEventListener('submit', function (e) {
           e.preventDefault();
-          sha256($('gate-input').value.trim()).then(function (h) {
+          var input = $('gate-input').value.trim();
+          sha256(input).then(function (h) {
             if (h === GATE_HASH) {
-              localStorage.setItem('trove_ops_key', h);
+              localStorage.setItem('trove_ops_pass', input);
               unlock();
             } else {
               $('gate-err').textContent = 'Not it — try again.';
