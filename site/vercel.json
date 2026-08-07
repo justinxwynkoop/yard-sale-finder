@@ -10,6 +10,7 @@
     { "src": "^/(?:sale|listing)/[^/]+$", "dest": "/open.html" },
     { "src": "^/privacy$", "dest": "/privacy.html" },
     { "src": "^/terms$", "dest": "/terms.html" },
-    { "src": "^/open$", "dest": "/open.html" }
+    { "src": "^/open$", "dest": "/open.html" },
+    { "src": "^/ops$", "dest": "/ops.html" }
   ]
 }

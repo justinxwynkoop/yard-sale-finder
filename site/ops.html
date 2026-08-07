@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Trove Ops — Live</title>
+    <style>
+      :root {
+        --bone: #f7f2e8; --card: #ffffff; --ink: #171513; --muted: #8a857c;
+        --hairline: #e5decc; --brand: #1f4d3a; --ok: #2e7d4f; --warn: #b07a24;
+        --ok-soft: #e7f2ea; --warn-soft: #f7ecd9;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bone); color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.5; padding: 28px 16px 64px;
+      }
+      .wrap { max-width: 900px; margin: 0 auto; }
+      header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 4px; }
+      h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; margin: 0; color: var(--brand); }
+      .pill {
+        display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+        text-transform: uppercase; border-radius: 999px; padding: 3px 10px;
+      }
+      .pill.live { background: var(--brand); color: #fff; }
+      .pill.ok { background: var(--ok-soft); color: var(--ok); }
+      .pill.warn { background: var(--warn-soft); color: var(--warn); }
+      .stamp { font-size: 12.5px; color: var(--muted); }
+      .stamp button {
+        border: 1px solid var(--hairline); background: var(--card); color: var(--brand);
+        font-size: 12px; font-weight: 700; border-radius: 8px; padding: 3px 10px; cursor: pointer; margin-left: 8px;
+      }
+      .eyebrow {
+        font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+        color: var(--muted); margin: 28px 0 10px;
+      }
+      .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+      .stat { background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; padding: 13px 15px 11px; }
+      .stat .num {
+        font-size: 26px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .label { font-size: 12px; color: var(--muted); margin-top: 3px; }
+      .stat .sub { font-size: 11px; color: var(--ok); font-weight: 600; margin-top: 1px; min-height: 14px; }
+      .rows { display: grid; gap: 8px; }
+      .row {
+        background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+        padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13.5px;
+      }
+      .links { display: flex; flex-wrap: wrap; gap: 8px; }
+      .links a {
+        display: inline-block; background: var(--card); border: 1px solid var(--hairline);
+        border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+        color: var(--brand); text-decoration: none;
+      }
+      footer { margin-top: 36px; font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Trove Ops</h1>
+        <span class="pill live">Live</span>
+        <span class="stamp">
+          updated <span id="ago">—</span> · auto-refreshes every 5 min
+          <button id="refresh-btn">Refresh now</button>
+        </span>
+      </header>
+
+      <div class="eyebrow">Community</div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="s-users">—</div><div class="label">Accounts</div><div class="sub" id="s-users-48h"></div></div>
+        <div class="stat"><div class="num" id="s-sales">—</div><div class="label">Live sales</div><div class="sub"></div></div>
+        <div class="stat"><div class="num" id="s-listings">—</div><div class="label">Listings available</div><div class="sub"></div></div>
+      </div>
+      <p style="font-size: 12px; color: var(--muted); margin: 8px 2px 0">
+        Messages, push devices, and reports are participant/owner-only under RLS — they can't be
+        read with the public key (by design). Check those in Supabase; crashes in Sentry.
+      </p>
+
+      <div class="eyebrow">App Store</div>
+      <div class="rows">
+        <div class="row"><span>Product page (<span id="as-name">Trove — Buy &amp; Sell</span>)</span><span class="pill" id="as-live">checking…</span></div>
+        <div class="row"><span>Version on the store</span><span id="as-version">—</span></div>
+        <div class="row"><span>Ratings</span><span id="as-ratings">—</span></div>
+        <div class="row"><span>Name search (&ldquo;trove buy sell&rdquo;)</span><span class="pill" id="as-search">checking…</span></div>
+      </div>
+
+      <div class="eyebrow">Site</div>
+      <div class="rows">
+        <div class="row"><span>trove.sale · privacy · terms · share pages</span><span class="pill" id="site-health">checking…</span></div>
+      </div>
+
+      <div class="eyebrow">Consoles (sign-in required)</div>
+      <div class="links">
+        <a href="https://apps.apple.com/us/app/id6772838421" target="_blank" rel="noopener">App Store page</a>
+        <a href="https://appstoreconnect.apple.com/apps/6772838421" target="_blank" rel="noopener">App Store Connect</a>
+        <a href="https://trove-b0f.sentry.io/issues/" target="_blank" rel="noopener">Sentry crashes</a>
+        <a href="https://expo.dev/accounts/jasonwynkoop1/projects/yard-sale-finder" target="_blank" rel="noopener">EAS builds</a>
+        <a href="https://supabase.com/dashboard/project/dxahcamntwtuzftxbxgx" target="_blank" rel="noopener">Supabase</a>
+      </div>
+
+      <footer>
+        This page is unauthenticated but shows only aggregate counts that are already publicly
+        derivable through the app's own API (Supabase public read policies + Apple's public iTunes
+        API) &mdash; it exposes nothing new. Private data stays behind RLS and the linked consoles.
+        Bookmark this page.
+      </footer>
+    </div>
+
+    <script>
+      // ── Config ────────────────────────────────────────────────────────────
+      // The publishable key ships in the app binary already — public by design.
+      var SUPA = 'https://dxahcamntwtuzftxbxgx.supabase.co/rest/v1/';
+      var KEY = 'sb_publishable_mpxg4esDmwVJ6CkJTTJ6CA__-6QrZqJ';
+      var APP_ID = '6772838421';
+      var lastUpdated = null;
+
+      function $(id) { return document.getElementById(id); }
+      function setNum(id, v) { $(id).textContent = v === null ? '—' : String(v); }
+
+      // Count rows via a HEAD request — returns just the content-range total.
+      function supaCount(table, filter) {
+        var url = SUPA + table + '?select=id' + (filter ? '&' + filter : '');
+        return fetch(url, {
+          method: 'HEAD',
+          headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, Prefer: 'count=exact' },
+        }).then(function (r) {
+          var range = r.headers.get('content-range') || '';
+          var total = range.split('/')[1];
+          return total && total !== '*' ? parseInt(total, 10) : null;
+        }).catch(function () { return null; });
+      }
+
+      // Apple's iTunes API has no CORS headers — use JSONP.
+      function jsonp(url) {
+        return new Promise(function (resolve) {
+          var cb = 'cb_' + Math.random().toString(36).slice(2);
+          var timer = setTimeout(function () { cleanup(); resolve(null); }, 10000);
+          function cleanup() {
+            clearTimeout(timer);
+            delete window[cb];
+            if (script.parentNode) script.parentNode.removeChild(script);
+          }
+          window[cb] = function (data) { cleanup(); resolve(data); };
+          var script = document.createElement('script');
+          script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + cb;
+          script.onerror = function () { cleanup(); resolve(null); };
+          document.head.appendChild(script);
+        });
+      }
+
+      function refreshSupabase() {
+        var since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+        supaCount('profiles').then(function (v) { setNum('s-users', v); });
+        supaCount('profiles', 'created_at=gt.' + since48h).then(function (v) {
+          $('s-users-48h').textContent = v ? '+' + v + ' in 48h' : '';
+        });
+        supaCount('sales', 'status=neq.ended').then(function (v) { setNum('s-sales', v); });
+        supaCount('listings', 'status=eq.available').then(function (v) { setNum('s-listings', v); });
+      }
+
+      function refreshAppStore() {
+        jsonp('https://itunes.apple.com/lookup?id=' + APP_ID + '&country=us').then(function (d) {
+          var a = d && d.results && d.results[0];
+          var live = $('as-live');
+          if (a) {
+            live.textContent = 'Live';
+            live.className = 'pill ok';
+            $('as-name').textContent = a.trackName;
+            $('as-version').textContent = a.version + ' (' + Math.round(a.fileSizeBytes / 1048576) + ' MB, iOS ' + a.minimumOsVersion + '+)';
+            $('as-ratings').textContent = a.userRatingCount
+              ? a.averageUserRating.toFixed(1) + ' ★ · ' + a.userRatingCount + ' rating' + (a.userRatingCount === 1 ? '' : 's')
+              : 'none yet — ask your first users!';
+          } else {
+            live.textContent = 'not indexed';
+            live.className = 'pill warn';
+          }
+        });
+        jsonp('https://itunes.apple.com/search?term=trove+buy+sell&entity=software&country=us&limit=25').then(function (d) {
+          var el = $('as-search');
+          if (!d || !d.results) { el.textContent = 'unknown'; el.className = 'pill warn'; return; }
+          var pos = -1;
+          for (var i = 0; i < d.results.length; i++) {
+            if (d.results[i].bundleId === 'com.jwynkoop.trove') { pos = i + 1; break; }
+          }
+          if (pos > 0) { el.textContent = 'position ' + pos; el.className = 'pill ok'; }
+          else { el.textContent = 'not indexed yet'; el.className = 'pill warn'; }
+        });
+      }
+
+      function refreshSite() {
+        var pages = ['/', '/privacy', '/terms', '/sale/health-check'];
+        Promise.all(pages.map(function (p) {
+          return fetch(p, { method: 'HEAD' }).then(function (r) { return r.ok; }).catch(function () { return false; });
+        })).then(function (oks) {
+          var good = oks.filter(Boolean).length;
+          var el = $('site-health');
+          if (good === pages.length) { el.textContent = 'all ' + good + ' up'; el.className = 'pill ok'; }
+          else { el.textContent = good + '/' + pages.length + ' up'; el.className = 'pill warn'; }
+        });
+      }
+
+      function refreshAll() {
+        lastUpdated = Date.now();
+        refreshSupabase();
+        refreshAppStore();
+        refreshSite();
+      }
+
+      function tickAgo() {
+        if (!lastUpdated) return;
+        var s = Math.round((Date.now() - lastUpdated) / 1000);
+        $('ago').textContent = s < 5 ? 'just now' : s < 60 ? s + 's ago' : Math.round(s / 60) + 'm ago';
+      }
+
+      $('refresh-btn').addEventListener('click', refreshAll);
+      refreshAll();
+      setInterval(refreshAll, 5 * 60 * 1000);
+      setInterval(tickAgo, 1000);
+      // Also refresh when the tab regains focus after being backgrounded a while.
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && lastUpdated && Date.now() - lastUpdated > 60 * 1000) refreshAll();
+      });
+    </script>
+  </body>
+</html>
