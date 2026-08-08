@@ -11,7 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -25,6 +25,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useSales } from '../../hooks/useSales';
+import { useSaleEvents } from '../../hooks/useSaleEvents';
 import { useAuth } from '../../hooks/useAuth';
 import { navigateToAuth } from '../../lib/navigationRef';
 import { saleDisplayLocation } from '../../lib/locationPrivacy';
@@ -91,6 +92,7 @@ export default function MapHomeScreen() {
   const mapRef = useRef<MapView>(null);
 
   const { sales, loading, refetch: refetchSales } = useSales();
+  const { events: saleEvents } = useSaleEvents();
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const { isVisited, visitedCount } = useVisited();
@@ -639,6 +641,38 @@ export default function MapHomeScreen() {
             </Marker>
           );
         })}
+        {/* Neighborhood sale events — additive layer (spec: thinning untouched). */}
+        {saleEvents.map((ev) => (
+          <React.Fragment key={ev.id}>
+            <Circle
+              center={{ latitude: ev.latitude, longitude: ev.longitude }}
+              radius={ev.radius_m}
+              strokeColor="rgba(31,77,58,0.40)"
+              fillColor="rgba(31,77,58,0.07)"
+            />
+            <Marker
+              coordinate={{ latitude: ev.latitude, longitude: ev.longitude }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={false}
+              onPress={() => navigation.navigate('EventDetail', { eventId: ev.id })}
+            >
+              <View
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  backgroundColor: '#1F4D3A', paddingHorizontal: 9, paddingVertical: 5,
+                  borderRadius: 999, borderWidth: 1.5, borderColor: '#fff',
+                  shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 2 }, elevation: 3,
+                }}
+              >
+                <Ionicons name="home" size={11} color="#fff" />
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>
+                  {ev.sale_count ?? 0}
+                </Text>
+              </View>
+            </Marker>
+          </React.Fragment>
+        ))}
       </MapView>
       ) : null}
 
