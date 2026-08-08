@@ -8,6 +8,7 @@
     },
     { "handle": "filesystem" },
     { "src": "^/(?:sale|listing)/[^/]+$", "dest": "/open.html" },
+    { "src": "^/event/[a-z0-9]+$", "dest": "/open.html" },
     { "src": "^/privacy$", "dest": "/privacy.html" },
     { "src": "^/terms$", "dest": "/terms.html" },
     { "src": "^/open$", "dest": "/open.html" },

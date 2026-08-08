@@ -93,16 +93,18 @@
       // Build the matching trove:// deep link for the button. Tapping it is a
       // user gesture, so iOS/Android will hand off to the app if installed.
       (function () {
-        var m = location.pathname.match(/^\/(sale|listing)\/([A-Za-z0-9-]+)/);
+        var m = location.pathname.match(/^\/(sale|listing|event)\/([A-Za-z0-9-]+)/);
         var btn = document.getElementById('open-btn');
         if (m) {
           btn.href = 'trove://' + m[1] + '/' + m[2];
           if (m[1] === 'listing') {
-            document.getElementById('headline').textContent =
-              'Open this listing in Trove';
+            document.getElementById('headline').textContent = 'Open this listing in Trove';
+          } else if (m[1] === 'event') {
+            document.getElementById('headline').textContent = 'Open this neighborhood sale in Trove';
+            document.getElementById('subline').textContent =
+              'A whole neighborhood is selling at once — see every sale on the map in the Trove app.';
           } else {
-            document.getElementById('headline').textContent =
-              'Open this sale in Trove';
+            document.getElementById('headline').textContent = 'Open this sale in Trove';
           }
         } else {
           // No id (someone hit /open directly) — just link the scheme root.
