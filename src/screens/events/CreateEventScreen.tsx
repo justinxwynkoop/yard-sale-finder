@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View,
 } from 'react-native';
@@ -44,6 +44,7 @@ export default function CreateEventScreen() {
   const [center, setCenter] = useState<{ latitude: number; longitude: number } | null>(null);
   const [radiusM, setRadiusM] = useState(800);
   const [saving, setSaving] = useState(false);
+  const mapRef = useRef<MapView>(null);
 
   // Edit mode: hydrate the form once.
   useEffect(() => {
@@ -57,6 +58,10 @@ export default function CreateEventScreen() {
         setEndDate(data.end_date);
         setCenter({ latitude: data.latitude, longitude: data.longitude });
         setRadiusM(data.radius_m);
+        mapRef.current?.animateToRegion(
+          { latitude: data.latitude, longitude: data.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+          350,
+        );
       });
   }, [editingId]);
 
@@ -64,6 +69,10 @@ export default function CreateEventScreen() {
   useEffect(() => {
     if (!editingId && !center && userLocation) {
       setCenter({ latitude: userLocation.latitude, longitude: userLocation.longitude });
+      mapRef.current?.animateToRegion(
+        { latitude: userLocation.latitude, longitude: userLocation.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+        350,
+      );
     }
   }, [userLocation, center, editingId]);
 
@@ -148,6 +157,7 @@ export default function CreateEventScreen() {
               </Text>
               <View style={{ height: 260, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: HAIRLINE }}>
                 <MapView
+                  ref={mapRef}
                   style={{ flex: 1 }}
                   initialRegion={{ ...mapCenter, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
                   onPress={(e) => setCenter(e.nativeEvent.coordinate)}
