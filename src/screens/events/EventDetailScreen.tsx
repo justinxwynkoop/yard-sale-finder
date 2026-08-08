@@ -90,18 +90,18 @@ export default function EventDetailScreen() {
         const notifId = await Notifications.scheduleNotificationAsync({
           content: {
             title: event.title,
-            body: `Starts today -- ${sales.length || 'the'} sales in the neighborhood. Happy hunting!`,
+            body: `Starts today — ${sales.length || 'the'} sales in the neighborhood. Happy hunting!`,
           },
           trigger: when as any,
         });
         await AsyncStorage.setItem(REMINDER_KEY(event.id), notifId);
       }
     }
-    toast.success('Saved -- we will remind you the morning it starts');
+    toast.success('Saved — we’ll remind you the morning it starts');
   };
 
   const removeSale = (saleId: string, title: string) => {
-    Alert.alert('Remove from event?', `"${title}" stays live -- it just leaves this neighborhood sale.`, [
+    Alert.alert('Remove from event?', `"${title}" stays live — it just leaves this neighborhood sale.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive',
@@ -118,7 +118,7 @@ export default function EventDetailScreen() {
   const deleteEvent = () => {
     if (!event) return;
     Alert.alert('Delete this neighborhood sale?',
-      'Member sales stay live and keep their own pages -- only the event and its map circle go away.', [
+      'Member sales stay live and keep their own pages — only the event and its map circle go away.', [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete', style: 'destructive',
@@ -200,9 +200,9 @@ export default function EventDetailScreen() {
                 {event.title}
               </Text>
               <Text style={{ fontSize: 13, color: INK_MUTED, marginTop: 1 }}>
-                {prettyRange(event.start_date, event.end_date)} . {sales.length}{' '}
+                {prettyRange(event.start_date, event.end_date)} · {sales.length}{' '}
                 {sales.length === 1 ? 'sale' : 'sales'}
-                {event.organizer?.display_name ? ` . hosted by ${event.organizer.display_name}` : ''}
+                {event.organizer?.display_name ? ` · hosted by ${event.organizer.display_name}` : ''}
               </Text>
             </View>
           </View>
@@ -263,7 +263,7 @@ export default function EventDetailScreen() {
         {sortedSales.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 28, paddingHorizontal: 32 }}>
             <Text style={{ fontSize: 13.5, color: INK_MUTED, textAlign: 'center' }}>
-              No sales have joined yet. Share the event link with your neighbors --
+              No sales have joined yet. Share the event link with your neighbors —
               anyone who posts a sale inside the circle gets invited automatically.
             </Text>
           </View>
