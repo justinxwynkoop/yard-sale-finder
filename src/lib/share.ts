@@ -1,5 +1,5 @@
 import { Share } from 'react-native';
-import { Sale, Listing } from '../types';
+import { Sale, Listing, SaleEvent } from '../types';
 
 /**
  * One place for all "share this" actions so every entry point shares the same
@@ -42,4 +42,15 @@ export function shareListing(listing: Listing): Promise<void> {
     url,
   ].filter(Boolean) as string[];
   return present(listing.title, lines.join('\n'));
+}
+
+export function shareEvent(event: SaleEvent): Promise<void> {
+  const url = `${WEB_ORIGIN}/event/${event.share_slug}`;
+  const dates = `${event.start_date} – ${event.end_date}`;
+  const lines = [
+    `${event.title} — neighborhood sale`,
+    dates,
+    url,
+  ];
+  return present(event.title, lines.join('\n'));
 }

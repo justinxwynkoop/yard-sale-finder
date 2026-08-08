@@ -84,6 +84,19 @@ export function navigateToSale(saleId: string) {
 }
 
 /**
+ * Open a neighborhood sale event on the Map tab — used by deep links
+ * (trove://event/<slug>) and post-create navigation.
+ */
+export function navigateToEvent(params: { eventId?: string; slug?: string }) {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Main' as any, { screen: 'Map' } as any);
+  navigationRef.navigate('Main' as any, {
+    screen: 'Map',
+    params: { screen: 'EventDetail', params },
+  } as any);
+}
+
+/**
  * Open an item listing's detail on the Listings tab — used by the "new item
  * from someone you follow" push-notification tap. Focus the Listings tab
  * first, then push the detail via the nested-screen form.
