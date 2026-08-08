@@ -81,7 +81,8 @@ export default function EventDetailScreen() {
     }
     await supabase.from('event_saves').insert({ user_id: user.id, event_id: event.id });
     setSaved(true);
-    // Local reminder, 9 AM on the first day (spec "Reminders").
+    // Local reminder, 9 AM on the first day (spec §"Reminders").
+    let scheduled = false;
     const { status } = await Notifications.requestPermissionsAsync();
     if (status === 'granted') {
       const [y, m, d] = event.start_date.split('-').map(Number);
@@ -95,13 +96,18 @@ export default function EventDetailScreen() {
           trigger: when as any,
         });
         await AsyncStorage.setItem(REMINDER_KEY(event.id), notifId);
+        scheduled = true;
       }
     }
-    toast.success('Saved — we’ll remind you the morning it starts');
+    toast.success(
+      scheduled
+        ? 'Saved — we’ll remind you the morning it starts'
+        : 'Saved',
+    );
   };
 
   const removeSale = (saleId: string, title: string) => {
-    Alert.alert('Remove from event?', `"${title}" stays live — it just leaves this neighborhood sale.`, [
+    Alert.alert('Remove from event?', `“${title}” stays live — it just leaves this neighborhood sale.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive',
