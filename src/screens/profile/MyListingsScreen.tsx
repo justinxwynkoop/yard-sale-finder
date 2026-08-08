@@ -25,6 +25,7 @@ const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
 const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
+const ROSE = '#A23E2D';
 
 type Segment = 'live' | 'sold';
 
@@ -68,6 +69,33 @@ export default function MyListingsScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Mark sold', onPress: () => mutateStatus(listing, 'sold') },
     ]);
+  };
+
+  const confirmDelete = (listing: Listing) => {
+    Alert.alert(
+      'Delete this listing?',
+      `“${listing.title}” will be permanently removed, along with its photos and anyone's saves of it. Existing message threads keep their history. This can't be undone — if it sold, “Mark sold” keeps it on your record instead.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // listing_media + listing_favorites cascade on delete (FKs).
+            const { error } = await supabase
+              .from('listings')
+              .delete()
+              .eq('id', listing.id);
+            if (error) {
+              toast.error("Couldn't delete", error.message);
+              return;
+            }
+            toast.success('Listing deleted');
+            refetch();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -138,6 +166,7 @@ export default function MyListingsScreen() {
               }
               onMarkSold={() => confirmMarkSold(item)}
               onRelist={() => mutateStatus(item, 'available')}
+              onDelete={() => confirmDelete(item)}
             />
           )}
           ListEmptyComponent={
@@ -160,11 +189,13 @@ function ListingManageRow({
   onEdit,
   onMarkSold,
   onRelist,
+  onDelete,
 }: {
   listing: Listing;
   onEdit: () => void;
   onMarkSold: () => void;
   onRelist: () => void;
+  onDelete: () => void;
 }) {
   const sold = listing.status === 'sold';
   const firstImage = listing.media?.find((m) => m.type === 'image');
@@ -276,6 +307,7 @@ function ListingManageRow({
               <PillButton label="Mark sold" onPress={onMarkSold} />
             </>
           )}
+          <PillButton label="Delete" onPress={onDelete} danger />
         </View>
       </View>
     </View>
@@ -285,9 +317,11 @@ function ListingManageRow({
 function PillButton({
   label,
   onPress,
+  danger,
 }: {
   label: string;
   onPress: () => void;
+  danger?: boolean;
 }) {
   return (
     <Pressable
@@ -296,14 +330,14 @@ function PillButton({
         paddingVertical: 5,
         paddingHorizontal: 11,
         borderWidth: 1,
-        borderColor: HAIRLINE,
+        borderColor: danger ? '#F0D9D3' : HAIRLINE,
         borderRadius: 99,
         backgroundColor: '#fff',
       }}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Text style={{ fontSize: 11, fontWeight: '700', color: INK }}>
+      <Text style={{ fontSize: 11, fontWeight: '700', color: danger ? ROSE : INK }}>
         {label}
       </Text>
     </Pressable>
