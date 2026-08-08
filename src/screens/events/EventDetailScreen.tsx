@@ -245,6 +245,28 @@ export default function EventDetailScreen() {
 
         {/* Actions */}
         <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 16, marginTop: 12 }}>
+          {!isOrganizer && (
+            <Pressable
+              onPress={() => {
+                if (!user) { promptSignIn('add your sale to this neighborhood event'); return; }
+                navigation.navigate('PostFlow' as any, {
+                  screen: 'CreateSale',
+                  params: {
+                    eventId: event.id,
+                    presetStart: event.start_date,
+                    presetEnd: event.end_date,
+                  },
+                } as any);
+              }}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+                paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: BRAND, backgroundColor: '#fff',
+              }}
+              accessibilityRole="button" accessibilityLabel="Add your sale to this event">
+              <Ionicons name="add" size={16} color={BRAND} />
+              <Text style={{ fontSize: 14, fontWeight: '700', color: BRAND }}>Add your sale</Text>
+            </Pressable>
+          )}
           <Pressable onPress={toggleSave}
             style={{
               flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,

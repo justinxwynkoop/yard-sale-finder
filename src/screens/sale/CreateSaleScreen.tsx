@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,16 +15,19 @@ import MapView, { Marker, MapPressEvent, Region } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { File } from 'expo-file-system';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
-import { ItemCategory, SaleStackParamList } from '../../types';
+import { ItemCategory, SaleEvent, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
 import { compressImage } from '../../lib/imageCompression';
+import { eventMatchForSale } from '../../lib/eventMatch';
+import { EventJoinPrompt } from '../../components/EventJoinPrompt';
 import {
   CategoryPicker,
   DateRangePresets,
@@ -63,6 +66,20 @@ export default function CreateSaleScreen() {
   const submittingRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
+
+  const route = useRoute<any>();
+  const eventIdParam: string | undefined = route.params?.eventId;
+  const [joinPrompt, setJoinPrompt] = useState<{
+    event: SaleEvent; saleId: string; saleStart: string; saleEnd: string;
+  } | null>(null);
+
+  // Event-link joins arrive with the event's dates prefilled (spec §2).
+  useEffect(() => {
+    const { presetStart, presetEnd } = route.params ?? {};
+    if (presetStart && !startDate) setStartDate(presetStart);
+    if (presetEnd && !endDate) setEndDate(presetEnd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Photos
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -371,6 +388,7 @@ export default function CreateSaleScreen() {
           pricing_notes: pricingNotes.trim() || null,
           allow_messages: allowMessages,
           status: 'active',
+          event_id: eventIdParam ?? null,
         })
         .select()
         .single();
@@ -382,6 +400,29 @@ export default function CreateSaleScreen() {
       // the same sale (duplicate-post fix) — empty fields fail validation
       // and disable Post.
       resetForm();
+
+      // Proximity prompt (spec §3, door two): location-only match against
+      // upcoming events, skipped when the sale already joined via link or
+      // this device previously declined this event.
+      if (!eventIdParam) {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: events } = await supabase
+          .from('sale_events').select('*').gte('end_date', today);
+        const match = eventMatchForSale(sale, (events as SaleEvent[]) ?? [], today);
+        if (match) {
+          const declined = await AsyncStorage.getItem(
+            `trove:event-prompt-declined:${match.id}`,
+          );
+          if (!declined) {
+            toast.success('Sale posted');
+            setJoinPrompt({
+              event: match, saleId: sale.id,
+              saleStart: sale.start_date, saleEnd: sale.end_date,
+            });
+            return; // prompt handlers perform the final goBack()
+          }
+        }
+      }
 
       // Pop this screen off the stack. Previously we navigate()'d to
       // 'MySalesHome', but that route isn't in the stack, so navigate
@@ -407,6 +448,30 @@ export default function CreateSaleScreen() {
       submittingRef.current = false;
       setSubmitting(false);
     }
+  };
+
+  const handleJoinEvent = async (moveDates: boolean) => {
+    if (!joinPrompt) return;
+    const patch: Record<string, unknown> = { event_id: joinPrompt.event.id };
+    if (moveDates) {
+      patch.start_date = joinPrompt.event.start_date;
+      patch.end_date = joinPrompt.event.end_date;
+    }
+    const { error } = await supabase
+      .from('sales').update(patch).eq('id', joinPrompt.saleId);
+    if (error) toast.error("Couldn't join the event");
+    else toast.success(`Joined ${joinPrompt.event.title}`);
+    setJoinPrompt(null);
+    navigation.goBack();
+  };
+
+  const handleDeclineEvent = async () => {
+    if (!joinPrompt) return;
+    await AsyncStorage.setItem(
+      `trove:event-prompt-declined:${joinPrompt.event.id}`, '1',
+    ).catch(() => {});
+    setJoinPrompt(null);
+    navigation.goBack();
   };
 
   // -- Render --
@@ -865,6 +930,16 @@ export default function CreateSaleScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      {joinPrompt && (
+        <EventJoinPrompt
+          visible
+          event={joinPrompt.event}
+          saleStart={joinPrompt.saleStart}
+          saleEnd={joinPrompt.saleEnd}
+          onJoin={handleJoinEvent}
+          onDecline={handleDeclineEvent}
+        />
+      )}
     </SafeAreaView>
   );
 }
