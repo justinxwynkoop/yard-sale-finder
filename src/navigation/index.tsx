@@ -74,6 +74,7 @@ import FollowingScreen from '../screens/profile/FollowingScreen';
 import SavedListingsScreen from '../screens/listings/SavedListingsScreen';
 import InboxScreen from '../screens/messages/InboxScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
+import CreateEventScreen from '../screens/events/CreateEventScreen';
 import { PostMenu } from '../components/PostMenu';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -360,6 +361,7 @@ function PostFlowNavigator() {
         name="CreateListing"
         component={CreateListingScreen as any}
       />
+      <PostStack.Screen name="CreateEvent" component={CreateEventScreen} />
       <PostStack.Screen
         name="Capture"
         component={CaptureSaleScreen}
@@ -397,6 +399,10 @@ function MainTabs() {
     navigationRef.navigate('PostFlow' as any, {
       screen: 'CreateListing',
     } as any);
+  };
+
+  const handlePickEvent = () => {
+    navigationRef.navigate('PostFlow' as any, { screen: 'CreateEvent' } as any);
   };
 
   // Unread count drives the red badge on the Inbox tab icon.
@@ -554,6 +560,7 @@ function MainTabs() {
       onClose={() => setPostMenuOpen(false)}
       onPickSale={handlePickSale}
       onPickListing={handlePickListing}
+      onPickEvent={handlePickEvent}
     />
 
     {/* First-launch orientation for guests: browse freely or create an

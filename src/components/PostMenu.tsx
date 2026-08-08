@@ -8,9 +8,10 @@ type Props = {
   onClose: () => void;
   onPickSale: () => void;
   onPickListing: () => void;
+  onPickEvent: () => void;
 };
 
-export function PostMenu({ visible, onClose, onPickSale, onPickListing }: Props) {
+export function PostMenu({ visible, onClose, onPickSale, onPickListing, onPickEvent }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -77,6 +78,17 @@ export function PostMenu({ visible, onClose, onPickSale, onPickListing }: Props)
             onPress={() => {
               onClose();
               onPickListing();
+            }}
+          />
+          <PostRow
+            iconBg="bg-brand-soft"
+            iconColor="#1F4D3A"
+            iconName="home-outline"
+            title="A neighborhood sale"
+            subtitle="Rally your street — one event, many sales"
+            onPress={() => {
+              onClose();
+              onPickEvent();
             }}
           />
         </View>
