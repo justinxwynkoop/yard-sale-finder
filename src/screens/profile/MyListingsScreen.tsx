@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { SubHeader } from '../../components/SubHeader';
 import { useAuth } from '../../hooks/useAuth';
@@ -38,6 +38,17 @@ export default function MyListingsScreen() {
   const { user } = useAuth();
   const { listings, loading, refetch } = useMyListings(user?.id);
   const [segment, setSegment] = useState<Segment>('live');
+
+  // Refresh on every focus so view/save counts reflect activity that
+  // happened while the screen was open or backgrounded — without this the
+  // numbers only updated on mount or after an action, which read as
+  // "views don't work".
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   const filtered = useMemo(
     () =>

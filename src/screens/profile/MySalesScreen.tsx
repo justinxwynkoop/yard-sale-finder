@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { SubHeader } from '../../components/SubHeader';
 import { useAuth } from '../../hooks/useAuth';
@@ -45,6 +45,15 @@ export default function MySalesScreen() {
   const { user } = useAuth();
   const { sales, loading, refetch } = useMySales(user?.id);
   const [segment, setSegment] = useState<Segment>('active');
+
+  // Refresh on every focus so view/save counts stay current (same fix as
+  // MyListingsScreen — mount-only fetching read as "views don't work").
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   const filtered = useMemo(
     () =>
