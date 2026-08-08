@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -79,6 +79,22 @@ export default function CompleteProfileScreen() {
   // AuthScreen). Apple's review guidelines (4) require us not to re-ask for
   // information the Authentication Services framework already supplied.
   const nameKnown = !!(profile?.first_name?.trim() && profile?.last_name?.trim());
+  // The Apple-provided name can land AFTER this screen mounts (AuthScreen
+  // writes it right after sign-in and the profile refetch races this mount).
+  // useState only captures the mount-time value, and once nameKnown flips
+  // true the name inputs are hidden — leaving firstName/lastName stuck empty
+  // with no way to type them, which permanently disabled the Next button
+  // (and would have let save() blank the profile's name). Backfill local
+  // state whenever the profile delivers a name we don't have yet.
+  useEffect(() => {
+    if (profile?.first_name?.trim() && !firstName.trim()) {
+      setFirstName(profile.first_name);
+    }
+    if (profile?.last_name?.trim() && !lastName.trim()) {
+      setLastName(profile.last_name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.first_name, profile?.last_name]);
   const [bdMonth, setBdMonth] = useState('');
   const [bdDay, setBdDay] = useState('');
   const [bdYear, setBdYear] = useState('');
@@ -143,12 +159,16 @@ export default function CompleteProfileScreen() {
 
     setSaving(true);
     try {
+      // Fall back to the profile's existing name if local state is empty —
+      // never let a state race overwrite a captured name with ''.
+      const first = firstName.trim() || profile?.first_name?.trim() || '';
+      const last = lastName.trim() || profile?.last_name?.trim() || '';
       const { error } = await supabase.from('profiles').upsert(
         {
           id: user.id,
-          display_name: firstName.trim(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
+          display_name: first,
+          first_name: first,
+          last_name: last,
           city: city.trim(),
           state,
         },
