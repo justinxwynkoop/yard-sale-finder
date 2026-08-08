@@ -75,6 +75,7 @@ import SavedListingsScreen from '../screens/listings/SavedListingsScreen';
 import InboxScreen from '../screens/messages/InboxScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
 import CreateEventScreen from '../screens/events/CreateEventScreen';
+import EventDetailScreen from '../screens/events/EventDetailScreen';
 import { PostMenu } from '../components/PostMenu';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -121,6 +122,8 @@ function MapNavigator() {
         component={SaleDetailScreen}
         options={{ headerShown: false }}
       />
+      <MapStack.Screen name="EventDetail" component={EventDetailScreen}
+        options={{ headerShown: false }} />
       <MapStack.Screen
         name="FilterSheet"
         component={FilterSheet}
@@ -185,6 +188,8 @@ function ListingsNavigator() {
         component={SaleDetailScreen as any}
         options={{ headerShown: false }}
       />
+      <ListingsStack.Screen name="EventDetail" component={EventDetailScreen}
+        options={{ headerShown: false }} />
       <ListingsStack.Screen
         name="ListingsFilter"
         component={ListingsFilterSheet}
@@ -746,6 +751,7 @@ const linking: LinkingOptions<RootStackParamList> = {
             screens: {
               MapHome: 'map',
               SaleDetail: 'sale/:saleId',
+              EventDetail: 'event/:slug',
             },
           },
           Listings: {
