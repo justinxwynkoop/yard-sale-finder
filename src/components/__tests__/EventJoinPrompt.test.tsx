@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { EventJoinPrompt } from '../EventJoinPrompt';
 import { SaleEvent } from '../../types';
 
@@ -17,7 +17,9 @@ describe('EventJoinPrompt', () => {
         saleEnd="2026-08-15" onJoin={onJoin} onDecline={jest.fn()} />,
     );
     expect(screen.getByText(/want to be part of it/i)).toBeTruthy();
-    fireEvent.press(screen.getByText('Join'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('Join'));
+    });
     expect(onJoin).toHaveBeenCalledWith(false);
   });
 
@@ -27,7 +29,9 @@ describe('EventJoinPrompt', () => {
       <EventJoinPrompt visible event={event} saleStart="2026-08-22"
         saleEnd="2026-08-22" onJoin={onJoin} onDecline={jest.fn()} />,
     );
-    fireEvent.press(screen.getByText(/move my sale/i));
+    await act(async () => {
+      fireEvent.press(screen.getByText(/move my sale/i));
+    });
     expect(onJoin).toHaveBeenCalledWith(true);
   });
 
@@ -38,9 +42,13 @@ describe('EventJoinPrompt', () => {
       <EventJoinPrompt visible event={event} saleStart="2026-08-22"
         saleEnd="2026-08-22" onJoin={onJoin} onDecline={onDecline} />,
     );
-    fireEvent.press(screen.getByText(/join with my dates/i));
+    await act(async () => {
+      fireEvent.press(screen.getByText(/join with my dates/i));
+    });
     expect(onJoin).toHaveBeenCalledWith(false);
-    fireEvent.press(screen.getByText(/no thanks/i));
+    await act(async () => {
+      fireEvent.press(screen.getByText(/no thanks/i));
+    });
     expect(onDecline).toHaveBeenCalled();
   });
 });

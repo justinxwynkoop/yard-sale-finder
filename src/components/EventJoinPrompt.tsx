@@ -55,7 +55,7 @@ export function EventJoinPrompt({
           <Ionicons name="home-outline" size={26} color={BRAND} />
         </View>
         <Text style={{ fontSize: 20, fontWeight: '800', color: INK, letterSpacing: -0.3 }}>
-          {overlap ? "You're inside a neighborhood sale" : 'Your street has a neighborhood sale'}
+          {overlap ? `You're inside a neighborhood sale` : 'Your street has a neighborhood sale'}
         </Text>
         <Text style={{ marginTop: 6, fontSize: 14.5, lineHeight: 21, color: INK_MUTED }}>
           {overlap
