@@ -40,6 +40,25 @@ export function navigateToConversation(
 }
 
 /**
+ * Open the Messages tab filtered to conversations with one person — the
+ * "Message <name>" button on a public profile. Two-step navigation like
+ * navigateToConversation: focus the tab, then deliver the filter params to
+ * InboxHome. InboxScreen clears the params when the screen blurs, so the
+ * filter doesn't stick to the tab.
+ */
+export function navigateToInboxWithPerson(userId: string, displayName: string) {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Main' as any, { screen: 'Inbox' } as any);
+  navigationRef.navigate('Main' as any, {
+    screen: 'Inbox',
+    params: {
+      screen: 'InboxHome',
+      params: { filterUserId: userId, filterName: displayName },
+    },
+  } as any);
+}
+
+/**
  * Jump to the sign-in / sign-up screen from anywhere — used by guest-mode
  * gates when a browsing-only user taps an account-based action (save,
  * message, post, follow). Guests browse freely (App Review 5.1.1(v));

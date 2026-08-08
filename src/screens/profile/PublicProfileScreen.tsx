@@ -25,9 +25,9 @@ import { useReviews, useCanReview } from '../../hooks/useReviews';
 import { useStackBack } from '../../hooks/useStackBack';
 import { useFollow } from '../../hooks/useFollow';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
-import { useStartConversation } from '../../hooks/useConversation';
+
 import { toast } from '../../lib/toast';
-import { navigateToConversation } from '../../lib/navigationRef';
+import { navigateToInboxWithPerson } from '../../lib/navigationRef';
 import { promptSignIn } from '../../lib/guestGate';
 import { ProfileStackParamList, Review } from '../../types';
 import {
@@ -106,6 +106,9 @@ export default function PublicProfileScreen() {
     listings,
     loading,
   } = useUserProfile(userId);
+  // Nothing posted → the page shows a friendly empty state instead of a
+  // blank scroll, nudging toward Follow.
+  const hasContent = sales.length > 0 || listings.length > 0;
   const { reviews, summary, refetch: refetchReviews } = useReviews(userId);
   const {
     eligible: canReview,
@@ -115,7 +118,7 @@ export default function PublicProfileScreen() {
   const { following, notify, toggle: toggleFollow, toggleNotify, isSelf } =
     useFollow(userId);
   const { block, blockedIds } = useBlockedUsers();
-  const { start: startConversation } = useStartConversation();
+
   const { user } = useAuth();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -133,23 +136,19 @@ export default function PublicProfileScreen() {
       ? `${profile.city}, ${profile.state}`
       : null;
 
-  const handleMessage = async () => {
+  const handleMessage = () => {
     if (!userId) return;
     if (!user) {
       promptSignIn('message sellers');
       return;
     }
-    // The PublicProfile screen doesn't have a target sale/listing
-    // context, so we open a fresh thread tied to the most recent sale
-    // (if any) or fall back to a placeholder. The startConversation
-    // RPC requires a target — without one, we route to Inbox.
-    const fallback = sales[0] ?? null;
-    if (!fallback) {
-      navigation.navigate('Inbox' as never);
-      return;
-    }
-    const { id } = await startConversation('sale', fallback.id);
-    if (id) navigateToConversation(id);
+    // "Message <name>" opens the Messages tab filtered to this person —
+    // existing threads with them, however many, rather than creating or
+    // guessing a single thread. (Conversations are anchored to a specific
+    // sale/listing, so "start a new thread" belongs on those screens, not
+    // here.) The filtered inbox handles the no-threads case with its own
+    // empty state pointing at their posts.
+    navigateToInboxWithPerson(userId, firstName);
   };
 
   const handleBlock = () => {
@@ -371,6 +370,42 @@ export default function PublicProfileScreen() {
           <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
             <Text style={{ fontSize: 13.5, color: INK, lineHeight: 20 }}>
               {profile.bio}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Empty profile — say so warmly instead of a blank page, and pivot
+            to the action that makes sense here: following. */}
+        {!loading && !hasContent ? (
+          <View style={{ alignItems: 'center', paddingVertical: 44, paddingHorizontal: 32 }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 20,
+                backgroundColor: BRAND_SOFT,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 14,
+              }}
+            >
+              <Ionicons name="storefront-outline" size={28} color={BRAND} />
+            </View>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: INK, textAlign: 'center' }}>
+              {isSelf ? 'You haven’t posted anything yet' : `${firstName} hasn’t posted anything yet`}
+            </Text>
+            <Text
+              style={{
+                marginTop: 6,
+                fontSize: 13.5,
+                lineHeight: 19,
+                color: INK_MUTED,
+                textAlign: 'center',
+              }}
+            >
+              {isSelf
+                ? 'Your sales and listings will show up here. Tap the + tab to post your first one.'
+                : 'Follow them and you’ll be notified the moment they post a sale or listing.'}
             </Text>
           </View>
         ) : null}

@@ -228,7 +228,9 @@ export type MainTabParamList = {
 };
 
 export type MessagesStackParamList = {
-  InboxHome: undefined;
+  // filterUserId/filterName: show only conversations with one person —
+  // set by the "Message <name>" button on PublicProfile; cleared on blur.
+  InboxHome: { filterUserId?: string; filterName?: string } | undefined;
   /** initialDraft pre-fills the composer (e.g. a Make-offer template). */
   Conversation: { conversationId: string; initialDraft?: string };
   PublicProfile: { userId: string; self?: boolean };

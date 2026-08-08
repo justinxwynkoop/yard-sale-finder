@@ -11,12 +11,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+  RouteProp,
+} from '@react-navigation/native';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import { useInbox } from '../../hooks/useInbox';
 import { useAuth } from '../../hooks/useAuth';
-import { Conversation } from '../../types';
+import { Conversation, MessagesStackParamList } from '../../types';
 import { Chip } from '../../components/ui';
 import { GuestCta } from '../../components/GuestCta';
 
@@ -54,6 +59,12 @@ function formatMessageDate(iso: string): string {
 
 export default function InboxScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<MessagesStackParamList, 'InboxHome'>>();
+  // Person filter — set by "Message <name>" on a public profile: show only
+  // conversations with that person. Cleared on blur so it never sticks to
+  // the tab (same sticky-nested-param hazard as navigateToConversation).
+  const filterUserId = route.params?.filterUserId;
+  const filterName = route.params?.filterName;
   const { user } = useAuth();
   const {
     conversations,
@@ -80,6 +91,19 @@ export default function InboxScreen() {
     }, [silentRefetch]),
   );
 
+  // Drop the person filter when leaving the screen — otherwise the nested
+  // param sticks to the tab and re-tapping Messages shows a filtered inbox.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (filterUserId) {
+          navigation.setParams({ filterUserId: undefined, filterName: undefined });
+        }
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filterUserId]),
+  );
+
   const exitSelect = useCallback(() => {
     setSelectMode(false);
     setSelected(new Set());
@@ -101,14 +125,21 @@ export default function InboxScreen() {
 
   const base = view === 'inbox' ? conversations : archived;
   const filtered = useMemo(() => {
-    if (view === 'archived') return base;
-    return base.filter((c) => {
+    // Person filter applies to every view — it's "my messages with X".
+    const pool = filterUserId
+      ? base.filter(
+          (c) =>
+            (c.buyer_id === user?.id ? c.seller_id : c.buyer_id) === filterUserId,
+        )
+      : base;
+    if (view === 'archived') return pool;
+    return pool.filter((c) => {
       if (filter === 'unread') return c.has_unread;
       if (filter === 'buying') return c.buyer_id === user?.id;
       if (filter === 'selling') return c.seller_id === user?.id;
       return true;
     });
-  }, [base, view, filter, user?.id]);
+  }, [base, view, filter, user?.id, filterUserId]);
 
   const runBulk = (action: 'archive' | 'unarchive' | 'delete') => {
     const ids = Array.from(selected);
@@ -250,6 +281,38 @@ export default function InboxScreen() {
         ) : null}
       </View>
 
+      {/* Person-filter banner — arrived via "Message <name>" on a profile. */}
+      {filterUserId ? (
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 8,
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            backgroundColor: '#E8EFE9',
+            borderRadius: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <Ionicons name="person-outline" size={14} color={BRAND} />
+          <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: BRAND }}>
+            Messages with {filterName ?? 'this seller'}
+          </Text>
+          <Pressable
+            onPress={() =>
+              navigation.setParams({ filterUserId: undefined, filterName: undefined })
+            }
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Show all conversations"
+          >
+            <Ionicons name="close-circle" size={18} color={BRAND} />
+          </Pressable>
+        </View>
+      ) : null}
+
       {loading && base.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={BRAND} />
@@ -271,11 +334,13 @@ export default function InboxScreen() {
           <Text
             style={{ marginTop: 12, fontSize: 16, fontWeight: '700', color: INK }}
           >
-            {view === 'archived'
-              ? 'Nothing archived'
-              : filter === 'unread'
-                ? 'You’re all caught up'
-                : 'No messages yet'}
+            {filterUserId
+              ? `No messages with ${filterName ?? 'them'} yet`
+              : view === 'archived'
+                ? 'Nothing archived'
+                : filter === 'unread'
+                  ? 'You’re all caught up'
+                  : 'No messages yet'}
           </Text>
           <Text
             style={{
@@ -285,9 +350,11 @@ export default function InboxScreen() {
               textAlign: 'center',
             }}
           >
-            {view === 'archived'
-              ? 'Threads you archive will show up here.'
-              : 'When you message a seller, your conversation will show up here.'}
+            {filterUserId
+              ? 'Open one of their sales or listings and tap Message to start a conversation.'
+              : view === 'archived'
+                ? 'Threads you archive will show up here.'
+                : 'When you message a seller, your conversation will show up here.'}
           </Text>
         </View>
       ) : (
