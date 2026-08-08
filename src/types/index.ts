@@ -138,6 +138,7 @@ export interface Sale {
   /** Snapshot of the host's address-privacy preference at post time. */
   location_privacy?: LocationPrivacy | null;
   blur_radius_blocks?: number | null;
+  event_id?: string | null;
   created_at: string;
   updated_at: string;
   profile?: Profile;
@@ -186,6 +187,25 @@ export interface ListingMedia {
   created_at: string;
 }
 
+export type SaleEvent = {
+  id: string;
+  organizer_id: string;
+  title: string;
+  description: string | null;
+  cover_url: string | null;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;
+  latitude: number;
+  longitude: number;
+  radius_m: number;
+  share_slug: string;
+  created_at: string;
+  updated_at: string;
+  /** hydrated client-side */
+  organizer?: Profile;
+  sale_count?: number;
+};
+
 export type RootStackParamList = {
   // Boot state
   Loading: undefined;
@@ -212,7 +232,8 @@ export type RootStackParamList = {
 // The post-flow modal stack. Capture lives here too so CreateSale's
 // multi-shot camera works within the modal.
 export type PostStackParamList = {
-  CreateSale: undefined;
+  CreateSale: { eventId?: string; presetStart?: string; presetEnd?: string } | undefined;
+  CreateEvent: { eventId?: string } | undefined;
   CreateListing: undefined;
   Capture: { max?: number } | undefined;
 };
@@ -246,6 +267,7 @@ export type ListingsStackParamList = {
   // (listing favorites) is still a useful pushed route from Profile.
   SavedListings: undefined;
   SaleDetail: { saleId: string };
+  EventDetail: { eventId?: string; slug?: string };
   ListingsFilter: undefined;
   PublicProfile: { userId: string; self?: boolean };
 };
@@ -253,6 +275,7 @@ export type ListingsStackParamList = {
 export type MapStackParamList = {
   MapHome: { focusLat?: number; focusLng?: number } | undefined;
   SaleDetail: { saleId: string };
+  EventDetail: { eventId?: string; slug?: string };
   FilterSheet: undefined;
   RoutePlanner: undefined;
   ActiveRoute: { saleIds: string[] };
@@ -278,7 +301,7 @@ export type ProfileStackParamList = {
   // initialTab lets Profile → "Yard Sales" and Profile → "Listings" open
   // MySalesScreen on the right tab without exposing the other tab.
   MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
-  CreateSale: undefined;
+  CreateSale: { eventId?: string; presetStart?: string; presetEnd?: string } | undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
   CreateListing: undefined;
