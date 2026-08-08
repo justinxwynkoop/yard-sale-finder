@@ -25,6 +25,7 @@ import {
   navigateToListing,
 } from '../lib/navigationRef';
 import { promptSignIn } from '../lib/guestGate';
+import { GuestWelcomeSheet } from '../components/GuestWelcomeSheet';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -554,6 +555,11 @@ function MainTabs() {
       onPickSale={handlePickSale}
       onPickListing={handlePickListing}
     />
+
+    {/* First-launch orientation for guests: browse freely or create an
+        account. One-time (AsyncStorage), fully dismissible — the guest
+        path stays a tap away, as App Review requires. */}
+    {!user && <GuestWelcomeSheet />}
     </>
   );
 }

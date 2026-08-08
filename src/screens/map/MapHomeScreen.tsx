@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useSales } from '../../hooks/useSales';
 import { useAuth } from '../../hooks/useAuth';
+import { navigateToAuth } from '../../lib/navigationRef';
 import { saleDisplayLocation } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
@@ -700,6 +701,40 @@ export default function MapHomeScreen() {
         />
 
       </View>
+
+      {/* Guest "Sign in" pill — persistent affordance while browsing without
+          an account, so the door into the account flow is always visible
+          (gated actions prompt too, but discoverability shouldn't require
+          tripping a gate). Sits just below the search card, right-aligned. */}
+      {!user && (
+        <Pressable
+          onPress={() => navigateToAuth('signin')}
+          style={{
+            position: 'absolute',
+            right: 12,
+            top: insets.top + 68,
+            backgroundColor: BRAND,
+            paddingHorizontal: 14,
+            paddingVertical: 9,
+            borderRadius: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowRadius: 14,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 4,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Sign in or create an account"
+        >
+          <Ionicons name="person-circle-outline" size={15} color="#fff" />
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#fff' }}>
+            Sign in
+          </Text>
+        </Pressable>
+      )}
 
       {/* Route planner pill — hidden behind ROUTE_PLANNER_ENABLED while
           the planner is parked. Anchored just below the chip row
