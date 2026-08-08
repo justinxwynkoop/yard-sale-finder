@@ -412,7 +412,7 @@ export default function CreateSaleScreen() {
         if (match) {
           const declined = await AsyncStorage.getItem(
             `trove:event-prompt-declined:${match.id}`,
-          );
+          ).catch(() => null);
           if (!declined) {
             toast.success('Sale posted');
             setJoinPrompt({
@@ -457,12 +457,17 @@ export default function CreateSaleScreen() {
       patch.start_date = joinPrompt.event.start_date;
       patch.end_date = joinPrompt.event.end_date;
     }
-    const { error } = await supabase
-      .from('sales').update(patch).eq('id', joinPrompt.saleId);
-    if (error) toast.error("Couldn't join the event");
-    else toast.success(`Joined ${joinPrompt.event.title}`);
-    setJoinPrompt(null);
-    navigation.goBack();
+    try {
+      const { error } = await supabase
+        .from('sales').update(patch).eq('id', joinPrompt.saleId);
+      if (error) toast.error("Couldn't join the event");
+      else toast.success(`Joined ${joinPrompt.event.title}`);
+    } catch {
+      toast.error("Couldn't join the event");
+    } finally {
+      setJoinPrompt(null);
+      navigation.goBack();
+    }
   };
 
   const handleDeclineEvent = async () => {
