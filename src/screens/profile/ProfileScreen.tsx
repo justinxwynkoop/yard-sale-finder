@@ -21,6 +21,8 @@ import { useProfile } from '../../hooks/useProfile';
 import { useAppVersion } from '../../hooks/useAppVersion';
 import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
+import { useMyEvents } from '../../hooks/useSaleEvents';
+import { localTodayIso } from '../../lib/eventMatch';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useReviews } from '../../hooks/useReviews';
 import { useFollowing } from '../../hooks/useFollowing';
@@ -66,6 +68,11 @@ export default function ProfileScreen() {
   const endedSalesCount = sales.length - activeSalesCount;
   const liveListingsCount = listings.filter((l) => l.status === 'available').length;
   const soldListingsCount = listings.length - liveListingsCount;
+  const { events: myEvents } = useMyEvents(profile?.id);
+  const upcomingEventsCount = myEvents.filter(
+    (e) => e.end_date >= localTodayIso(),
+  ).length;
+  const pastEventsCount = myEvents.length - upcomingEventsCount;
 
   const appName = Constants.expoConfig?.name ?? '';
 
@@ -330,6 +337,17 @@ export default function ProfileScreen() {
                 : `${liveListingsCount} live · ${soldListingsCount} sold`
             }
             onPress={() => navigation.navigate('MyListings')}
+          />
+          <Row
+            icon="home-outline"
+            label="Neighborhood sales"
+            sublabel={
+              myEvents.length === 0
+                ? 'Rally your street — host one'
+                : `${upcomingEventsCount} upcoming · ${pastEventsCount} past`
+            }
+            badge={upcomingEventsCount > 0 ? String(upcomingEventsCount) : undefined}
+            onPress={() => navigation.navigate('MyEvents')}
           />
           <Row
             icon="people-outline"

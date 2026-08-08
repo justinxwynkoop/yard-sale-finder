@@ -100,3 +100,37 @@ export function useSaleEvent({ eventId, slug }: { eventId?: string; slug?: strin
 
   return { event: visibleEvent, sales: visibleSales, loading, refetch };
 }
+
+/**
+ * All events the user organizes — upcoming AND past (this is the manage
+ * surface, so ended events stay reachable for edit/delete, unlike the
+ * public map/list which only shows end_date >= today). No blocked-user
+ * filtering: these are the user's own events.
+ */
+export function useMyEvents(userId: string | undefined) {
+  const [events, setEvents] = useState<SaleEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    if (!userId) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
+    const { data } = await supabase
+      .from('sale_events')
+      .select('*, sales(count)')
+      .eq('organizer_id', userId)
+      .order('start_date', { ascending: false });
+    setEvents(
+      ((data as any[]) ?? []).map((e) => ({
+        ...e,
+        sale_count: e.sales?.[0]?.count ?? 0,
+      })),
+    );
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+  return { events, loading, refetch };
+}

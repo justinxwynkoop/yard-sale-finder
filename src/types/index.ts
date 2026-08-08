@@ -309,6 +309,7 @@ export type ProfileStackParamList = {
   // v3 redesign — Profile expansion
   MySales: undefined;
   MyListings: undefined;
+  MyEvents: undefined;
   Following: undefined;
   Saved: undefined;
   Account: undefined;
