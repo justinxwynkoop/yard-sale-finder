@@ -92,7 +92,7 @@ export default function MapHomeScreen() {
   const mapRef = useRef<MapView>(null);
 
   const { sales, loading, refetch: refetchSales } = useSales();
-  const { events: saleEvents } = useSaleEvents();
+  const { events: saleEvents, refetch: refetchEvents } = useSaleEvents();
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const { isVisited, visitedCount } = useVisited();
@@ -229,7 +229,8 @@ export default function MapHomeScreen() {
     useCallback(() => {
       refetchSales();
       refetchFavorites();
-    }, [refetchSales, refetchFavorites]),
+      refetchEvents();
+    }, [refetchSales, refetchFavorites, refetchEvents]),
   );
 
   // A focus target ("show on map" / deep link) is consumed by

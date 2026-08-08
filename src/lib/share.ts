@@ -1,5 +1,6 @@
 import { Share } from 'react-native';
 import { Sale, Listing, SaleEvent } from '../types';
+import { prettyRange } from '../utils/format';
 
 /**
  * One place for all "share this" actions so every entry point shares the same
@@ -46,7 +47,7 @@ export function shareListing(listing: Listing): Promise<void> {
 
 export function shareEvent(event: SaleEvent): Promise<void> {
   const url = `${WEB_ORIGIN}/event/${event.share_slug}`;
-  const dates = `${event.start_date} – ${event.end_date}`;
+  const dates = prettyRange(event.start_date, event.end_date);
   const lines = [
     `${event.title} — neighborhood sale`,
     dates,

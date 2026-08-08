@@ -1,6 +1,19 @@
 import { SaleEvent } from '../types';
 import { haversineMeters } from '../utils/distance';
 
+/**
+ * Today's date as a LOCAL 'YYYY-MM-DD' string — NOT `toISOString().slice(0, 10)`,
+ * which reads UTC and rolls over to tomorrow's date for anyone west of UTC in
+ * the evening. Matches the convention in utils/saleStatus.ts and
+ * lib/filterSales.ts. Single source of truth so event-date comparisons agree
+ * everywhere (useSaleEvents, CreateSaleScreen's proximity-prompt check).
+ */
+export function localTodayIso(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /** Inclusive YYYY-MM-DD range overlap (string compare is safe for ISO dates). */
 export function datesOverlap(
   aStart: string, aEnd: string, bStart: string, bEnd: string,

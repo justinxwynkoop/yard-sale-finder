@@ -226,7 +226,7 @@ export type RootStackParamList = {
   Main: undefined;
   // Posting flow, presented as a modal OVER the tabs (so it doesn't switch
   // tabs / flash the Profile screen, and never lingers in a tab stack).
-  PostFlow: { screen: 'CreateSale' | 'CreateListing' } | undefined;
+  PostFlow: { screen: 'CreateSale' | 'CreateListing' | 'CreateEvent'; params?: object } | undefined;
 };
 
 // The post-flow modal stack. Capture lives here too so CreateSale's

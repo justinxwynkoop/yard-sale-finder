@@ -81,6 +81,22 @@ export function formatHM(t: string): string {
 }
 
 /**
+ * Compact weekday-inclusive date range for neighborhood sale events, e.g.
+ * "Sat Aug 15" or "Sat Aug 15 – Sun Aug 16". Shared by EventDetailScreen,
+ * EventJoinPrompt, and shareEvent so the three copies can't drift — unlike
+ * formatSaleDate, this doesn't special-case "Today"/"Tomorrow" since events
+ * are often read outside the app (a shared link, a share-sheet message)
+ * where "Today" language would be misleading by the time it's seen.
+ */
+export function prettyRange(start: string, end: string): string {
+  const fmt = (iso: string) =>
+    parseLocalDate(iso).toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+    });
+  return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+}
+
+/**
  * Human-friendly "when was this posted" label for listing detail screens.
  *   < 1 day  → "Posted today"
  *   1 day    → "Posted yesterday"

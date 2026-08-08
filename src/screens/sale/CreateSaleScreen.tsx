@@ -26,7 +26,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleEvent, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
 import { compressImage } from '../../lib/imageCompression';
-import { eventMatchForSale } from '../../lib/eventMatch';
+import { eventMatchForSale, localTodayIso } from '../../lib/eventMatch';
 import { EventJoinPrompt } from '../../components/EventJoinPrompt';
 import {
   CategoryPicker,
@@ -405,7 +405,7 @@ export default function CreateSaleScreen() {
       // upcoming events, skipped when the sale already joined via link or
       // this device previously declined this event.
       if (!eventIdParam) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localTodayIso();
         const { data: events } = await supabase
           .from('sale_events').select('*').gte('end_date', today);
         const match = eventMatchForSale(sale, (events as SaleEvent[]) ?? [], today);
@@ -475,6 +475,13 @@ export default function CreateSaleScreen() {
     await AsyncStorage.setItem(
       `trove:event-prompt-declined:${joinPrompt.event.id}`, '1',
     ).catch(() => {});
+    setJoinPrompt(null);
+    navigation.goBack();
+  };
+
+  // Backdrop tap / hardware back — a soft dismiss, not a permanent decline.
+  // Doesn't write the declined flag, so the prompt can surface again next time.
+  const handleDismissEvent = () => {
     setJoinPrompt(null);
     navigation.goBack();
   };
@@ -943,6 +950,7 @@ export default function CreateSaleScreen() {
           saleEnd={joinPrompt.saleEnd}
           onJoin={handleJoinEvent}
           onDecline={handleDeclineEvent}
+          onDismiss={handleDismissEvent}
         />
       )}
     </SafeAreaView>

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Sale, SaleEvent } from '../types';
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
+import { useBlockedUsers } from './useBlockedUsers';
+import { localTodayIso } from '../lib/eventMatch';
 
 /**
  * Upcoming + in-progress neighborhood sale events (end_date >= today) with a
@@ -11,12 +11,13 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 export function useSaleEvents() {
   const [events, setEvents] = useState<SaleEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const { blockedIds } = useBlockedUsers();
 
   const refetch = useCallback(async () => {
     const { data } = await supabase
       .from('sale_events')
       .select('*, sales(count)')
-      .gte('end_date', todayIso());
+      .gte('end_date', localTodayIso());
     setEvents(
       ((data as any[]) ?? []).map((e) => ({
         ...e,
@@ -27,7 +28,20 @@ export function useSaleEvents() {
   }, []);
 
   useEffect(() => { refetch(); }, [refetch]);
-  return { events, loading, refetch };
+
+  // Hide events organized by someone the current user has blocked (either
+  // direction — see useBlockedUsers). Computed here, same client-side
+  // convention as useSales' visibleSales, so unblocking surfaces events
+  // immediately without a network round-trip.
+  const visibleEvents = useMemo(
+    () =>
+      blockedIds.size === 0
+        ? events
+        : events.filter((e) => !blockedIds.has(e.organizer_id)),
+    [events, blockedIds],
+  );
+
+  return { events: visibleEvents, loading, refetch };
 }
 
 /**
@@ -38,6 +52,7 @@ export function useSaleEvent({ eventId, slug }: { eventId?: string; slug?: strin
   const [event, setEvent] = useState<SaleEvent | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const { blockedIds } = useBlockedUsers();
 
   const refetch = useCallback(async () => {
     if (!eventId && !slug) { setLoading(false); return; }
@@ -64,5 +79,24 @@ export function useSaleEvent({ eventId, slug }: { eventId?: string; slug?: strin
   }, [eventId, slug]);
 
   useEffect(() => { refetch(); }, [refetch]);
-  return { event, sales, loading, refetch };
+
+  // A blocked organizer's event is treated as "gone" rather than revealing
+  // the block relationship (matches the app's "unavailable" stance elsewhere).
+  const visibleEvent = useMemo(() => {
+    if (!event) return null;
+    if (blockedIds.has(event.organizer_id)) return null;
+    return event;
+  }, [event, blockedIds]);
+
+  // Roster sales from blocked users are hidden the same way useSales hides
+  // blocked sales from the map/list.
+  const visibleSales = useMemo(
+    () =>
+      blockedIds.size === 0
+        ? sales
+        : sales.filter((s) => !blockedIds.has(s.user_id)),
+    [sales, blockedIds],
+  );
+
+  return { event: visibleEvent, sales: visibleSales, loading, refetch };
 }

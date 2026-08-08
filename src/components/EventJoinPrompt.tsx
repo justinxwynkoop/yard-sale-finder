@@ -4,20 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from './ui';
 import { SaleEvent } from '../types';
 import { datesOverlap } from '../lib/eventMatch';
+import { prettyRange } from '../utils/format';
 
 const BRAND = '#1F4D3A';
 const INK = '#171513';
 const INK_MUTED = '#8A857C';
-
-function prettyRange(start: string, end: string): string {
-  const fmt = (iso: string) => {
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric',
-    });
-  };
-  return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
-}
 
 /**
  * Post-create proximity prompt (spec §3, door two). Location-only trigger;
@@ -26,22 +17,26 @@ function prettyRange(start: string, end: string): string {
  *  - mismatch → nudge: move sale to the event weekend / keep dates / decline
  */
 export function EventJoinPrompt({
-  visible, event, saleStart, saleEnd, onJoin, onDecline,
+  visible, event, saleStart, saleEnd, onJoin, onDecline, onDismiss,
 }: {
   visible: boolean;
   event: SaleEvent;
   saleStart: string;
   saleEnd: string;
   onJoin: (moveDates: boolean) => void;
+  /** Explicit "No thanks" — persists the decline so this event won't prompt again. */
   onDecline: () => void;
+  /** Backdrop tap / hardware back — a soft dismiss, NOT a decline (the user
+   * may just be closing the sheet, not rejecting the event permanently). */
+  onDismiss: () => void;
 }) {
   const overlap = datesOverlap(saleStart, saleEnd, event.start_date, event.end_date);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDecline}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
       <Pressable
         style={{ flex: 1, backgroundColor: 'rgba(23,21,19,0.45)' }}
-        onPress={onDecline}
+        onPress={onDismiss}
         accessibilityLabel="Dismiss"
       />
       <View

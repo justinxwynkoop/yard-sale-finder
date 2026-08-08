@@ -16,7 +16,9 @@ import { supabase } from '../../lib/supabase';
 import { shareEvent } from '../../lib/share';
 import { promptSignIn } from '../../lib/guestGate';
 import { toast } from '../../lib/toast';
+import { prettyRange } from '../../utils/format';
 import SaleCard from '../../components/SaleCard';
+import { SaleEvent } from '../../types';
 
 const BRAND = '#1F4D3A';
 const BONE = '#F7F2E8';
@@ -26,14 +28,27 @@ const HAIRLINE = '#E5DECC';
 
 const REMINDER_KEY = (eventId: string) => `trove:event-reminder:${eventId}`;
 
-function prettyRange(start: string, end: string): string {
-  const fmt = (iso: string) => {
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric',
-    });
-  };
-  return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+/** What we persist under REMINDER_KEY once a reminder is scheduled. */
+type StoredReminder = { id: string; date: string | null };
+
+/**
+ * Parses the REMINDER_KEY value. Backward compatible with the old format
+ * (a bare notification-id string, pre-dating the {id, date} shape) — those
+ * parse as `{ id: raw, date: null }`, which always mismatches the event's
+ * current start_date and so always triggers a reschedule (see the re-date
+ * effect below), self-healing the stored value going forward.
+ */
+function parseReminderValue(raw: string | null): StoredReminder | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && typeof parsed.id === 'string') {
+      return { id: parsed.id, date: typeof parsed.date === 'string' ? parsed.date : null };
+    }
+    return null;
+  } catch {
+    return { id: raw, date: null };
+  }
 }
 
 export default function EventDetailScreen() {
@@ -44,6 +59,9 @@ export default function EventDetailScreen() {
   const userLocation = useUserLocation();
   const { event, sales, loading, refetch } = useSaleEvent({ eventId, slug });
   const [saved, setSaved] = useState(false);
+  // In-flight guard on toggleSave — prevents a double-tap from firing two
+  // overlapping insert/delete + schedule/cancel sequences.
+  const [saving, setSaving] = useState(false);
 
   useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
 
@@ -56,6 +74,7 @@ export default function EventDetailScreen() {
   }, [user, event?.id]);
 
   const isOrganizer = !!user && !!event && event.organizer_id === user.id;
+  const alreadyJoined = !!user && sales.some((s) => s.user_id === user.id);
 
   const sortedSales = [...sales].sort((a, b) => {
     if (!userLocation) return 0;
@@ -65,45 +84,93 @@ export default function EventDetailScreen() {
     );
   });
 
-  const toggleSave = async () => {
-    if (!event) return;
-    if (!user) { promptSignIn('save this neighborhood sale and get a reminder'); return; }
-    if (saved) {
-      await supabase.from('event_saves').delete()
-        .eq('user_id', user.id).eq('event_id', event.id);
-      const notifId = await AsyncStorage.getItem(REMINDER_KEY(event.id));
+  // Local reminder, 9 AM on the first day (spec §"Reminders"). Shared by
+  // toggleSave (initial save) and the re-date effect below (event moved
+  // after it was saved) so the scheduling logic can't drift between them.
+  // Returns the new notification id, or null if permission was denied or
+  // the start date has already passed.
+  const scheduleReminder = async (ev: SaleEvent): Promise<string | null> => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') return null;
+    const [y, m, d] = ev.start_date.split('-').map(Number);
+    const when = new Date(y, m - 1, d, 9, 0, 0);
+    if (when <= new Date()) return null;
+    return Notifications.scheduleNotificationAsync({
+      content: {
+        title: ev.title,
+        body: `Starts today — ${sales.length || 'the'} sales in the neighborhood. Happy hunting!`,
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
+    });
+  };
+
+  // If the organizer moves the event's dates after we already scheduled a
+  // reminder, the old notification would still fire on the stale date. Once
+  // the roster resolves and we know we're saved, compare the stored date
+  // against the live one and reschedule on mismatch (including legacy
+  // {id, date: null} entries, which always mismatch and so always
+  // reschedule once).
+  useEffect(() => {
+    if (!event || !saved) return;
+    let cancelled = false;
+    (async () => {
+      const raw = await AsyncStorage.getItem(REMINDER_KEY(event.id));
+      const stored = parseReminderValue(raw);
+      if (!stored || stored.date === event.start_date) return;
+      await Notifications.cancelScheduledNotificationAsync(stored.id).catch(() => {});
+      const notifId = await scheduleReminder(event);
+      if (cancelled) return;
       if (notifId) {
-        await Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
+        await AsyncStorage.setItem(
+          REMINDER_KEY(event.id),
+          JSON.stringify({ id: notifId, date: event.start_date }),
+        );
+      } else {
         await AsyncStorage.removeItem(REMINDER_KEY(event.id));
       }
-      setSaved(false);
-      return;
-    }
-    await supabase.from('event_saves').insert({ user_id: user.id, event_id: event.id });
-    setSaved(true);
-    // Local reminder, 9 AM on the first day (spec §"Reminders").
-    let scheduled = false;
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status === 'granted') {
-      const [y, m, d] = event.start_date.split('-').map(Number);
-      const when = new Date(y, m - 1, d, 9, 0, 0);
-      if (when > new Date()) {
-        const notifId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: event.title,
-            body: `Starts today — ${sales.length || 'the'} sales in the neighborhood. Happy hunting!`,
-          },
-          trigger: when as any,
-        });
-        await AsyncStorage.setItem(REMINDER_KEY(event.id), notifId);
-        scheduled = true;
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event, saved]);
+
+  const toggleSave = async () => {
+    if (saving) return;
+    if (!event) return;
+    if (!user) { promptSignIn('save this neighborhood sale and get a reminder'); return; }
+    setSaving(true);
+    try {
+      if (saved) {
+        await supabase.from('event_saves').delete()
+          .eq('user_id', user.id).eq('event_id', event.id);
+        const stored = parseReminderValue(await AsyncStorage.getItem(REMINDER_KEY(event.id)));
+        if (stored) {
+          await Notifications.cancelScheduledNotificationAsync(stored.id).catch(() => {});
+        }
+        await AsyncStorage.removeItem(REMINDER_KEY(event.id));
+        setSaved(false);
+        return;
       }
+      const { error: saveError } = await supabase
+        .from('event_saves').insert({ user_id: user.id, event_id: event.id });
+      if (saveError) { toast.error('Could not save — try again.'); return; }
+      setSaved(true);
+      const notifId = await scheduleReminder(event);
+      if (notifId) {
+        await AsyncStorage.setItem(
+          REMINDER_KEY(event.id),
+          JSON.stringify({ id: notifId, date: event.start_date }),
+        );
+      }
+      toast.success(
+        notifId
+          ? 'Saved — we’ll remind you the morning it starts'
+          : 'Saved',
+      );
+    } catch {
+      toast.error('Could not save — try again.');
+    } finally {
+      setSaving(false);
     }
-    toast.success(
-      scheduled
-        ? 'Saved — we’ll remind you the morning it starts'
-        : 'Saved',
-    );
   };
 
   const removeSale = (saleId: string, title: string) => {
@@ -245,7 +312,7 @@ export default function EventDetailScreen() {
 
         {/* Actions */}
         <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 16, marginTop: 12 }}>
-          {!isOrganizer && (
+          {!isOrganizer && !alreadyJoined && (
             <Pressable
               onPress={() => {
                 if (!user) { promptSignIn('add your sale to this neighborhood event'); return; }
