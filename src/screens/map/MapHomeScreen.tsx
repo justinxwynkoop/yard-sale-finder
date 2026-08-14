@@ -505,15 +505,29 @@ export default function MapHomeScreen() {
         e.title.toLowerCase().includes(qLower),
       );
       if (eventMatch) {
-        mapRef.current?.animateToRegion(
-          {
-            latitude: eventMatch.latitude,
-            longitude: eventMatch.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          },
-          800,
-        );
+        // Route through the same searchArea mechanism the geocode branch
+        // below uses (not a direct animateToRegion): the searchArea effect
+        // drives the fly-to while the map is mounted, and — critically —
+        // initialRegion reads searchArea ahead of sessionRegionRef, so
+        // returning from EventDetail re-seeds the map here even though the
+        // in-flight animation gets cut short by the MapView unmounting on
+        // blur (isFocused ? <MapView/> : null).
+        setSearchArea({
+          latitude: eventMatch.latitude,
+          longitude: eventMatch.longitude,
+          label: eventMatch.title,
+        });
+        setAreaQuery(eventMatch.title);
+        // onRegionChangeComplete (which normally keeps this ref current)
+        // never fires because the animation is interrupted — seed it
+        // directly so the fallback path (searchArea later cleared with no
+        // GPS) still has a sane region instead of a stale pre-search one.
+        sessionRegionRef.current = {
+          latitude: eventMatch.latitude,
+          longitude: eventMatch.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        };
         navigation.navigate('EventDetail', { eventId: eventMatch.id });
         return;
       }
