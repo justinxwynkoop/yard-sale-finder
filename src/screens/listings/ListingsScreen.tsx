@@ -69,20 +69,29 @@ export default function ListingsScreen() {
   const navigation = useNavigation<Nav>();
   const userLocation = useUserLocation();
 
-  const { sales, loading: salesLoading } = useSales();
+  const {
+    sales,
+    loading: salesLoading,
+    error: salesError,
+    refetch: refetchSales,
+  } = useSales();
   const { events: saleEvents } = useSaleEvents();
   const listingsFilters = useListingsFilters();
   const priceRange = useMemo(
     () => priceBucketToRange(listingsFilters.priceBucket),
     [listingsFilters.priceBucket],
   );
-  const { listings, loading: listingsLoading, refetch: refetchListings } =
-    useListings({
-      category: null,
-      categories: listingsFilters.categories,
-      priceMin: priceRange.min,
-      priceMax: priceRange.max,
-    });
+  const {
+    listings,
+    loading: listingsLoading,
+    error: listingsError,
+    refetch: refetchListings,
+  } = useListings({
+    category: null,
+    categories: listingsFilters.categories,
+    priceMin: priceRange.min,
+    priceMax: priceRange.max,
+  });
   const { refetch: refetchFavorites } = useFavorites();
 
   const [segment, setSegment] = useState<Segment>('sales');
@@ -407,6 +416,8 @@ export default function ListingsScreen() {
           data={filteredSales}
           keyExtractor={(s) => s.id}
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
+          onRefresh={refetchSales}
+          refreshing={salesLoading}
           ListHeaderComponent={
             matchingEvents.length > 0 ? (
               <View style={{ paddingTop: 4 }}>
@@ -439,6 +450,13 @@ export default function ListingsScreen() {
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <ActivityIndicator color={BRAND} />
               </View>
+            ) : salesError ? (
+              <EmptyTab
+                title="Couldn’t load yard sales"
+                description="Check your connection and try again."
+                ctaLabel="Try again"
+                onCta={refetchSales}
+              />
             ) : query.trim() ? (
               <EmptyTab
                 title={`No yard sales match “${query.trim()}”`}
@@ -481,6 +499,13 @@ export default function ListingsScreen() {
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <ActivityIndicator color={BRAND} />
               </View>
+            ) : listingsError ? (
+              <EmptyTab
+                title="Couldn’t load items"
+                description="Check your connection and try again."
+                ctaLabel="Try again"
+                onCta={refetchListings}
+              />
             ) : query.trim() ? (
               <EmptyTab
                 title={`No items match “${query.trim()}”`}

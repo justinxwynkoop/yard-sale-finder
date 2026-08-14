@@ -91,7 +91,7 @@ export default function MapHomeScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
 
-  const { sales, loading, refetch: refetchSales } = useSales();
+  const { sales, loading, error: salesError, refetch: refetchSales } = useSales();
   const { events: saleEvents, refetch: refetchEvents } = useSaleEvents();
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
@@ -768,6 +768,31 @@ export default function MapHomeScreen() {
           searching={areaSearching}
           onFilters={handleFilterOpen}
         />
+
+        {salesError && !loading ? (
+          <Pressable
+            onPress={refetchSales}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading sales"
+            style={{
+              marginTop: 8,
+              backgroundColor: '#fff',
+              borderRadius: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              borderWidth: 1,
+              borderColor: '#F0D9D3',
+            }}
+          >
+            <Ionicons name="cloud-offline-outline" size={15} color="#A23E2D" />
+            <Text style={{ flex: 1, fontSize: 12, fontWeight: '600', color: INK }}>
+              {"Couldn’t load sales. Tap to retry."}
+            </Text>
+          </Pressable>
+        ) : null}
 
       </View>
 

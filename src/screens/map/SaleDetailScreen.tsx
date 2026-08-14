@@ -102,6 +102,8 @@ export default function SaleDetailScreen() {
   const [sale, setSale] = useState<Sale | null>(null);
   const [linkedListings, setLinkedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [activeImage, setActiveImage] = useState(0);
   // Hero carousel position across ALL media (images + video); the photo
   // counter reads this. `activeImage` separately tracks which IMAGE the
@@ -137,13 +139,23 @@ export default function SaleDetailScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: saleData } = await supabase
+      setLoading(true);
+      setLoadError(null);
+      const { data: saleData, error: saleErr } = await supabase
         .from('sales')
         .select('*, media:sale_media(*)')
         .eq('id', saleId)
         .single();
-      if (cancelled || !saleData) {
-        if (!cancelled) setLoading(false);
+      if (cancelled) return;
+      // PGRST116 = zero rows (a genuinely missing/deleted sale). Anything
+      // else is a fetch failure and must NOT render as "Sale not found."
+      if (saleErr && saleErr.code !== 'PGRST116') {
+        setLoadError(saleErr.message);
+        setLoading(false);
+        return;
+      }
+      if (!saleData) {
+        setLoading(false);
         return;
       }
       const { data: profileData } = await supabase
@@ -172,7 +184,7 @@ export default function SaleDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [saleId]);
+  }, [saleId, reloadKey]);
 
   const handleMessageSeller = async () => {
     if (!sale) return;
@@ -272,6 +284,40 @@ export default function SaleDetailScreen() {
         }}
       >
         <ActivityIndicator size="large" color={BRAND} />
+      </View>
+    );
+  }
+
+  if (loadError && !sale) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#fff',
+          paddingHorizontal: 32,
+        }}
+      >
+        <Ionicons name="cloud-offline-outline" size={48} color={INK_MUTED} />
+        <Text style={{ marginTop: 12, color: INK_SOFT }}>
+          {"Couldn’t load this sale."}
+        </Text>
+        <Pressable
+          onPress={() => setReloadKey((k) => k + 1)}
+          style={{
+            marginTop: 24,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            borderRadius: 12,
+            backgroundColor: BRAND,
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600' }}>Try again</Text>
+        </Pressable>
+        <Pressable onPress={() => goBack()} style={{ marginTop: 14 }}>
+          <Text style={{ color: INK, fontWeight: '600' }}>Go back</Text>
+        </Pressable>
       </View>
     );
   }

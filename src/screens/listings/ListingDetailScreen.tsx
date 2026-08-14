@@ -67,6 +67,8 @@ export default function ListingDetailScreen() {
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
@@ -97,12 +99,19 @@ export default function ListingDetailScreen() {
   const favorited = listing ? isFavorited(listing.id) : false;
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
     supabase
       .from('listings')
       .select('*, profile:profiles(*), media:listing_media(*)')
       .eq('id', listingId)
       .single()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error && error.code !== 'PGRST116') {
+          setLoadError(error.message);
+          setLoading(false);
+          return;
+        }
         if (data) {
           data.media = (data.media ?? []).sort(
             (a: ListingMedia, b: ListingMedia) => a.order - b.order,
@@ -113,7 +122,7 @@ export default function ListingDetailScreen() {
       });
     // Count this view (the RPC skips the owner's own views).
     void supabase.rpc('increment_listing_view', { p_id: listingId });
-  }, [listingId]);
+  }, [listingId, reloadKey]);
 
   const handleMessageSeller = async () => {
     if (!listing) return;
@@ -197,6 +206,40 @@ export default function ListingDetailScreen() {
         }}
       >
         <ActivityIndicator size="large" color={BRAND} />
+      </View>
+    );
+  }
+
+  if (loadError && !listing) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#fff',
+          paddingHorizontal: 32,
+        }}
+      >
+        <Ionicons name="cloud-offline-outline" size={48} color={INK_MUTED} />
+        <Text style={{ marginTop: 12, color: INK_SOFT }}>
+          {"Couldn’t load this listing."}
+        </Text>
+        <Pressable
+          onPress={() => setReloadKey((k) => k + 1)}
+          style={{
+            marginTop: 24,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            borderRadius: 12,
+            backgroundColor: BRAND,
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600' }}>Try again</Text>
+        </Pressable>
+        <Pressable onPress={() => goBack()} style={{ marginTop: 14 }}>
+          <Text style={{ color: INK, fontWeight: '600' }}>Go back</Text>
+        </Pressable>
       </View>
     );
   }
