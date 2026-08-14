@@ -125,13 +125,16 @@ export default function CreateListingScreen() {
 
   // Silent autosave (~1s debounce), only once the form is meaningful.
   useEffect(() => {
+    // Don't overwrite the parked draft while the banner is still offering it —
+    // autosave resumes once the user answers Restore / Start fresh.
+    if (draftBanner) return;
     if (!isMeaningful({ title, description, mediaCount: media.length })) return;
     const t = setTimeout(() => {
       void saveDraft('listing', draftFieldsSnapshot(), media.map((m) => m.uri));
     }, 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, description, price, pickupInput, pickupDisplay, pinCoords, selectedCategories, media]);
+  }, [title, description, price, pickupInput, pickupDisplay, pinCoords, selectedCategories, media, draftBanner]);
 
   const handleSaveDraft = async () => {
     await saveDraft('listing', draftFieldsSnapshot(), media.map((m) => m.uri));

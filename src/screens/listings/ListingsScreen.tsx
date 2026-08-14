@@ -98,6 +98,7 @@ export default function ListingsScreen() {
   const [query, setQuery] = useState('');
   const [salesSort, setSalesSort] = useState<SalesSort>('nearest');
   const [listingsSort, setListingsSort] = useState<ListingsSort>('nearest');
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const activeFilterCount = countActiveListingsFilters(listingsFilters);
 
   useFocusEffect(
@@ -416,8 +417,12 @@ export default function ListingsScreen() {
           data={filteredSales}
           keyExtractor={(s) => s.id}
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
-          onRefresh={refetchSales}
-          refreshing={salesLoading}
+          onRefresh={async () => {
+            setPullRefreshing(true);
+            await refetchSales();
+            setPullRefreshing(false);
+          }}
+          refreshing={pullRefreshing}
           ListHeaderComponent={
             matchingEvents.length > 0 ? (
               <View style={{ paddingTop: 4 }}>

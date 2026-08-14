@@ -183,6 +183,9 @@ export default function CreateSaleScreen() {
   // after the last change, only once the form is meaningful.
   useEffect(() => {
     if (!draftsEnabled) return;
+    // Don't overwrite the parked draft while the banner is still offering it —
+    // autosave resumes once the user answers Restore / Start fresh.
+    if (draftBanner) return;
     if (!isMeaningful({ title, description, mediaCount: media.length })) return;
     const t = setTimeout(() => {
       void saveDraft('sale', draftFieldsSnapshot(), media.map((m) => m.uri));
@@ -192,7 +195,7 @@ export default function CreateSaleScreen() {
   }, [
     title, description, address, addressInput, pinCoords,
     startDate, endDate, startTime, endTime,
-    selectedCategories, pricingNotes, allowMessages, media,
+    selectedCategories, pricingNotes, allowMessages, media, draftBanner,
   ]);
 
   const handleSaveDraft = async () => {
@@ -387,12 +390,28 @@ export default function CreateSaleScreen() {
   const uploadMedia = async (saleId: string): Promise<void> => {
     for (let i = 0; i < media.length; i++) {
       const item = media[i];
-      // Repost path: media already lives in Supabase storage — just point a
-      // new sale_media row at it instead of downloading + re-uploading.
+      // Repost path: media already lives in Supabase storage. Copy the object
+      // into THIS sale's folder so the two sales never share a storage path —
+      // edit-removing a photo on one must not 404 the other. If the copy
+      // fails (source object gone), fall back to referencing the old URL.
       if (item.uri.startsWith('http')) {
+        let url = item.uri;
+        const marker = '/sale-media/';
+        const idx = item.uri.indexOf(marker);
+        if (idx >= 0) {
+          const oldPath = item.uri.slice(idx + marker.length);
+          const ext = oldPath.includes('.') ? oldPath.slice(oldPath.lastIndexOf('.') + 1) : 'jpg';
+          const newPath = `${user!.id}/${saleId}/repost-${i}.${ext}`;
+          const { error: copyError } = await supabase.storage
+            .from('sale-media')
+            .copy(oldPath, newPath);
+          if (!copyError) {
+            url = supabase.storage.from('sale-media').getPublicUrl(newPath).data.publicUrl;
+          }
+        }
         const { error: reuseError } = await supabase.from('sale_media').insert({
           sale_id: saleId,
-          url: item.uri,
+          url,
           type: item.type,
           order: i,
         });
@@ -556,7 +575,7 @@ export default function CreateSaleScreen() {
       // the same sale (duplicate-post fix) — empty fields fail validation
       // and disable Post.
       resetForm();
-      void clearDraft('sale');
+      if (draftsEnabled) void clearDraft('sale');
 
       // Proximity prompt (spec §3, door two): location-only match against
       // upcoming events, skipped when the sale already joined via link or
