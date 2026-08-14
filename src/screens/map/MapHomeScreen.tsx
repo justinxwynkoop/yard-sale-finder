@@ -497,6 +497,26 @@ export default function MapHomeScreen() {
     Keyboard.dismiss();
     setAreaSearching(true);
     try {
+      // Typing a neighborhood sale's name should work like typing a city:
+      // fly to its circle and open its page. Checked before geocoding so
+      // "Maple Grove Sale" doesn't get swallowed by the place lookup.
+      const qLower = q.toLowerCase();
+      const eventMatch = saleEvents.find((e) =>
+        e.title.toLowerCase().includes(qLower),
+      );
+      if (eventMatch) {
+        mapRef.current?.animateToRegion(
+          {
+            latitude: eventMatch.latitude,
+            longitude: eventMatch.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          },
+          800,
+        );
+        navigation.navigate('EventDetail', { eventId: eventMatch.id });
+        return;
+      }
       const results = await Location.geocodeAsync(q);
       if (!results.length) {
         toast.error(
@@ -522,7 +542,7 @@ export default function MapHomeScreen() {
     } finally {
       setAreaSearching(false);
     }
-  }, [areaQuery]);
+  }, [areaQuery, saleEvents, navigation]);
 
   // Clear the text + any active area. When GPS is available the searchArea
   // effect flies back to the user (and the viewport/list refreshes on

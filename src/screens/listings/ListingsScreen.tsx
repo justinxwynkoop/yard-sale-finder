@@ -15,9 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useListings } from '../../hooks/useListings';
 import { useSales } from '../../hooks/useSales';
+import { useSaleEvents } from '../../hooks/useSaleEvents';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useFavorites } from '../../hooks/useFavorites';
-import { ListingsStackParamList } from '../../types';
+import { prettyRange } from '../../utils/format';
+import { ListingsStackParamList, SaleEvent } from '../../types';
 import SaleCard from '../../components/SaleCard';
 import ListingTile from '../../components/ListingTile';
 import { haversineMeters } from '../../utils/distance';
@@ -68,6 +70,7 @@ export default function ListingsScreen() {
   const userLocation = useUserLocation();
 
   const { sales, loading: salesLoading } = useSales();
+  const { events: saleEvents } = useSaleEvents();
   const listingsFilters = useListingsFilters();
   const priceRange = useMemo(
     () => priceBucketToRange(listingsFilters.priceBucket),
@@ -184,6 +187,16 @@ export default function ListingsScreen() {
           )
         : sortedListings,
     [sortedListings, query],
+  );
+
+  // Neighborhood sales are searchable here too — they don't live in the
+  // sales list, so a title match surfaces them as tappable rows on top.
+  const matchingEvents = useMemo(
+    () =>
+      query.trim()
+        ? saleEvents.filter((e) => matchesQuery([e.title, e.description], query))
+        : [],
+    [saleEvents, query],
   );
 
   const openSortMenu = useCallback(() => {
@@ -394,6 +407,21 @@ export default function ListingsScreen() {
           data={filteredSales}
           keyExtractor={(s) => s.id}
           contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
+          ListHeaderComponent={
+            matchingEvents.length > 0 ? (
+              <View style={{ paddingTop: 4 }}>
+                {matchingEvents.map((e) => (
+                  <EventSearchRow
+                    key={e.id}
+                    event={e}
+                    onPress={() =>
+                      navigation.navigate('EventDetail', { eventId: e.id })
+                    }
+                  />
+                ))}
+              </View>
+            ) : null
+          }
           renderItem={({ item, index }) => (
             <SaleCard
               sale={item}
@@ -550,5 +578,61 @@ function EmptyTab({
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+function EventSearchRow({
+  event,
+  onPress,
+}: {
+  event: SaleEvent;
+  onPress: () => void;
+}) {
+  const count = event.sale_count ?? 0;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${event.title}`}
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: HAIRLINE,
+        marginHorizontal: 4,
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      <View
+        style={{
+          width: 64,
+          height: 64,
+          backgroundColor: '#E1ECDF',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name="home" size={22} color={BRAND} />
+      </View>
+      <View style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 10 }}>
+        <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: INK }}>
+          {event.title}
+        </Text>
+        <Text style={{ fontSize: 11, color: INK_MUTED, marginTop: 3 }}>
+          {`Neighborhood sale · ${prettyRange(event.start_date, event.end_date)} · ${count} ${
+            count === 1 ? 'sale' : 'sales'
+          }`}
+        </Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={16}
+        color={INK_MUTED}
+        style={{ marginRight: 12 }}
+      />
+    </Pressable>
   );
 }
