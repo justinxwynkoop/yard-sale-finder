@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -218,7 +218,7 @@ export default function CreateSaleScreen() {
         .eq('id', repostSaleId)
         .single();
       if (error || !data) {
-        toast.error('Couldn’t load that sale', 'Check your connection and try again.');
+        toast.error("Couldn't load that sale", 'Check your connection and try again.');
         return;
       }
       setTitle(data.title ?? '');
