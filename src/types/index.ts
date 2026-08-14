@@ -232,7 +232,13 @@ export type RootStackParamList = {
 // The post-flow modal stack. Capture lives here too so CreateSale's
 // multi-shot camera works within the modal.
 export type PostStackParamList = {
-  CreateSale: { eventId?: string; presetStart?: string; presetEnd?: string } | undefined;
+  CreateSale: {
+    eventId?: string;
+    presetStart?: string;
+    presetEnd?: string;
+    fromDraftRow?: boolean;
+    repostSaleId?: string;
+  } | undefined;
   CreateEvent: { eventId?: string } | undefined;
   CreateListing: undefined;
   Capture: { max?: number } | undefined;
@@ -301,7 +307,13 @@ export type ProfileStackParamList = {
   // initialTab lets Profile → "Yard Sales" and Profile → "Listings" open
   // MySalesScreen on the right tab without exposing the other tab.
   MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
-  CreateSale: { eventId?: string; presetStart?: string; presetEnd?: string } | undefined;
+  CreateSale: {
+    eventId?: string;
+    presetStart?: string;
+    presetEnd?: string;
+    fromDraftRow?: boolean;
+    repostSaleId?: string;
+  } | undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
   CreateListing: undefined;

@@ -29,6 +29,15 @@ import { compressImage } from '../../lib/imageCompression';
 import { eventMatchForSale, localTodayIso } from '../../lib/eventMatch';
 import { EventJoinPrompt } from '../../components/EventJoinPrompt';
 import {
+  Draft,
+  clearDraft,
+  isMeaningful,
+  loadDraft,
+  mediaTypeForUri,
+  saveDraft,
+} from '../../lib/drafts';
+import { DraftBanner } from '../../components/DraftBanner';
+import {
   CategoryPicker,
   DateRangePresets,
   DateTimeField,
@@ -69,6 +78,12 @@ export default function CreateSaleScreen() {
 
   const route = useRoute<any>();
   const eventIdParam: string | undefined = route.params?.eventId;
+  const repostSaleId: string | undefined = route.params?.repostSaleId;
+  const fromDraftRow: boolean = !!route.params?.fromDraftRow;
+  // Draft machinery is fully disabled on a repost instance — autosaving the
+  // repost's prefill would silently overwrite whatever draft is being held.
+  const draftsEnabled = !repostSaleId;
+  const [draftBanner, setDraftBanner] = useState<Draft | null>(null);
   const [joinPrompt, setJoinPrompt] = useState<{
     event: SaleEvent; saleId: string; saleStart: string; saleEnd: string;
   } | null>(null);
@@ -104,6 +119,126 @@ export default function CreateSaleScreen() {
     [],
   );
   const [pricingNotes, setPricingNotes] = useState('');
+
+  // Restore a device-local draft: silently when arriving from the Draft row,
+  // via the banner otherwise. Event presets (join-a-neighborhood-sale links)
+  // win over the draft's dates (spec).
+  const applyDraft = (d: Draft) => {
+    const f = d.fields;
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    setTitle(str(f.title));
+    setDescription(str(f.description));
+    setAddress(str(f.address));
+    setAddressInput(str(f.addressInput) || str(f.address));
+    if (
+      Array.isArray(f.pinCoords) &&
+      f.pinCoords.length === 2 &&
+      f.pinCoords.every((n) => typeof n === 'number')
+    ) {
+      setPinCoords(f.pinCoords as [number, number]);
+    }
+    const hasEventPreset = !!(route.params?.presetStart || route.params?.presetEnd);
+    if (!hasEventPreset) {
+      setStartDate(str(f.startDate));
+      setEndDate(str(f.endDate));
+      setStartTime(str(f.startTime));
+      setEndTime(str(f.endTime));
+    }
+    if (Array.isArray(f.selectedCategories)) {
+      setSelectedCategories(
+        f.selectedCategories.filter((c): c is ItemCategory => typeof c === 'string'),
+      );
+    }
+    setPricingNotes(str(f.pricingNotes));
+    if (typeof f.allowMessages === 'boolean') setAllowMessages(f.allowMessages);
+    // Photos the OS purged since the draft was saved are skipped silently.
+    const alive = d.media.filter((uri) => {
+      try {
+        return new File(uri).exists;
+      } catch {
+        return false;
+      }
+    });
+    setMedia(alive.map((uri) => ({ uri, type: mediaTypeForUri(uri) })));
+    setDraftBanner(null);
+  };
+
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    loadDraft('sale').then((d) => {
+      if (!d) return;
+      if (fromDraftRow) applyDraft(d);
+      else setDraftBanner(d);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const draftFieldsSnapshot = () => ({
+    title, description, address, addressInput, pinCoords,
+    startDate, endDate, startTime, endTime,
+    selectedCategories, pricingNotes, allowMessages,
+  });
+
+  // Silent autosave — the safety net under the explicit button. Runs ~1s
+  // after the last change, only once the form is meaningful.
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    if (!isMeaningful({ title, description, mediaCount: media.length })) return;
+    const t = setTimeout(() => {
+      void saveDraft('sale', draftFieldsSnapshot(), media.map((m) => m.uri));
+    }, 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    title, description, address, addressInput, pinCoords,
+    startDate, endDate, startTime, endTime,
+    selectedCategories, pricingNotes, allowMessages, media,
+  ]);
+
+  const handleSaveDraft = async () => {
+    await saveDraft('sale', draftFieldsSnapshot(), media.map((m) => m.uri));
+    toast.success('Draft saved');
+    navigation.goBack();
+  };
+
+  const handleStartFresh = () => {
+    void clearDraft('sale');
+    setDraftBanner(null);
+  };
+
+  // Repost: prefill everything except dates/times from an existing sale.
+  // Media arrives as remote URLs; uploadMedia reuses them without
+  // re-uploading (see the http branch there).
+  useEffect(() => {
+    if (!repostSaleId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('sales')
+        .select('*, media:sale_media(*)')
+        .eq('id', repostSaleId)
+        .single();
+      if (!data) return;
+      setTitle(data.title ?? '');
+      setDescription(data.description ?? '');
+      setAddress(data.address ?? '');
+      setAddressInput(data.address ?? '');
+      if (typeof data.longitude === 'number' && typeof data.latitude === 'number') {
+        setPinCoords([data.longitude, data.latitude]);
+      }
+      setSelectedCategories(data.categories ?? []);
+      setPricingNotes(data.pricing_notes ?? '');
+      setAllowMessages(data.allow_messages ?? true);
+      const sorted = [...(data.media ?? [])].sort(
+        (a: { order: number }, b: { order: number }) => a.order - b.order,
+      );
+      setMedia(
+        sorted.map((m: { url: string; type: 'image' | 'video' }) => ({
+          uri: m.url,
+          type: m.type,
+        })),
+      );
+    })();
+  }, [repostSaleId]);
 
   // -- Photo handlers --
   const pickFromLibrary = async () => {
@@ -249,6 +384,24 @@ export default function CreateSaleScreen() {
   const uploadMedia = async (saleId: string): Promise<void> => {
     for (let i = 0; i < media.length; i++) {
       const item = media[i];
+      // Repost path: media already lives in Supabase storage — just point a
+      // new sale_media row at it instead of downloading + re-uploading.
+      if (item.uri.startsWith('http')) {
+        const { error: reuseError } = await supabase.from('sale_media').insert({
+          sale_id: saleId,
+          url: item.uri,
+          type: item.type,
+          order: i,
+        });
+        if (reuseError) {
+          const enriched: any = new Error(
+            `sale_media insert rejected: ${reuseError.message}`,
+          );
+          enriched.code = reuseError.code;
+          throw enriched;
+        }
+        continue;
+      }
       // Compress images before upload — saves bandwidth, storage, and
       // upload time. Videos are passed through as-is.
       const uri =
@@ -400,6 +553,7 @@ export default function CreateSaleScreen() {
       // the same sale (duplicate-post fix) — empty fields fail validation
       // and disable Post.
       resetForm();
+      void clearDraft('sale');
 
       // Proximity prompt (spec §3, door two): location-only match against
       // upcoming events, skipped when the sale already joined via link or
@@ -536,16 +690,7 @@ export default function CreateSaleScreen() {
           >
             New yard sale
           </Text>
-          <Text
-            style={{
-              paddingHorizontal: 6,
-              fontSize: 13,
-              fontWeight: '600',
-              color: '#8A857C',
-            }}
-          >
-            Draft
-          </Text>
+          <View style={{ width: 44 }} />
         </View>
         <PostProgressBar
           steps={steps.length}
@@ -563,6 +708,14 @@ export default function CreateSaleScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {draftBanner && (
+            <DraftBanner
+              savedAt={draftBanner.savedAt}
+              onRestore={() => applyDraft(draftBanner)}
+              onStartFresh={handleStartFresh}
+            />
+          )}
+
           {/* PHOTOS SECTION */}
           <PostSection
             step={1}
@@ -912,34 +1065,59 @@ export default function CreateSaleScreen() {
               {validationError}
             </Text>
           ) : null}
-          <Pressable
-            onPress={submit}
-            disabled={!canSubmit}
-            accessibilityRole="button"
-            accessibilityLabel="Post sale"
-            style={{
-              backgroundColor: canSubmit ? '#1F4D3A' : '#C7C1B0',
-              borderRadius: 14,
-              paddingVertical: 14,
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'row',
-            }}
-          >
-            <Text
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {draftsEnabled &&
+              isMeaningful({ title, description, mediaCount: media.length }) && (
+                <Pressable
+                  onPress={handleSaveDraft}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save draft"
+                  style={{
+                    backgroundColor: '#fff',
+                    borderWidth: 1,
+                    borderColor: '#E5DECC',
+                    borderRadius: 14,
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#171513', fontSize: 14, fontWeight: '700' }}>
+                    Save draft
+                  </Text>
+                </Pressable>
+              )}
+            <Pressable
+              onPress={submit}
+              disabled={!canSubmit}
+              accessibilityRole="button"
+              accessibilityLabel="Post sale"
               style={{
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: '700',
-                marginRight: 8,
+                flex: 1,
+                backgroundColor: canSubmit ? '#1F4D3A' : '#C7C1B0',
+                borderRadius: 14,
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
               }}
             >
-              {submitting ? 'Posting…' : 'Post sale'}
-            </Text>
-            {!submitting && (
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
-            )}
-          </Pressable>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: '700',
+                  marginRight: 8,
+                }}
+              >
+                {submitting ? 'Posting…' : 'Post sale'}
+              </Text>
+              {!submitting && (
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              )}
+            </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
       {joinPrompt && (
