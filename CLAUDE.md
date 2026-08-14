@@ -136,11 +136,12 @@ No external state library — state lives in custom hooks:
   - `conversations` + `messages` — in-app messaging; `target_type` is `'sale' | 'listing'`
   - `blocked_users` — block relationships
   - `reports` — abuse reports targeting sales, listings, or profiles
-  - `push_tokens` — FCM/APNs tokens per user
+  - `user_push_tokens` — Expo push tokens per user
 - **Auth**: Supabase Auth — email+password primary, Google/Apple OAuth available
 - **Storage**: `sale-media` and `avatars` buckets
 - **RLS**: Row-level security on all tables — anyone can read, only owners can write
 - **RPCs**: `start_conversation`, `mark_conversation_read`, `unmark_conversation_read`, `delete_my_account`
+- **Edge functions** (`supabase/functions/`): `notify-new-sale`, `notify-new-listing`, `notify-new-message`, `notify-new-report` — invoked by DB webhook triggers with a bearer-token check; `notify-new-report` pushes report alerts to the operator (`OPERATOR_USER_ID` secret)
 - **API pattern**: media sorted by `.order` field; profile NOT embedded in `useSales` (avoids PostgREST inner-join dropping sales whose owner has no profile row yet)
 
 ### Key Types (`src/types/index.ts`)
@@ -155,6 +156,7 @@ No external state library — state lives in custom hooks:
 - `toast.ts` — thin wrapper around `react-native-toast-message`
 - `imageCompression.ts` — wraps `expo-image-manipulator` for pre-upload compression
 - `avatarUpload.ts` — handles avatar uploads to the `avatars` bucket
+- `drafts.ts` — device-local one-per-type drafts for the Create Sale/Listing forms (AsyncStorage `trove:draft:<type>`, serialized writes); the create screens debounce-autosave into it, offer an explicit "Save draft" button, and clear on post
 
 ### UI Component Library (`src/components/ui/`)
 
