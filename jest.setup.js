@@ -1,10 +1,7 @@
-// Mock AsyncStorage for Jest
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  setItem: jest.fn(() => Promise.resolve()),
-  getItem: jest.fn(() => Promise.resolve(null)),
-  removeItem: jest.fn(() => Promise.resolve()),
-  multiSet: jest.fn(() => Promise.resolve()),
-  multiGet: jest.fn(() => Promise.resolve([])),
-  getAllKeys: jest.fn(() => Promise.resolve([])),
-  clear: jest.fn(() => Promise.resolve()),
-}));
+// Global AsyncStorage mock — the official in-memory implementation, so any
+// test that transitively imports src/lib/drafts.ts gets real get/set
+// behavior instead of an always-empty stub. Individual test files may still
+// register their own jest.mock override, which takes precedence per-file.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
