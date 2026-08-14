@@ -75,6 +75,46 @@ describe('save/load/clear round-trip', () => {
     await Promise.all([p1, p2]);
     expect((await loadDraft('sale'))!.fields.title).toBe('after');
   });
+
+  it(
+    'a clear issued while a save is still in flight wins (delayed setItem)',
+    async () => {
+      // The jest mock mutates storage synchronously at call time, so the two
+      // call-order tests above can't reproduce the real race (completion order
+      // inverted vs call order). Force it: delay setItem's resolution past
+      // removeItem's, so only genuine write serialization can keep order.
+      const store = new Map<string, string>();
+      const setItemSpy = jest.spyOn(AsyncStorage, 'setItem').mockImplementation(
+        ((key: string, value: string) =>
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              store.set(key, value);
+              resolve();
+            }, 50);
+          })) as any,
+      );
+      const getItemSpy = jest.spyOn(AsyncStorage, 'getItem').mockImplementation(
+        ((key: string) => Promise.resolve(store.get(key) ?? null)) as any,
+      );
+      const removeItemSpy = jest.spyOn(AsyncStorage, 'removeItem').mockImplementation(
+        ((key: string) => {
+          store.delete(key);
+          return Promise.resolve();
+        }) as any,
+      );
+      try {
+        const p1 = saveDraft('sale', { title: 'slow save' }, []);
+        const p2 = clearDraft('sale');
+        await Promise.all([p1, p2]);
+        expect(await loadDraft('sale')).toBeNull();
+      } finally {
+        setItemSpy.mockRestore();
+        getItemSpy.mockRestore();
+        removeItemSpy.mockRestore();
+      }
+    },
+    15000,
+  );
 });
 
 describe('isMeaningful', () => {
