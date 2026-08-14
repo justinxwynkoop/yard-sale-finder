@@ -117,11 +117,13 @@ export default function ListingDetailScreen() {
             (a: ListingMedia, b: ListingMedia) => a.order - b.order,
           );
           setListing(data);
+          // Count this view only when the listing actually loaded — a failed
+          // "Try again" tap must not inflate the number. (The RPC still skips
+          // the owner's own views.) Same semantics as SaleDetailScreen.
+          void supabase.rpc('increment_listing_view', { p_id: listingId });
         }
         setLoading(false);
       });
-    // Count this view (the RPC skips the owner's own views).
-    void supabase.rpc('increment_listing_view', { p_id: listingId });
   }, [listingId, reloadKey]);
 
   const handleMessageSeller = async () => {
