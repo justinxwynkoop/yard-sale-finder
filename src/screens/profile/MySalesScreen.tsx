@@ -20,6 +20,8 @@ import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import { toast } from '../../lib/toast';
 import { shareSale } from '../../lib/share';
+import { Draft, clearDraft, loadDraft } from '../../lib/drafts';
+import { DraftRow } from '../../components/DraftRow';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -45,12 +47,14 @@ export default function MySalesScreen() {
   const { user } = useAuth();
   const { sales, loading, refetch } = useMySales(user?.id);
   const [segment, setSegment] = useState<Segment>('active');
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   // Refresh on every focus so view/save counts stay current (same fix as
   // MyListingsScreen — mount-only fetching read as "views don't work").
   useFocusEffect(
     React.useCallback(() => {
       refetch();
+      loadDraft('sale').then(setDraft);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
@@ -121,6 +125,20 @@ export default function MySalesScreen() {
     shareSale(sale, { where: sale.address });
   };
 
+  const handleDiscardDraft = () => {
+    Alert.alert('Discard draft?', 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => {
+          void clearDraft('sale');
+          setDraft(null);
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: BONE }}>
       <SubHeader
@@ -185,6 +203,17 @@ export default function MySalesScreen() {
             padding: 16,
             paddingBottom: 32,
           }}
+          ListHeaderComponent={
+            segment === 'active' && draft ? (
+              <DraftRow
+                kind="sale"
+                title={typeof draft.fields.title === 'string' ? draft.fields.title : ''}
+                savedAt={draft.savedAt}
+                onPress={() => navigation.navigate('CreateSale', { fromDraftRow: true })}
+                onDiscard={handleDiscardDraft}
+              />
+            ) : null
+          }
           renderItem={({ item }) => (
             <SaleManageCard
               sale={item}
@@ -196,7 +225,9 @@ export default function MySalesScreen() {
               onView={() =>
                 navigation.navigate('SaleDetail', { saleId: item.id })
               }
-              onRepost={() => navigation.navigate('CreateSale')}
+              onRepost={() =>
+                navigation.navigate('CreateSale', { repostSaleId: item.id })
+              }
               onDelete={() => handleDelete(item)}
             />
           )}

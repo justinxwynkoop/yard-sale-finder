@@ -18,6 +18,9 @@ import { supabase } from '../../lib/supabase';
 import { Listing, ListingStatus } from '../../types';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
 import { toast } from '../../lib/toast';
+import { Draft, clearDraft, loadDraft } from '../../lib/drafts';
+import { DraftRow } from '../../components/DraftRow';
+import { shareListing } from '../../lib/share';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -38,6 +41,7 @@ export default function MyListingsScreen() {
   const { user } = useAuth();
   const { listings, loading, refetch } = useMyListings(user?.id);
   const [segment, setSegment] = useState<Segment>('live');
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   // Refresh on every focus so view/save counts reflect activity that
   // happened while the screen was open or backgrounded — without this the
@@ -46,6 +50,7 @@ export default function MyListingsScreen() {
   useFocusEffect(
     React.useCallback(() => {
       refetch();
+      loadDraft('listing').then(setDraft);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
@@ -109,6 +114,20 @@ export default function MyListingsScreen() {
     );
   };
 
+  const handleDiscardDraft = () => {
+    Alert.alert('Discard draft?', 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => {
+          void clearDraft('listing');
+          setDraft(null);
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: BONE }}>
       <SubHeader
@@ -169,12 +188,24 @@ export default function MyListingsScreen() {
           data={filtered}
           keyExtractor={(l) => l.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          ListHeaderComponent={
+            segment === 'live' && draft ? (
+              <DraftRow
+                kind="listing"
+                title={typeof draft.fields.title === 'string' ? draft.fields.title : ''}
+                savedAt={draft.savedAt}
+                onPress={() => navigation.navigate('CreateListing', { fromDraftRow: true })}
+                onDiscard={handleDiscardDraft}
+              />
+            ) : null
+          }
           renderItem={({ item }) => (
             <ListingManageRow
               listing={item}
               onEdit={() =>
                 navigation.navigate('EditListing', { listingId: item.id })
               }
+              onShare={() => shareListing(item)}
               onMarkSold={() => confirmMarkSold(item)}
               onRelist={() => mutateStatus(item, 'available')}
               onDelete={() => confirmDelete(item)}
@@ -198,12 +229,14 @@ export default function MyListingsScreen() {
 function ListingManageRow({
   listing,
   onEdit,
+  onShare,
   onMarkSold,
   onRelist,
   onDelete,
 }: {
   listing: Listing;
   onEdit: () => void;
+  onShare: () => void;
   onMarkSold: () => void;
   onRelist: () => void;
   onDelete: () => void;
@@ -315,6 +348,7 @@ function ListingManageRow({
           ) : (
             <>
               <PillButton label="Edit" onPress={onEdit} />
+              <PillButton label="Share" onPress={onShare} />
               <PillButton label="Mark sold" onPress={onMarkSold} />
             </>
           )}
