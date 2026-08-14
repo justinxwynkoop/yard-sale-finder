@@ -22,7 +22,11 @@ export function useListings(filters: ListingFilters) {
     try {
       let query = supabase
         .from('listings')
-        .select('*, profile:profiles(*), media:listing_media(*)')
+        // No profile embed — PostgREST's auto-INNER-JOIN on the NOT NULL
+        // user_id FK drops listings whose owner has no profile row yet
+        // (same bug class as useSales; see that hook's comment). The detail
+        // screen fetches the seller profile itself.
+        .select('*, media:listing_media(*)')
         .eq('status', 'available')
         .order('created_at', { ascending: false });
 
