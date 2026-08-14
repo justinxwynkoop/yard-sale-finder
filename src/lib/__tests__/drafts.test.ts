@@ -61,6 +61,20 @@ describe('save/load/clear round-trip', () => {
     await clearDraft('listing');
     expect(await loadDraft('listing')).toBeNull();
   });
+
+  it('a clear issued after a save wins even when neither is awaited in order', async () => {
+    const p1 = saveDraft('sale', { title: 'racing' }, []);
+    const p2 = clearDraft('sale');
+    await Promise.all([p1, p2]);
+    expect(await loadDraft('sale')).toBeNull();
+  });
+
+  it('a save issued after a clear wins', async () => {
+    const p1 = clearDraft('sale');
+    const p2 = saveDraft('sale', { title: 'after' }, []);
+    await Promise.all([p1, p2]);
+    expect((await loadDraft('sale'))!.fields.title).toBe('after');
+  });
 });
 
 describe('isMeaningful', () => {

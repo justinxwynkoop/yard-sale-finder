@@ -212,12 +212,15 @@ export default function CreateSaleScreen() {
   useEffect(() => {
     if (!repostSaleId) return;
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('sales')
         .select('*, media:sale_media(*)')
         .eq('id', repostSaleId)
         .single();
-      if (!data) return;
+      if (error || !data) {
+        toast.error('Couldn’t load that sale', 'Check your connection and try again.');
+        return;
+      }
       setTitle(data.title ?? '');
       setDescription(data.description ?? '');
       setAddress(data.address ?? '');

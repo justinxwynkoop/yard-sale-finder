@@ -18,13 +18,25 @@ export interface Draft {
 
 const keyFor = (type: DraftType) => `trove:draft:${type}`;
 
+// Serialize writes so a clearDraft issued after a saveDraft can never lose
+// to the save's still-in-flight setItem (which would resurrect a draft the
+// user just posted). Reads stay direct — screens load before they write.
+let writeQueue: Promise<unknown> = Promise.resolve();
+function enqueueWrite<T>(op: () => Promise<T>): Promise<T> {
+  const next = writeQueue.then(op, op);
+  writeQueue = next.catch(() => {});
+  return next;
+}
+
 export async function saveDraft(
   type: DraftType,
   fields: Record<string, unknown>,
   media: string[],
 ): Promise<void> {
   const draft: Draft = { v: 1, savedAt: new Date().toISOString(), fields, media };
-  await AsyncStorage.setItem(keyFor(type), JSON.stringify(draft)).catch(() => {});
+  await enqueueWrite(() =>
+    AsyncStorage.setItem(keyFor(type), JSON.stringify(draft)),
+  ).catch(() => {});
 }
 
 export async function loadDraft(type: DraftType): Promise<Draft | null> {
@@ -47,7 +59,7 @@ export async function loadDraft(type: DraftType): Promise<Draft | null> {
 }
 
 export async function clearDraft(type: DraftType): Promise<void> {
-  await AsyncStorage.removeItem(keyFor(type)).catch(() => {});
+  await enqueueWrite(() => AsyncStorage.removeItem(keyFor(type))).catch(() => {});
 }
 
 /**
