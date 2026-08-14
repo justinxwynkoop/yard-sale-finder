@@ -240,7 +240,7 @@ export type PostStackParamList = {
     repostSaleId?: string;
   } | undefined;
   CreateEvent: { eventId?: string } | undefined;
-  CreateListing: undefined;
+  CreateListing: { fromDraftRow?: boolean } | undefined;
   Capture: { max?: number } | undefined;
 };
 
@@ -266,7 +266,7 @@ export type MessagesStackParamList = {
 export type ListingsStackParamList = {
   ListingsHome: undefined;
   ListingDetail: { listingId: string };
-  CreateListing: undefined;
+  CreateListing: { fromDraftRow?: boolean } | undefined;
   EditListing: { listingId: string };
   // Saved yard sales are no longer a standalone route — they're
   // accessed via the "Saved · N" chip on the Map. SavedListings
@@ -293,7 +293,7 @@ export type SaleStackParamList = {
   CreateSale: undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
-  CreateListing: undefined;
+  CreateListing: { fromDraftRow?: boolean } | undefined;
   EditListing: { listingId: string };
   // SaleDetail can also be reached from the Inbox in MySales -- not
   // strictly required for v1, but the screen is harmless to register
@@ -316,7 +316,7 @@ export type ProfileStackParamList = {
   } | undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
-  CreateListing: undefined;
+  CreateListing: { fromDraftRow?: boolean } | undefined;
   EditListing: { listingId: string };
   // v3 redesign — Profile expansion
   MySales: undefined;

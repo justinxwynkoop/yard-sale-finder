@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import MapView, { Marker, Region } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { File } from 'expo-file-system';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,15 @@ import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
+import {
+  Draft,
+  clearDraft,
+  isMeaningful,
+  loadDraft,
+  mediaTypeForUri,
+  saveDraft,
+} from '../../lib/drafts';
+import { DraftBanner } from '../../components/DraftBanner';
 import { CategoryPicker, HeaderButton, Input } from '../../components/ui';
 import { PostSection, PostProgressBar } from '../../components/PostFormShell';
 
@@ -67,6 +76,73 @@ export default function CreateListingScreen() {
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<ItemCategory[]>([]);
+
+  const route = useRoute<any>();
+  const fromDraftRow: boolean = !!route.params?.fromDraftRow;
+  const [draftBanner, setDraftBanner] = useState<Draft | null>(null);
+
+  const applyDraft = (d: Draft) => {
+    const f = d.fields;
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    setTitle(str(f.title));
+    setDescription(str(f.description));
+    setPrice(str(f.price));
+    setPickupInput(str(f.pickupInput));
+    setPickupDisplay(str(f.pickupDisplay));
+    const pc = f.pinCoords as { lat?: unknown; lng?: unknown } | null;
+    if (pc && typeof pc.lat === 'number' && typeof pc.lng === 'number') {
+      setPinCoords({ lat: pc.lat, lng: pc.lng });
+    }
+    if (Array.isArray(f.selectedCategories)) {
+      setSelectedCategories(
+        f.selectedCategories.filter((c): c is ItemCategory => typeof c === 'string'),
+      );
+    }
+    // Photos the OS purged since the draft was saved are skipped silently.
+    const alive = d.media.filter((uri) => {
+      try {
+        return new File(uri).exists;
+      } catch {
+        return false;
+      }
+    });
+    setMedia(alive.map((uri) => ({ uri, type: mediaTypeForUri(uri) })));
+    setDraftBanner(null);
+  };
+
+  useEffect(() => {
+    loadDraft('listing').then((d) => {
+      if (!d) return;
+      if (fromDraftRow) applyDraft(d);
+      else setDraftBanner(d);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const draftFieldsSnapshot = () => ({
+    title, description, price, pickupInput, pickupDisplay, pinCoords, selectedCategories,
+  });
+
+  // Silent autosave (~1s debounce), only once the form is meaningful.
+  useEffect(() => {
+    if (!isMeaningful({ title, description, mediaCount: media.length })) return;
+    const t = setTimeout(() => {
+      void saveDraft('listing', draftFieldsSnapshot(), media.map((m) => m.uri));
+    }, 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, description, price, pickupInput, pickupDisplay, pinCoords, selectedCategories, media]);
+
+  const handleSaveDraft = async () => {
+    await saveDraft('listing', draftFieldsSnapshot(), media.map((m) => m.uri));
+    toast.success('Draft saved');
+    navigation.goBack();
+  };
+
+  const handleStartFresh = () => {
+    void clearDraft('listing');
+    setDraftBanner(null);
+  };
 
   // -- Photo handlers --
   const pickFromLibrary = async () => {
@@ -318,6 +394,7 @@ export default function CreateListingScreen() {
       // item can never be posted twice. This is the fix for the
       // "reopened Post and it re-posted my last item" duplicate bug.
       resetForm();
+      void clearDraft('listing');
 
       // goBack() instead of navigate('MySalesHome'): this screen lives in
       // BOTH the Listings and Profile stacks, and navigate() to a route
@@ -394,16 +471,7 @@ export default function CreateListingScreen() {
           >
             New item
           </Text>
-          <Text
-            style={{
-              paddingHorizontal: 6,
-              fontSize: 13,
-              fontWeight: '600',
-              color: '#8A857C',
-            }}
-          >
-            Draft
-          </Text>
+          <View style={{ width: 44 }} />
         </View>
         <PostProgressBar
           steps={steps.length}
@@ -421,6 +489,14 @@ export default function CreateListingScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {draftBanner && (
+            <DraftBanner
+              savedAt={draftBanner.savedAt}
+              onRestore={() => applyDraft(draftBanner)}
+              onStartFresh={handleStartFresh}
+            />
+          )}
+
           {/* Photos */}
           <PostSection
             step={1}
@@ -649,34 +725,58 @@ export default function CreateListingScreen() {
             {validationError}
           </Text>
         ) : null}
-        <Pressable
-          onPress={submit}
-          disabled={!canSubmit}
-          accessibilityRole="button"
-          accessibilityLabel="Post listing"
-          style={{
-            backgroundColor: canSubmit ? '#1F4D3A' : '#C7C1B0',
-            borderRadius: 14,
-            paddingVertical: 14,
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-          }}
-        >
-          <Text
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {isMeaningful({ title, description, mediaCount: media.length }) && (
+            <Pressable
+              onPress={handleSaveDraft}
+              accessibilityRole="button"
+              accessibilityLabel="Save draft"
+              style={{
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: '#E5DECC',
+                borderRadius: 14,
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ color: '#171513', fontSize: 14, fontWeight: '700' }}>
+                Save draft
+              </Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={submit}
+            disabled={!canSubmit}
+            accessibilityRole="button"
+            accessibilityLabel="Post listing"
             style={{
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: '700',
-              marginRight: 8,
+              flex: 1,
+              backgroundColor: canSubmit ? '#1F4D3A' : '#C7C1B0',
+              borderRadius: 14,
+              paddingVertical: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'row',
             }}
           >
-            {submitting ? 'Posting…' : 'Post listing'}
-          </Text>
-          {!submitting && (
-            <Ionicons name="arrow-forward" size={16} color="#fff" />
-          )}
-        </Pressable>
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: '700',
+                marginRight: 8,
+              }}
+            >
+              {submitting ? 'Posting…' : 'Post listing'}
+            </Text>
+            {!submitting && (
+              <Ionicons name="arrow-forward" size={16} color="#fff" />
+            )}
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
