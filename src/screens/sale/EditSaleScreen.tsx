@@ -10,6 +10,7 @@ import {
   Pressable,
   Image,
   Switch,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SubHeader } from '../../components/SubHeader';
@@ -18,6 +19,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
+import MapView, { Marker, MapPressEvent } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -75,6 +78,13 @@ export default function EditSaleScreen() {
   const [allowMessages, setAllowMessages] = useState(true);
   const [status, setStatus] = useState<SaleStatus>('active');
 
+  // Where — editable location (address + draggable pin), prefilled from the
+  // sale row. [lng, lat] to match CreateSaleScreen's convention.
+  const [pinCoords, setPinCoords] = useState<[number, number] | null>(null);
+  const [address, setAddress] = useState('');
+  const [addressInput, setAddressInput] = useState('');
+  const [geocoding, setGeocoding] = useState(false);
+
   // Existing media we loaded and a parallel set of ids the user wants to delete
   const [existingMedia, setExistingMedia] = useState<SaleMedia[]>([]);
   const [removedMediaIds, setRemovedMediaIds] = useState<Set<string>>(new Set());
@@ -113,6 +123,11 @@ export default function EditSaleScreen() {
         setPricingNotes(data.pricing_notes ?? '');
         setAllowMessages(data.allow_messages ?? true);
         setStatus(data.status);
+        setAddress(data.address ?? '');
+        setAddressInput(data.address ?? '');
+        if (typeof data.longitude === 'number' && typeof data.latitude === 'number') {
+          setPinCoords([data.longitude, data.latitude]);
+        }
         const media: SaleMedia[] = (data.media ?? []).sort(
           (a: SaleMedia, b: SaleMedia) => a.order - b.order,
         );
@@ -147,7 +162,10 @@ export default function EditSaleScreen() {
   };
 
   const pickFromLibrary = async () => {
-    if (remainingSlots <= 0) return;
+    if (remainingSlots <= 0) {
+      toast.info('Photo limit reached', `Max ${MAX_MEDIA} photos per sale.`);
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
@@ -164,7 +182,10 @@ export default function EditSaleScreen() {
   };
 
   const takePhotos = () => {
-    if (remainingSlots <= 0) return;
+    if (remainingSlots <= 0) {
+      toast.info('Photo limit reached', `Max ${MAX_MEDIA} photos per sale.`);
+      return;
+    }
     captureBus.setListener((uris) => {
       if (uris.length === 0) return;
       const items: NewMedia[] = uris.map((uri) => ({ uri, type: 'image' as const }));
@@ -225,6 +246,51 @@ export default function EditSaleScreen() {
     }
   };
 
+  const geocodeAddress = async () => {
+    if (!addressInput.trim()) return;
+    setGeocoding(true);
+    try {
+      const results = await Location.geocodeAsync(addressInput);
+      if (results.length > 0) {
+        const { latitude, longitude } = results[0];
+        setPinCoords([longitude, latitude]);
+        setAddress(addressInput);
+      } else {
+        Alert.alert(
+          'Address not found',
+          'Try a different address, or tap on the map to drop a pin manually.',
+        );
+      }
+    } catch {
+      Alert.alert('Geocoding failed', 'Could not look up that address.');
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const onMapPress = async (e: MapPressEvent) => {
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    setPinCoords([longitude, latitude]);
+    try {
+      const [result] = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (result) {
+        const parts = [
+          result.streetNumber,
+          result.street,
+          result.city,
+          result.region,
+        ].filter(Boolean);
+        const formatted = parts.join(', ');
+        if (formatted) {
+          setAddress(formatted);
+          setAddressInput(formatted);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
   const save = async () => {
     if (!title.trim()) {
       Alert.alert('Title required', 'Please give your sale a title.');
@@ -244,6 +310,10 @@ export default function EditSaleScreen() {
       Alert.alert('Time issue', 'End time must be after the start time.');
       return;
     }
+    if (!pinCoords || !address) {
+      Alert.alert('Location required', 'Please set a location.');
+      return;
+    }
     setSaving(true);
     try {
       // 1. Update the sale row
@@ -256,6 +326,9 @@ export default function EditSaleScreen() {
           end_date: endDate,
           start_time: startTime,
           end_time: endTime,
+          address,
+          latitude: pinCoords[1],
+          longitude: pinCoords[0],
           categories: selectedCategories,
           pricing_notes: pricingNotes.trim() || null,
           allow_messages: allowMessages,
@@ -485,6 +558,73 @@ export default function EditSaleScreen() {
             <Text className="mt-1 text-right text-xs text-zinc-400">
               {description.length}/{MAX_DESCRIPTION}
             </Text>
+          </View>
+
+          {/* WHERE */}
+          <View>
+            <Text className="mb-2 text-sm font-medium text-zinc-700">
+              Location
+            </Text>
+            <View className="flex-row items-center" style={{ gap: 8 }}>
+              <View className="flex-1">
+                <Input
+                  placeholder="Enter an address"
+                  value={addressInput}
+                  onChangeText={setAddressInput}
+                  onSubmitEditing={geocodeAddress}
+                  returnKeyType="search"
+                />
+              </View>
+              <Pressable
+                onPress={geocodeAddress}
+                disabled={geocoding || !addressInput.trim()}
+                className="rounded-xl bg-zinc-900 px-4 py-3 active:bg-zinc-700"
+                style={{ opacity: !addressInput.trim() || geocoding ? 0.4 : 1 }}
+              >
+                {geocoding ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="search" size={18} color="#fff" />
+                )}
+              </Pressable>
+            </View>
+            <View
+              className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100"
+              style={{ height: 200 }}
+            >
+              <MapView
+                style={StyleSheet.absoluteFillObject}
+                initialRegion={
+                  pinCoords
+                    ? {
+                        latitude: pinCoords[1],
+                        longitude: pinCoords[0],
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }
+                    : undefined
+                }
+                onPress={onMapPress}
+              >
+                {pinCoords && (
+                  <Marker
+                    coordinate={{ latitude: pinCoords[1], longitude: pinCoords[0] }}
+                    draggable
+                    onDragEnd={(e) => {
+                      const { latitude, longitude } = e.nativeEvent.coordinate;
+                      setPinCoords([longitude, latitude]);
+                    }}
+                    pinColor="#1F4D3A"
+                  />
+                )}
+              </MapView>
+            </View>
+            {address ? (
+              <View className="mt-2 flex-row items-start">
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text className="ml-1.5 flex-1 text-xs text-zinc-600">{address}</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* QUICK PICK */}
