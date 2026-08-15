@@ -8,300 +8,325 @@
     <title>Trove Ops</title>
     <style>
       :root {
-        --canvas: #1b1a19;
-        --blade: #252423;
-        --blade-2: #2d2c2b;
-        --hairline: #3b3a39;
-        --hairline-soft: #323130;
-        --ink: #f3f2f1;
-        --muted: #a19f9d;
-        --faint: #797775;
-        --accent: #0078d4;
-        --accent-soft: #12314d;
-        --ok: #54b054;
-        --ok-soft: #1a2e1a;
-        --warn: #c19c00;
-        --warn-soft: #322a0d;
-        --err: #d13438;
-        --err-soft: #3a1b1c;
-        --rail: 216px;
+        --canvas: #0f1115;
+        --surface: #161920;
+        --raised: #1d212a;
+        --hairline: #262b35;
+        --hairline-soft: #1e222b;
+
+        --ink: #e9ecf1;
+        --muted: #9aa3b2;
+        --faint: #667085;
+
+        /* Two categorical series — validated for dark (CVD ΔE 26.8, normal 31.8).
+           Kept clear of the status hues below so a chart segment can never be
+           mistaken for a health signal. */
+        --feature: #3987e5;
+        --fix: #d95926;
+
+        /* Status hues are reserved: they mean state, never a series. Always
+           shipped with a text label, never colour alone. */
+        --ok: #2ea36a;
+        --warn: #c98500;
+        --bad: #e05252;
       }
       * {
         box-sizing: border-box;
       }
-      html,
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
       body {
         margin: 0;
         background: var(--canvas);
         color: var(--ink);
-      }
-      body {
-        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial,
-          sans-serif;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
         font-size: 14px;
-        line-height: 1.45;
+        line-height: 1.5;
         -webkit-font-smoothing: antialiased;
       }
-      a {
-        color: var(--accent);
-      }
       button {
-        font-family: inherit;
+        font: inherit;
+        color: inherit;
       }
-
-      /* ── Shell ─────────────────────────────────────────────────────────── */
-      .shell {
-        display: flex;
-        min-height: 100vh;
-      }
-      .rail {
-        width: var(--rail);
-        flex: 0 0 var(--rail);
-        background: var(--blade);
-        border-right: 1px solid var(--hairline);
-        position: sticky;
-        top: 0;
-        height: 100vh;
-        padding: 14px 0;
-        overflow-y: auto;
-      }
-      .rail-brand {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        padding: 0 16px 14px;
-        border-bottom: 1px solid var(--hairline-soft);
-        margin-bottom: 8px;
-      }
-      .rail-mark {
-        width: 26px;
-        height: 26px;
-        flex: 0 0 26px;
-        border-radius: 4px;
-        background: var(--accent);
-        color: #fff;
-        font-weight: 700;
-        font-size: 14px;
-        display: grid;
-        place-items: center;
-      }
-      .rail-title {
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.01em;
-      }
-      .rail a {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 7px 16px;
-        color: var(--ink);
-        text-decoration: none;
-        font-size: 13px;
-        border-left: 2px solid transparent;
-      }
-      .rail a:hover {
-        background: var(--blade-2);
-      }
-      .rail a.active {
-        background: var(--blade-2);
-        border-left-color: var(--accent);
-        font-weight: 600;
-      }
-      .rail .glyph {
-        width: 16px;
-        text-align: center;
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .rail a.active .glyph {
-        color: var(--accent);
-      }
-
-      .main {
-        flex: 1;
-        min-width: 0;
-      }
-
-      /* ── Command bar ───────────────────────────────────────────────────── */
-      .cmdbar {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        background: var(--canvas);
-        border-bottom: 1px solid var(--hairline);
-        padding: 12px 24px 10px;
-      }
-      .crumb {
-        font-size: 12px;
-        color: var(--muted);
-        margin-bottom: 3px;
-      }
-      .crumb b {
-        color: var(--ink);
-        font-weight: 600;
-      }
-      .cmdrow {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      h1 {
-        font-size: 19px;
-        font-weight: 600;
-        margin: 0 4px 0 0;
-        letter-spacing: -0.2px;
-      }
-      .cmdspacer {
-        flex: 1;
-      }
-      .cmdbtn {
-        background: transparent;
-        border: 1px solid var(--hairline);
-        color: var(--ink);
-        border-radius: 2px;
-        padding: 5px 12px;
-        font-size: 13px;
-        cursor: pointer;
-      }
-      .cmdbtn:hover {
-        background: var(--blade-2);
-        border-color: var(--muted);
-      }
-      .stamp {
-        font-size: 12px;
-        color: var(--muted);
-      }
-
-      /* ── Blades ────────────────────────────────────────────────────────── */
-      .content {
-        padding: 18px 24px 72px;
-        max-width: 1180px;
-      }
-      section {
-        margin-bottom: 26px;
-        scroll-margin-top: 84px;
-      }
-      .blade-head {
-        display: flex;
-        align-items: baseline;
-        gap: 10px;
-        margin-bottom: 10px;
-      }
-      h2 {
-        font-size: 15px;
-        font-weight: 600;
-        margin: 0;
-      }
-      .blade-sub {
-        font-size: 12px;
-        color: var(--faint);
-      }
-
-      .tiles {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
-        gap: 10px;
-      }
-      .tile {
-        background: var(--blade);
-        border: 1px solid var(--hairline);
-        border-radius: 2px;
-        padding: 12px 14px 11px;
-        min-height: 84px;
-      }
-      .tile .label {
-        font-size: 11.5px;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 6px;
-      }
-      .tile .num {
-        font-size: 27px;
-        font-weight: 600;
-        line-height: 1.05;
+      .num {
         font-variant-numeric: tabular-nums;
-        letter-spacing: -0.5px;
-      }
-      .tile .num.sm {
-        font-size: 17px;
-        font-weight: 600;
-      }
-      .tile .sub {
-        font-size: 11.5px;
-        color: var(--faint);
-        margin-top: 4px;
-        min-height: 15px;
-      }
-      .tile .sub.up {
-        color: var(--ok);
+        letter-spacing: -0.02em;
       }
 
-      .pill {
-        display: inline-block;
-        font-size: 10.5px;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        border-radius: 2px;
-        padding: 2px 7px;
-        white-space: nowrap;
-      }
-      .pill.ok {
-        background: var(--ok-soft);
-        color: var(--ok);
-      }
-      .pill.warn {
-        background: var(--warn-soft);
-        color: var(--warn);
-      }
-      .pill.err {
-        background: var(--err-soft);
-        color: var(--err);
-      }
-      .pill.info {
-        background: var(--accent-soft);
-        color: #4aa3e8;
-      }
-      .pill.mute {
-        background: var(--blade-2);
-        color: var(--muted);
-      }
-
-      .rows {
-        border: 1px solid var(--hairline);
-        border-radius: 2px;
-        overflow: hidden;
-      }
-      .row {
+      /* ── Top bar ───────────────────────────────────────────────────────── */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 14px;
-        background: var(--blade);
+        padding: 12px 28px;
+        background: rgba(15, 17, 21, 0.86);
+        backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--hairline-soft);
-        font-size: 13.5px;
       }
-      .row:last-child {
-        border-bottom: 0;
+      .mark {
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+        background: linear-gradient(140deg, #2f6f52, #1f4d3a);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        display: grid;
+        place-items: center;
       }
-      .row .key {
+      .wordmark {
+        font-size: 14px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .wordmark span {
+        color: var(--faint);
+        font-weight: 500;
+      }
+      .grow {
         flex: 1;
-        min-width: 0;
+      }
+      .navpills {
+        display: flex;
+        gap: 2px;
+      }
+      .navpills a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 13px;
+        padding: 5px 11px;
+        border-radius: 7px;
+      }
+      .navpills a:hover {
+        color: var(--ink);
+        background: var(--surface);
+      }
+      .navpills a.active {
+        color: var(--ink);
+        background: var(--raised);
+      }
+      .ghost {
+        background: transparent;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        padding: 5px 12px;
+        font-size: 13px;
+        cursor: pointer;
         color: var(--muted);
       }
-      .row .val {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
+      .ghost:hover {
+        color: var(--ink);
+        border-color: var(--faint);
+      }
+      .stamp {
+        font-size: 12px;
+        color: var(--faint);
+        white-space: nowrap;
       }
 
-      /* ── Deployments ───────────────────────────────────────────────────── */
+      main {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 28px 96px;
+      }
+
+      /* ── Hero ──────────────────────────────────────────────────────────── */
+      .hero {
+        padding: 52px 0 40px;
+        border-bottom: 1px solid var(--hairline-soft);
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        font-weight: 550;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--faint);
+      }
+      .dot.ok {
+        background: var(--ok);
+        box-shadow: 0 0 0 3px rgba(46, 163, 106, 0.16);
+      }
+      .dot.warn {
+        background: var(--warn);
+        box-shadow: 0 0 0 3px rgba(201, 133, 0, 0.16);
+      }
+      .dot.bad {
+        background: var(--bad);
+        box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.16);
+      }
+      .hero h1 {
+        font-size: 38px;
+        line-height: 1.15;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        margin: 14px 0 10px;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--faint);
+        font-weight: 500;
+      }
+      .hero-sub {
+        color: var(--muted);
+        font-size: 15px;
+        max-width: 62ch;
+      }
+
+      /* ── Section scaffolding ───────────────────────────────────────────── */
+      section {
+        padding: 40px 0 0;
+        scroll-margin-top: 72px;
+      }
+      .sec-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin: 0;
+      }
+      .sec-note {
+        font-size: 12.5px;
+        color: var(--faint);
+        margin-left: auto;
+      }
+
+      /* ── Vitals ────────────────────────────────────────────────────────── */
+      .vitals {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1px;
+        background: var(--hairline-soft);
+        border: 1px solid var(--hairline-soft);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .vital {
+        background: var(--canvas);
+        padding: 16px 18px 15px;
+      }
+      .vital .k {
+        font-size: 11.5px;
+        color: var(--faint);
+        letter-spacing: 0.04em;
+        margin-bottom: 7px;
+      }
+      .vital .v {
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1;
+      }
+      .vital .v.sm {
+        font-size: 17px;
+        font-weight: 550;
+      }
+      .vital .d {
+        font-size: 11.5px;
+        color: var(--faint);
+        margin-top: 6px;
+        min-height: 16px;
+      }
+      .vital .d.up {
+        color: var(--ok);
+      }
+
+      /* ── Composition bar (part-to-whole) ───────────────────────────────── */
+      .comp {
+        background: var(--surface);
+        border: 1px solid var(--hairline-soft);
+        border-radius: 12px;
+        padding: 18px 20px 17px;
+        margin-bottom: 22px;
+      }
+      .comp-top {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .comp-total {
+        font-size: 21px;
+        font-weight: 600;
+      }
+      .comp-since {
+        font-size: 12.5px;
+        color: var(--faint);
+        margin-left: auto;
+      }
+      /* 2px surface gap between stacked segments, 4px rounded data-ends. */
+      .track {
+        display: flex;
+        gap: 2px;
+        height: 12px;
+      }
+      .track i {
+        display: block;
+        height: 100%;
+      }
+      .track i:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .track i:last-child {
+        border-radius: 0 4px 4px 0;
+      }
+      .track i:only-child {
+        border-radius: 4px;
+      }
+      .seg-feature {
+        background: var(--feature);
+      }
+      .seg-fix {
+        background: var(--fix);
+      }
+      .legend {
+        display: flex;
+        gap: 18px;
+        margin-top: 13px;
+        flex-wrap: wrap;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .legend i {
+        width: 9px;
+        height: 9px;
+        border-radius: 2.5px;
+        display: block;
+      }
+      .legend b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ── Filters ───────────────────────────────────────────────────────── */
       .filters {
         display: flex;
         gap: 6px;
-        margin-bottom: 10px;
+        margin-bottom: 18px;
         flex-wrap: wrap;
         align-items: center;
       }
@@ -309,195 +334,275 @@
         background: transparent;
         border: 1px solid var(--hairline);
         color: var(--muted);
-        border-radius: 2px;
-        padding: 4px 11px;
-        font-size: 12.5px;
+        border-radius: 8px;
+        padding: 5px 13px;
+        font-size: 13px;
         cursor: pointer;
       }
       .chip:hover {
-        background: var(--blade-2);
+        color: var(--ink);
       }
       .chip.on {
-        background: var(--accent-soft);
-        border-color: var(--accent);
-        color: #6cb8ee;
-        font-weight: 600;
+        background: var(--raised);
+        border-color: var(--faint);
+        color: var(--ink);
+        font-weight: 550;
       }
-      .filters .tally {
+      .tally {
         margin-left: auto;
-        font-size: 12px;
+        font-size: 12.5px;
         color: var(--faint);
       }
 
-      .deploy {
-        border-bottom: 1px solid var(--hairline-soft);
-        background: var(--blade);
+      /* ── Release timeline ──────────────────────────────────────────────── */
+      .tl {
+        position: relative;
+        padding-left: 26px;
       }
-      .deploy:last-child {
-        border-bottom: 0;
+      /* The spine. Sits under the nodes; stops short at both ends so the
+         timeline reads as a segment of history, not an infinite rule. */
+      .tl::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 14px;
+        bottom: 14px;
+        width: 1px;
+        background: var(--hairline);
       }
-      .deploy-head {
+      .month {
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin: 26px 0 12px -26px;
+        padding-left: 26px;
+        position: relative;
+      }
+      .month:first-child {
+        margin-top: 0;
+      }
+      .rel {
+        position: relative;
+      }
+      .rel-head {
         display: flex;
         align-items: center;
-        gap: 11px;
+        gap: 14px;
         width: 100%;
         text-align: left;
         background: transparent;
         border: 0;
-        color: inherit;
-        padding: 11px 14px;
+        padding: 11px 12px 11px 0;
         cursor: pointer;
+        border-radius: 9px;
+      }
+      .rel-head:hover {
+        background: var(--surface);
+      }
+      .node {
+        position: absolute;
+        left: -26px;
+        top: 50%;
+        width: 9px;
+        height: 9px;
+        margin-top: -4.5px;
+        border-radius: 50%;
+        background: var(--raised);
+        border: 1px solid var(--faint);
+        /* 2px canvas ring so the spine never runs through the node. */
+        box-shadow: 0 0 0 3px var(--canvas);
+      }
+      .rel.open .node {
+        background: var(--ink);
+        border-color: var(--ink);
+      }
+      .rel-when {
+        width: 96px;
+        flex: 0 0 96px;
         font-size: 13.5px;
+        font-weight: 550;
       }
-      .deploy-head:hover {
-        background: var(--blade-2);
-      }
-      .caret {
+      .rel-when em {
+        display: block;
+        font-style: normal;
+        font-size: 11.5px;
         color: var(--faint);
-        font-size: 10px;
-        width: 10px;
-        flex: 0 0 10px;
-        transition: transform 0.12s ease;
+        font-weight: 400;
       }
-      .deploy.open .caret {
-        transform: rotate(90deg);
+      .rel-track {
+        width: 92px;
+        flex: 0 0 92px;
+        display: flex;
+        gap: 2px;
+        height: 6px;
       }
-      .deploy-when {
-        width: 108px;
-        flex: 0 0 108px;
-        color: var(--ink);
+      .rel-track i {
+        display: block;
+        height: 100%;
+        border-radius: 3px;
       }
-      .deploy-sum {
+      .rel-sum {
         flex: 1;
         min-width: 0;
+        font-size: 13.5px;
         color: var(--muted);
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
       }
-      .deploy-meta {
-        display: flex;
-        align-items: center;
-        gap: 7px;
+      .approx {
+        font-size: 11px;
+        color: var(--faint);
+        border: 1px solid var(--hairline);
+        border-radius: 5px;
+        padding: 1px 6px;
         flex: 0 0 auto;
       }
-      .deploy-body {
-        padding: 2px 14px 13px 47px;
-        border-top: 1px solid var(--hairline-soft);
-        background: var(--blade-2);
+      .rel-body {
+        padding: 2px 0 16px 0;
       }
       .change {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 6px 0;
-        border-bottom: 1px solid var(--hairline-soft);
+        gap: 11px;
+        padding: 7px 0;
       }
-      .change:last-child {
-        border-bottom: 0;
+      .change + .change {
+        border-top: 1px solid var(--hairline-soft);
       }
-      .change .pill {
-        margin-top: 1px;
-        flex: 0 0 62px;
+      .tag {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border-radius: 5px;
+        padding: 2px 7px;
+        flex: 0 0 58px;
         text-align: center;
+        margin-top: 1px;
       }
-      .change .text {
+      .tag.feature {
+        background: rgba(57, 135, 229, 0.14);
+        color: #7fb4f0;
+      }
+      .tag.fix {
+        background: rgba(217, 89, 38, 0.14);
+        color: #eb9068;
+      }
+      .change .t {
         flex: 1;
         min-width: 0;
       }
-      .change .sha {
+      .sha {
         color: var(--faint);
         font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
         font-size: 11.5px;
       }
-      .deploy-foot {
+      .rel-foot {
         font-size: 11.5px;
         color: var(--faint);
-        padding-top: 9px;
+        padding-top: 10px;
       }
       .empty {
-        background: var(--blade);
-        border: 1px solid var(--hairline);
-        border-radius: 2px;
-        padding: 26px 16px;
+        border: 1px dashed var(--hairline);
+        border-radius: 12px;
+        padding: 34px 18px;
         text-align: center;
         color: var(--muted);
-        font-size: 13px;
-      }
-
-      /* ── Resources ─────────────────────────────────────────────────────── */
-      .res {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        padding: 10px 14px;
-        background: var(--blade);
-        border-bottom: 1px solid var(--hairline-soft);
-        text-decoration: none;
-        color: var(--ink);
         font-size: 13.5px;
       }
-      .res:last-child {
-        border-bottom: 0;
+      code {
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+        font-size: 12.5px;
+        color: var(--ink);
       }
-      .res:hover {
-        background: var(--blade-2);
-      }
-      .res .glyph {
-        width: 24px;
-        height: 24px;
-        flex: 0 0 24px;
-        border-radius: 3px;
-        background: var(--accent-soft);
-        color: #4aa3e8;
+
+      /* ── Panels (store + resources) ────────────────────────────────────── */
+      .cols {
         display: grid;
-        place-items: center;
-        font-size: 12px;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
       }
-      .res .name {
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--hairline-soft);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        font-size: 13.5px;
+      }
+      .line + .line {
+        border-top: 1px solid var(--hairline-soft);
+      }
+      .line .k {
+        color: var(--muted);
         flex: 1;
+        min-width: 0;
       }
-      .res .go {
+      .line .v {
+        text-align: right;
+      }
+      a.line {
+        text-decoration: none;
+        color: var(--ink);
+      }
+      a.line:hover {
+        background: var(--raised);
+      }
+      a.line .arrow {
         color: var(--faint);
+      }
+      .state {
         font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        white-space: nowrap;
       }
 
       footer {
-        color: var(--faint);
-        font-size: 11.5px;
-        line-height: 1.6;
+        margin-top: 48px;
+        padding-top: 20px;
         border-top: 1px solid var(--hairline-soft);
-        padding-top: 14px;
-        max-width: 780px;
+        color: var(--faint);
+        font-size: 12px;
+        line-height: 1.65;
+        max-width: 74ch;
       }
 
       /* ── Gate ──────────────────────────────────────────────────────────── */
       .gate {
-        max-width: 320px;
-        margin: 16vh auto 0;
+        max-width: 300px;
+        margin: 18vh auto 0;
         text-align: center;
-        padding: 0 16px;
+        padding: 0 20px;
       }
       .gate .mark {
-        width: 48px;
-        height: 48px;
-        border-radius: 6px;
-        background: var(--accent);
-        color: #fff;
-        font-size: 22px;
-        font-weight: 700;
-        display: grid;
-        place-items: center;
-        margin: 0 auto 14px;
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
+        font-size: 20px;
+        margin: 0 auto 16px;
       }
       .gate h2 {
-        font-size: 16px;
-        margin-bottom: 4px;
+        font-size: 17px;
+        text-transform: none;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        margin-bottom: 5px;
       }
       .gate p {
-        font-size: 13px;
         color: var(--muted);
-        margin: 0 0 16px;
+        font-size: 13.5px;
+        margin: 0 0 18px;
       }
       .gate form {
         display: flex;
@@ -506,88 +611,81 @@
       .gate input {
         flex: 1;
         min-width: 0;
-        background: var(--blade);
+        background: var(--surface);
         border: 1px solid var(--hairline);
-        border-radius: 2px;
-        padding: 8px 11px;
+        border-radius: 9px;
+        padding: 9px 12px;
         font-size: 14px;
         color: var(--ink);
       }
       .gate input:focus {
         outline: none;
-        border-color: var(--accent);
+        border-color: var(--faint);
       }
       .gate button {
-        background: var(--accent);
+        background: var(--ink);
         border: 0;
-        color: #fff;
-        font-size: 13px;
+        color: var(--canvas);
+        font-size: 13.5px;
         font-weight: 600;
-        border-radius: 2px;
-        padding: 8px 16px;
+        border-radius: 9px;
+        padding: 9px 17px;
         cursor: pointer;
       }
       .gate .err {
-        color: #e57373;
+        color: #f08a8a;
         font-size: 12.5px;
-        margin-top: 10px;
+        margin-top: 12px;
         min-height: 16px;
       }
 
-      @media (max-width: 900px) {
-        :root {
-          --rail: 52px;
+      @media (max-width: 760px) {
+        .topbar {
+          padding: 10px 16px;
+          gap: 9px;
         }
-        .rail-title,
-        .rail .name {
+        .navpills,
+        .wordmark span {
           display: none;
         }
-        .rail-brand {
-          justify-content: center;
-          padding: 0 0 14px;
+        main {
+          padding: 0 16px 72px;
         }
-        .rail a {
-          justify-content: center;
-          padding: 11px 0;
+        .hero {
+          padding: 34px 0 30px;
         }
-        .content,
-        .cmdbar {
-          padding-left: 14px;
-          padding-right: 14px;
+        .hero h1 {
+          font-size: 27px;
         }
-        .tiles {
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        .cols {
+          grid-template-columns: 1fr;
         }
-        .deploy-when {
-          width: 66px;
-          flex: 0 0 66px;
-          font-size: 12.5px;
+        .rel-when {
+          width: 74px;
+          flex: 0 0 74px;
         }
-        /* The summary is the most useful column on a phone — keep it and let it
-           ellipsis. The "approximate" marker is what gives way instead; the
-           expanded row still spells the caveat out in full. */
-        .deploy-sum {
-          font-size: 12.5px;
+        /* The composition bar is the row's most useful column on a phone —
+           the timestamp caveat gives way instead; the expanded row still
+           spells it out in full. */
+        .rel-track {
+          width: 58px;
+          flex: 0 0 58px;
         }
-        .deploy-meta .pill.mute {
+        .approx {
           display: none;
         }
-        .deploy-head {
-          gap: 8px;
-          padding: 11px 10px;
-        }
-        .deploy-body {
-          padding-left: 20px;
+        .rel-head {
+          gap: 10px;
         }
       }
     </style>
   </head>
   <body>
-    <!-- Passcode gate: the portal stays hidden until the passphrase is entered.
-         Only the SHA-256 of the passphrase lives in this file, so view-source
-         doesn't reveal it. Soft lock by design — the public counts behind it are
-         already derivable; this keeps the page itself private and supplies the
-         bearer credential for /api/ops-stats. -->
+    <!-- Passcode gate: the dashboard stays hidden until the passphrase is
+         entered. Only the SHA-256 of the passphrase lives in this file, so
+         view-source doesn't reveal it. Soft lock by design — the public counts
+         behind it are already derivable; this keeps the page private and
+         supplies the bearer credential for /api/ops-stats. -->
     <div class="gate" id="gate" style="display: none">
       <div class="mark">T</div>
       <h2>Trove Ops</h2>
@@ -599,234 +697,182 @@
           autocomplete="current-password"
           placeholder="Passcode"
         />
-        <button type="submit">Sign in</button>
+        <button type="submit">Enter</button>
       </form>
       <div class="err" id="gate-err"></div>
     </div>
 
-    <div class="shell" id="shell" style="display: none">
-      <nav class="rail">
-        <div class="rail-brand">
-          <div class="rail-mark">T</div>
-          <div class="rail-title">Trove Ops</div>
-        </div>
-        <a href="#overview" data-nav="overview"
-          ><span class="glyph">&#9632;</span><span class="name">Overview</span></a
-        >
-        <a href="#community" data-nav="community"
-          ><span class="glyph">&#9679;</span><span class="name">Community</span></a
-        >
-        <a href="#messaging" data-nav="messaging"
-          ><span class="glyph">&#9993;</span><span class="name">Messaging</span></a
-        >
-        <a href="#deployments" data-nav="deployments"
-          ><span class="glyph">&#8593;</span><span class="name">Deployments</span></a
-        >
-        <a href="#appstore" data-nav="appstore"
-          ><span class="glyph">&#63743;</span><span class="name">App Store</span></a
-        >
-        <a href="#resources" data-nav="resources"
-          ><span class="glyph">&#9673;</span><span class="name">Resources</span></a
-        >
-      </nav>
+    <div id="app" style="display: none">
+      <div class="topbar">
+        <div class="mark">T</div>
+        <div class="wordmark">Trove <span>Ops</span></div>
+        <div class="grow"></div>
+        <nav class="navpills">
+          <a href="#vitals" data-nav="vitals">Vitals</a>
+          <a href="#shipping" data-nav="shipping">Shipping</a>
+          <a href="#surface" data-nav="surface">Surface</a>
+        </nav>
+        <button class="ghost" id="refresh">Refresh</button>
+        <span class="stamp" id="ago">&mdash;</span>
+      </div>
 
-      <div class="main">
-        <div class="cmdbar">
-          <div class="crumb">Home &rsaquo; Trove &rsaquo; <b>Ops</b></div>
-          <div class="cmdrow">
-            <h1>Trove Ops</h1>
-            <span class="pill info" id="health">Loading</span>
-            <span class="cmdspacer"></span>
-            <button class="cmdbtn" id="refresh">&#8635; Refresh</button>
-            <span class="stamp">Updated <span id="ago">&mdash;</span></span>
+      <main>
+        <div class="hero">
+          <div class="status">
+            <span class="dot" id="h-dot"></span>
+            <span id="h-state">Checking&hellip;</span>
           </div>
+          <h1>Last shipped <em id="h-when">&mdash;</em></h1>
+          <div class="hero-sub" id="h-what">Loading deployment history&hellip;</div>
         </div>
 
-        <div class="content">
-          <section id="overview">
-            <div class="blade-head">
-              <h2>Overview</h2>
-              <span class="blade-sub">Auto-refreshes every 5 minutes</span>
+        <section id="vitals">
+          <div class="sec-head">
+            <h2>Vitals</h2>
+            <span class="sec-note">Refreshes every 5 min</span>
+          </div>
+          <div class="vitals">
+            <div class="vital">
+              <div class="k">Accounts</div>
+              <div class="v num" id="v-users">&mdash;</div>
+              <div class="d up" id="v-users-48h"></div>
             </div>
-            <div class="tiles">
-              <div class="tile">
-                <div class="label">Last deploy</div>
-                <div class="num sm" id="o-deploy">&mdash;</div>
-                <div class="sub" id="o-deploy-sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Store version</div>
-                <div class="num sm" id="o-version">&mdash;</div>
-                <div class="sub" id="o-version-sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Open reports</div>
-                <div class="num" id="o-reports">&mdash;</div>
-                <div class="sub" id="o-reports-sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Site</div>
-                <div class="num sm" id="o-site">&mdash;</div>
-                <div class="sub" id="o-site-sub"></div>
-              </div>
+            <div class="vital">
+              <div class="k">Live sales</div>
+              <div class="v num" id="v-sales">&mdash;</div>
+              <div class="d"></div>
             </div>
-          </section>
+            <div class="vital">
+              <div class="k">Listings</div>
+              <div class="v num" id="v-listings">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Conversations</div>
+              <div class="v num" id="v-convos">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Messages</div>
+              <div class="v num" id="v-messages">&mdash;</div>
+              <div class="d up" id="v-messages-48h"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Push devices</div>
+              <div class="v num" id="v-push">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Follows</div>
+              <div class="v num" id="v-follows">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Blocks</div>
+              <div class="v num" id="v-blocks">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Open reports</div>
+              <div class="v num" id="v-reports">&mdash;</div>
+              <div class="d" id="v-reports-d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Last signup</div>
+              <div class="v sm" id="v-newest">&mdash;</div>
+              <div class="d"></div>
+            </div>
+          </div>
+        </section>
 
-          <section id="community">
-            <div class="blade-head">
-              <h2>Community</h2>
-              <span class="blade-sub">Public aggregates</span>
-            </div>
-            <div class="tiles">
-              <div class="tile">
-                <div class="label">Accounts</div>
-                <div class="num" id="c-users">&mdash;</div>
-                <div class="sub up" id="c-users-48h"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Live sales</div>
-                <div class="num" id="c-sales">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Listings available</div>
-                <div class="num" id="c-listings">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Last signup</div>
-                <div class="num sm" id="c-newest">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Follows</div>
-                <div class="num" id="c-follows">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Blocks</div>
-                <div class="num" id="c-blocks">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-            </div>
-          </section>
+        <section id="shipping">
+          <div class="sec-head">
+            <h2>Shipping</h2>
+            <span class="sec-note">Production OTA channel</span>
+          </div>
 
-          <section id="messaging">
-            <div class="blade-head">
-              <h2>Messaging</h2>
-              <span class="blade-sub">Served by the passcode-checked API</span>
+          <div class="comp">
+            <div class="comp-top">
+              <span class="comp-total num" id="c-total">&mdash;</span>
+              <span class="comp-since" id="c-since"></span>
             </div>
-            <div class="tiles">
-              <div class="tile">
-                <div class="label">Conversations</div>
-                <div class="num" id="m-convos">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Messages</div>
-                <div class="num" id="m-messages">&mdash;</div>
-                <div class="sub up" id="m-messages-48h"></div>
-              </div>
-              <div class="tile">
-                <div class="label">Push devices</div>
-                <div class="num" id="m-push">&mdash;</div>
-                <div class="sub"></div>
-              </div>
-            </div>
-          </section>
+            <div class="track" id="c-track"></div>
+            <div class="legend" id="c-legend"></div>
+          </div>
 
-          <section id="deployments">
-            <div class="blade-head">
-              <h2>Deployments</h2>
-              <span class="blade-sub">Production OTA channel</span>
-            </div>
-            <div class="filters">
-              <button class="chip on" data-filter="all">All</button>
-              <button class="chip" data-filter="feature">Features</button>
-              <button class="chip" data-filter="fix">Bug fixes</button>
-              <span class="tally" id="d-tally"></span>
-            </div>
-            <div id="d-list"></div>
-          </section>
+          <div class="filters">
+            <button class="chip on" data-filter="all">All</button>
+            <button class="chip" data-filter="feature">Features</button>
+            <button class="chip" data-filter="fix">Bug fixes</button>
+            <span class="tally" id="d-tally"></span>
+          </div>
 
-          <section id="appstore">
-            <div class="blade-head">
-              <h2>App Store</h2>
-              <span class="blade-sub">Apple's public catalog</span>
-            </div>
-            <div class="rows">
-              <div class="row">
-                <span class="key" id="as-name">Product page</span
-                ><span class="pill mute" id="as-live">checking</span>
-              </div>
-              <div class="row">
-                <span class="key">Version on the store</span><span class="val" id="as-version">&mdash;</span>
-              </div>
-              <div class="row">
-                <span class="key">Ratings</span><span class="val" id="as-ratings">&mdash;</span>
-              </div>
-              <div class="row">
-                <span class="key">Name search (&ldquo;trove buy sell&rdquo;)</span
-                ><span class="pill mute" id="as-search">checking</span>
-              </div>
-            </div>
-          </section>
+          <div id="d-list"></div>
+        </section>
 
-          <section id="resources">
-            <div class="blade-head">
-              <h2>Resources</h2>
-              <span class="blade-sub">Sign-in required</span>
+        <section id="surface">
+          <div class="sec-head">
+            <h2>Surface</h2>
+            <span class="sec-note">Store listing, site, consoles</span>
+          </div>
+          <div class="cols">
+            <div class="panel">
+              <div class="line">
+                <span class="k" id="as-name">App Store listing</span>
+                <span class="state" id="as-live"><span class="dot"></span>checking</span>
+              </div>
+              <div class="line">
+                <span class="k">Version</span><span class="v num" id="as-version">&mdash;</span>
+              </div>
+              <div class="line">
+                <span class="k">Ratings</span><span class="v" id="as-ratings">&mdash;</span>
+              </div>
+              <div class="line">
+                <span class="k">Search &ldquo;trove buy sell&rdquo;</span>
+                <span class="state" id="as-search"><span class="dot"></span>checking</span>
+              </div>
+              <div class="line">
+                <span class="k">trove.sale pages</span>
+                <span class="state" id="site-health"><span class="dot"></span>checking</span>
+              </div>
             </div>
-            <div class="rows">
-              <a
-                class="res"
-                href="https://apps.apple.com/us/app/id6772838421"
-                target="_blank"
-                rel="noopener"
-                ><span class="glyph">&#63743;</span><span class="name">App Store page</span
-                ><span class="go">&#8599;</span></a
+            <div class="panel">
+              <a class="line" href="https://appstoreconnect.apple.com/apps/6772838421" target="_blank" rel="noopener"
+                ><span class="k">App Store Connect</span><span class="arrow">&#8599;</span></a
+              >
+              <a class="line" href="https://trove-b0f.sentry.io/issues/" target="_blank" rel="noopener"
+                ><span class="k">Sentry crashes</span><span class="arrow">&#8599;</span></a
               >
               <a
-                class="res"
-                href="https://appstoreconnect.apple.com/apps/6772838421"
-                target="_blank"
-                rel="noopener"
-                ><span class="glyph">&#9634;</span><span class="name">App Store Connect</span
-                ><span class="go">&#8599;</span></a
-              >
-              <a class="res" href="https://trove-b0f.sentry.io/issues/" target="_blank" rel="noopener"
-                ><span class="glyph">&#9888;</span><span class="name">Sentry crashes</span
-                ><span class="go">&#8599;</span></a
-              >
-              <a
-                class="res"
+                class="line"
                 href="https://expo.dev/accounts/jasonwynkoop1/projects/yard-sale-finder"
                 target="_blank"
                 rel="noopener"
-                ><span class="glyph">&#8593;</span><span class="name">EAS builds &amp; updates</span
-                ><span class="go">&#8599;</span></a
+                ><span class="k">EAS builds &amp; updates</span><span class="arrow">&#8599;</span></a
               >
               <a
-                class="res"
+                class="line"
                 href="https://supabase.com/dashboard/project/dxahcamntwtuzftxbxgx"
                 target="_blank"
                 rel="noopener"
-                ><span class="glyph">&#9635;</span><span class="name">Supabase</span
-                ><span class="go">&#8599;</span></a
+                ><span class="k">Supabase</span><span class="arrow">&#8599;</span></a
+              >
+              <a class="line" href="https://apps.apple.com/us/app/id6772838421" target="_blank" rel="noopener"
+                ><span class="k">Public App Store page</span><span class="arrow">&#8599;</span></a
               >
             </div>
-          </section>
+          </div>
+        </section>
 
-          <footer>
-            Community tiles read already-public aggregates (Supabase public read policies plus
-            Apple's public iTunes API). Messaging tiles and moderation counts come from a
-            passcode-checked API that holds the privileged key server-side &mdash; nothing sensitive
-            ships in this page. Aggregate counts only, no user identities. The deployment feed is
-            generated from git at deploy time; rows marked <em>approximate</em> were reconstructed
-            from EAS history rather than measured.
-          </footer>
-        </div>
-      </div>
+        <footer>
+          Vitals read already-public aggregates (Supabase read policies, Apple&rsquo;s public iTunes
+          API) plus a passcode-checked API that holds the privileged key server-side &mdash; nothing
+          sensitive ships in this page, and counts are aggregate only, never identities. The shipping
+          feed is generated from git at deploy time. Rows marked <em>approx.</em> predate that and
+          were reconstructed from EAS history, which records only a relative age &mdash; those dates
+          are estimates, not measurements, and are shown at day precision for that reason.
+        </footer>
+      </main>
     </div>
 
     <script>
@@ -835,9 +881,11 @@
       var SUPA = 'https://dxahcamntwtuzftxbxgx.supabase.co/rest/v1/';
       var KEY = 'sb_publishable_mpxg4esDmwVJ6CkJTTJ6CA__-6QrZqJ';
       var APP_ID = '6772838421';
+
       var lastUpdated = null;
       var releases = [];
       var filter = 'all';
+      var siteOk = null;
 
       function $(id) {
         return document.getElementById(id);
@@ -850,10 +898,14 @@
           return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
       }
-      function setPill(id, text, kind) {
-        var el = $(id);
-        el.textContent = text;
-        el.className = 'pill ' + kind;
+      // Mirrors plural() in scripts/lib/releases.js, where it is unit-tested.
+      // Duplicated because this page is static — no build step, no imports.
+      function plural(n, word) {
+        if (n === 1) return n + ' ' + word;
+        return n + ' ' + word + (/(?:s|x|z|ch|sh)$/i.test(word) ? 'es' : 's');
+      }
+      function setState(id, label, kind) {
+        $(id).innerHTML = '<span class="dot ' + kind + '"></span>' + esc(label);
       }
 
       // ── Time ──────────────────────────────────────────────────────────────
@@ -866,21 +918,34 @@
         if (mins < 60 * 24 * 30) return Math.round(mins / 1440) + 'd ago';
         return Math.round(mins / 43200) + 'mo ago';
       }
-      function absolute(iso) {
-        if (!iso) return 'date unknown';
-        return new Date(iso).toLocaleString(undefined, {
+      function dayLabel(iso) {
+        if (!iso) return 'unknown';
+        return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+      function monthLabel(iso) {
+        if (!iso) return 'Undated';
+        return new Date(iso).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      }
+      // Backfilled dates come from a relative age ("1 month ago"), so they carry
+      // a spurious time-of-day. Show reconstructed rows at day precision only —
+      // printing "6:24 AM" would dress an estimate up as a measurement.
+      function exactLabel(release) {
+        if (!release.deployedAt) return 'date unknown';
+        var d = new Date(release.deployedAt);
+        if (release.source === 'backfill') {
+          return d.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+        }
+        return d.toLocaleString(undefined, {
           year: 'numeric',
-          month: 'short',
+          month: 'long',
           day: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
         });
-      }
-      // Mirrors plural() in scripts/lib/releases.js, which is where it is
-      // tested. Duplicated because this page is static — no build, no imports.
-      function plural(n, word) {
-        if (n === 1) return n + ' ' + word;
-        return n + ' ' + word + (/(?:s|x|z|ch|sh)$/i.test(word) ? 'es' : 's');
       }
 
       // ── Supabase counts ───────────────────────────────────────────────────
@@ -903,16 +968,16 @@
       function refreshSupabase() {
         var since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
         supaCount('profiles').then(function (v) {
-          setNum('c-users', v);
+          setNum('v-users', v);
         });
         supaCount('profiles', 'created_at=gt.' + since48h).then(function (v) {
-          $('c-users-48h').textContent = v ? '+' + v + ' in 48h' : '';
+          $('v-users-48h').textContent = v ? '+' + v + ' in 48h' : '';
         });
         supaCount('sales', 'status=neq.ended').then(function (v) {
-          setNum('c-sales', v);
+          setNum('v-sales', v);
         });
         supaCount('listings', 'status=eq.available').then(function (v) {
-          setNum('c-listings', v);
+          setNum('v-listings', v);
         });
       }
 
@@ -926,17 +991,17 @@
           })
           .then(function (d) {
             if (!d) return;
-            setNum('m-convos', d.conversations);
-            setNum('m-messages', d.messages);
-            $('m-messages-48h').textContent = d.messages48h ? '+' + d.messages48h + ' in 48h' : '';
-            setNum('m-push', d.push);
-            setNum('c-follows', d.follows);
-            setNum('c-blocks', d.blocks);
-            setNum('o-reports', d.reports);
-            $('o-reports-sub').textContent =
+            setNum('v-convos', d.conversations);
+            setNum('v-messages', d.messages);
+            $('v-messages-48h').textContent = d.messages48h ? '+' + d.messages48h + ' in 48h' : '';
+            setNum('v-push', d.push);
+            setNum('v-follows', d.follows);
+            setNum('v-blocks', d.blocks);
+            setNum('v-reports', d.reports);
+            $('v-reports-d').textContent =
               d.reports === null ? '' : d.reports > 0 ? 'needs review' : 'nothing pending';
-            $('o-reports').style.color = d.reports > 0 ? 'var(--warn)' : '';
-            $('c-newest').textContent = relative(d.newestSignupAt);
+            $('v-reports').style.color = d.reports > 0 ? 'var(--warn)' : '';
+            $('v-newest').textContent = relative(d.newestSignupAt);
           })
           .catch(function () {});
       }
@@ -971,41 +1036,26 @@
       function refreshAppStore() {
         jsonp('https://itunes.apple.com/lookup?id=' + APP_ID + '&country=us').then(function (d) {
           var a = d && d.results && d.results[0];
-          if (!a) {
-            setPill('as-live', 'not indexed', 'warn');
-            $('o-version').textContent = 'unknown';
-            return;
-          }
-          setPill('as-live', 'Live', 'ok');
+          if (!a) return setState('as-live', 'not indexed', 'warn');
+          setState('as-live', 'Live', 'ok');
           $('as-name').textContent = a.trackName;
           $('as-version').textContent =
-            a.version +
-            ' (' +
-            Math.round(a.fileSizeBytes / 1048576) +
-            ' MB, iOS ' +
-            a.minimumOsVersion +
-            '+)';
+            a.version + '  ·  ' + Math.round(a.fileSizeBytes / 1048576) + ' MB';
           $('as-ratings').textContent = a.userRatingCount
-            ? a.averageUserRating.toFixed(1) +
-              ' ★ · ' +
-              plural(a.userRatingCount, 'rating')
+            ? a.averageUserRating.toFixed(1) + ' ★ · ' + plural(a.userRatingCount, 'rating')
             : 'none yet';
-          $('o-version').textContent = a.version;
-          $('o-version-sub').textContent = a.userRatingCount
-            ? a.averageUserRating.toFixed(1) + ' ★ from ' + plural(a.userRatingCount, 'rating')
-            : 'no ratings yet';
         });
 
         jsonp(
           'https://itunes.apple.com/search?term=trove+buy+sell&entity=software&country=us&limit=25',
         ).then(function (d) {
-          if (!d || !d.results) return setPill('as-search', 'unknown', 'warn');
+          if (!d || !d.results) return setState('as-search', 'unknown', 'warn');
           for (var i = 0; i < d.results.length; i++) {
             if (d.results[i].bundleId === 'com.jwynkoop.trove') {
-              return setPill('as-search', 'position ' + (i + 1), 'ok');
+              return setState('as-search', 'position ' + (i + 1), 'ok');
             }
           }
-          setPill('as-search', 'not indexed yet', 'warn');
+          setState('as-search', 'not indexed yet', 'warn');
         });
       }
 
@@ -1024,18 +1074,23 @@
           }),
         ).then(function (oks) {
           var good = oks.filter(Boolean).length;
-          $('o-site').textContent = good === pages.length ? 'Healthy' : 'Degraded';
-          $('o-site').style.color = good === pages.length ? 'var(--ok)' : 'var(--warn)';
-          $('o-site-sub').textContent = good + ' of ' + pages.length + ' pages up';
-          setPill(
-            'health',
-            good === pages.length ? 'Healthy' : 'Degraded',
-            good === pages.length ? 'ok' : 'warn',
+          siteOk = good === pages.length;
+          setState(
+            'site-health',
+            good + ' of ' + pages.length + ' up',
+            siteOk ? 'ok' : 'warn',
           );
+          renderHeroState();
         });
       }
 
-      // ── Deployments ───────────────────────────────────────────────────────
+      function renderHeroState() {
+        if (siteOk === null) return;
+        $('h-dot').className = 'dot ' + (siteOk ? 'ok' : 'warn');
+        $('h-state').textContent = siteOk ? 'All systems healthy' : 'Site degraded';
+      }
+
+      // ── Shipping ──────────────────────────────────────────────────────────
       function loadReleases() {
         return fetch('/releases.json', { cache: 'no-store' })
           .then(function (r) {
@@ -1047,7 +1102,7 @@
           .catch(function () {
             releases = [];
           })
-          .then(renderDeployments);
+          .then(render);
       }
 
       function countsOf(changes) {
@@ -1060,7 +1115,6 @@
         return { features: features, fixes: fixes };
       }
 
-      // A release survives the filter if it still has a change of that type.
       function visibleChanges(release) {
         var changes = release.changes || [];
         if (filter === 'all') return changes;
@@ -1069,14 +1123,59 @@
         });
       }
 
-      function renderDeployments() {
+      function summarise(counts) {
+        var parts = [];
+        if (counts.features) parts.push(plural(counts.features, 'feature'));
+        if (counts.fixes) parts.push(plural(counts.fixes, 'fix'));
+        return parts;
+      }
+
+      // Part-to-whole across everything shipped. Direct-labelled in the legend,
+      // so identity never rests on colour alone.
+      function renderComposition() {
+        var all = releases.reduce(function (acc, r) {
+          return acc.concat(r.changes || []);
+        }, []);
+        var c = countsOf(all);
+        var total = c.features + c.fixes;
+
+        $('c-total').textContent = total
+          ? plural(total, 'change') + ' shipped'
+          : 'Nothing shipped yet';
+
+        var oldest = releases.length ? releases[releases.length - 1].deployedAt : null;
+        $('c-since').textContent =
+          releases.length && oldest
+            ? plural(releases.length, 'deploy') + ' since ' + monthLabel(oldest)
+            : '';
+
+        $('c-track').innerHTML = total
+          ? '<i class="seg-feature" style="flex:' +
+            c.features +
+            '"></i><i class="seg-fix" style="flex:' +
+            c.fixes +
+            '"></i>'
+          : '';
+
+        $('c-legend').innerHTML = total
+          ? '<span><i class="seg-feature"></i>Features <b>' +
+            c.features +
+            '</b></span><span><i class="seg-fix"></i>Bug fixes <b>' +
+            c.fixes +
+            '</b></span>'
+          : '';
+      }
+
+      function render() {
+        renderComposition();
+
         var list = $('d-list');
         var shown = releases.filter(function (r) {
           return visibleChanges(r).length > 0 || (filter === 'all' && r.note);
         });
 
-        // The tally describes what is on screen, not the whole feed — a tally of
-        // "16 features" while the Bug fixes filter is on would be a lie.
+        // The tally describes what is on screen — reporting whole-feed totals
+        // while a filter is active would be a lie.
         var totals = countsOf(
           shown.reduce(function (acc, r) {
             return acc.concat(visibleChanges(r));
@@ -1085,13 +1184,15 @@
         var tally = [plural(shown.length, 'deploy')];
         if (filter !== 'fix') tally.push(plural(totals.features, 'feature'));
         if (filter !== 'feature') tally.push(plural(totals.fixes, 'fix'));
-        $('d-tally').textContent = releases.length ? tally.join(' · ') : '';
+        $('d-tally').textContent = releases.length ? tally.join('  ·  ') : '';
 
         if (!releases.length) {
           list.innerHTML =
             '<div class="empty">No deployment history yet.<br />' +
-            'It is written by <code>scripts/build-releases.mjs</code> on the next ' +
+            'The feed is written by <code>scripts/build-releases.mjs</code> on the next ' +
             '<code>npm run ota</code>.</div>';
+          $('h-when').textContent = 'never';
+          $('h-what').textContent = 'No production deploys recorded.';
           return;
         }
         if (!shown.length) {
@@ -1099,96 +1200,103 @@
           return;
         }
 
-        var html = '<div class="rows">';
+        var html = '<div class="tl">';
+        var month = null;
         shown.forEach(function (release, i) {
           var changes = visibleChanges(release);
-          // Summarise the changes this row will actually expand to show.
           var counts = countsOf(changes);
           var open = i === 0;
-          var summary = [];
-          if (counts.features) summary.push(plural(counts.features, 'feature'));
-          if (counts.fixes) summary.push(plural(counts.fixes, 'fix'));
-          if (release.otherCount && filter === 'all') {
-            summary.push('+' + release.otherCount + ' internal');
+          var m = monthLabel(release.deployedAt);
+          if (m !== month) {
+            month = m;
+            html += '<div class="month">' + esc(m) + '</div>';
+          }
+
+          var track = '';
+          if (counts.features) {
+            track += '<i class="seg-feature" style="flex:' + counts.features + '"></i>';
+          }
+          if (counts.fixes) {
+            track += '<i class="seg-fix" style="flex:' + counts.fixes + '"></i>';
           }
 
           html +=
-            '<div class="deploy' +
+            '<div class="rel' +
             (open ? ' open' : '') +
-            '">' +
-            '<button class="deploy-head" data-i="' +
+            '"><button class="rel-head" data-i="' +
             i +
             '" aria-expanded="' +
             open +
             '">' +
-            '<span class="caret">&#9654;</span>' +
-            '<span class="deploy-when" title="' +
-            esc(absolute(release.deployedAt)) +
-            '">' +
+            '<span class="node"></span>' +
+            '<span class="rel-when">' +
+            esc(dayLabel(release.deployedAt)) +
+            '<em>' +
             esc(relative(release.deployedAt)) +
+            '</em></span>' +
+            '<span class="rel-track">' +
+            track +
             '</span>' +
-            '<span class="deploy-sum">' +
-            esc(summary.join(' · ') || release.note || 'no changes recorded') +
+            '<span class="rel-sum">' +
+            esc(summarise(counts).join('  ·  ') || release.note || 'no changes recorded') +
             '</span>' +
-            '<span class="deploy-meta">' +
-            (release.appVersion ? '<span class="pill mute">v' + esc(release.appVersion) + '</span>' : '') +
-            (release.source === 'backfill' ? '<span class="pill mute">approximate</span>' : '') +
-            '<span class="pill info">OTA</span>' +
-            '</span>' +
+            (release.source === 'backfill' ? '<span class="approx">approx.</span>' : '') +
             '</button>' +
-            '<div class="deploy-body" style="display:' +
+            '<div class="rel-body" style="display:' +
             (open ? 'block' : 'none') +
             '">';
 
-          if (!changes.length) {
-            html +=
-              '<div class="deploy-foot">' + esc(release.note || 'No changes recorded.') + '</div>';
-          }
           changes.forEach(function (c) {
             html +=
-              '<div class="change">' +
-              '<span class="pill ' +
-              (c.type === 'fix' ? 'warn' : 'ok') +
+              '<div class="change"><span class="tag ' +
+              (c.type === 'fix' ? 'fix' : 'feature') +
               '">' +
               (c.type === 'fix' ? 'Fix' : 'Feature') +
-              '</span>' +
-              '<span class="text">' +
+              '</span><span class="t">' +
               esc(c.text) +
               (c.sha ? ' <span class="sha">' + esc(c.sha) + '</span>' : '') +
-              '</span>' +
-              '</div>';
+              '</span></div>';
           });
 
           html +=
-            '<div class="deploy-foot">' +
-            esc(absolute(release.deployedAt)) +
+            '<div class="rel-foot">' +
+            esc(exactLabel(release)) +
             (release.platforms && release.platforms.length
-              ? ' · ' + esc(release.platforms.join(', '))
+              ? '  ·  ' + esc(release.platforms.join(', '))
               : '') +
-            ' · ' +
-            esc(release.channel || 'production') +
+            (release.appVersion ? '  ·  v' + esc(release.appVersion) : '') +
+            (release.otherCount && filter === 'all'
+              ? '  ·  ' + release.otherCount + ' internal commits'
+              : '') +
             (release.source === 'backfill'
-              ? ' · date reconstructed from EAS history'
+              ? '  ·  date reconstructed from EAS history'
               : '') +
             '</div></div></div>';
         });
         list.innerHTML = html + '</div>';
 
-        // Newest deploy summarises the Overview tile.
         var newest = releases[0];
         var newestCounts = countsOf(newest.changes || []);
-        $('o-deploy').textContent = relative(newest.deployedAt);
-        var newestSummary = [];
-        if (newestCounts.features) newestSummary.push(plural(newestCounts.features, 'feature'));
-        if (newestCounts.fixes) newestSummary.push(plural(newestCounts.fixes, 'fix'));
-        $('o-deploy-sub').textContent = newestSummary.join(', ') || 'no changes recorded';
+        $('h-when').textContent = relative(newest.deployedAt);
+        $('h-what').textContent =
+          (newest.changes || []).length
+            ? summarise(newestCounts).join(' and ') +
+              ' — ' +
+              newest.changes
+                .slice(0, 3)
+                .map(function (c) {
+                  return c.text;
+                })
+                .join('; ') +
+              (newest.changes.length > 3 ? '…' : '')
+            : newest.note || 'No changes recorded for that deploy.';
       }
 
       $('d-list').addEventListener('click', function (e) {
-        var head = e.target.closest('.deploy-head');
+        var head = e.target.closest('.rel-head');
         if (!head) return;
         var card = head.parentNode;
-        var body = card.querySelector('.deploy-body');
+        var body = card.querySelector('.rel-body');
         var open = card.classList.toggle('open');
         body.style.display = open ? 'block' : 'none';
         head.setAttribute('aria-expanded', String(open));
@@ -1200,7 +1308,7 @@
           Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (c) {
             c.classList.toggle('on', c === chip);
           });
-          renderDeployments();
+          render();
         });
       });
 
@@ -1222,7 +1330,7 @@
           s < 5 ? 'just now' : s < 60 ? s + 's ago' : Math.round(s / 60) + 'm ago';
       }
 
-      // ── Rail scroll-spy ───────────────────────────────────────────────────
+      // ── Nav highlight ─────────────────────────────────────────────────────
       function initSpy() {
         var links = {};
         Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) {
@@ -1235,9 +1343,8 @@
             entries.forEach(function (entry) {
               visible[entry.target.id] = entry.isIntersecting;
             });
-            // Highlight the FIRST visible section in document order. Last-wins
-            // would light up whichever blade happened to report most recently,
-            // which reads as the wrong one while sitting at the top of the page.
+            // First visible section in document order — last-wins would light up
+            // whichever happened to report most recently.
             var active = sections.filter(function (s) {
               return visible[s.id];
             })[0];
@@ -1245,7 +1352,7 @@
               links[id].classList.toggle('active', !!active && id === active.id);
             });
           },
-          { rootMargin: '-90px 0px -65% 0px' },
+          { rootMargin: '-72px 0px -62% 0px' },
         );
         sections.forEach(function (s) {
           observer.observe(s);
@@ -1268,7 +1375,7 @@
 
       function unlock() {
         $('gate').style.display = 'none';
-        $('shell').style.display = 'flex';
+        $('app').style.display = 'block';
         $('refresh').addEventListener('click', refreshAll);
         initSpy();
         refreshAll();
@@ -1284,9 +1391,10 @@
         $('gate').style.display = 'block';
         $('gate-form').addEventListener('submit', function (e) {
           e.preventDefault();
-          sha256($('gate-input').value.trim()).then(function (h) {
+          var entered = $('gate-input').value.trim();
+          sha256(entered).then(function (h) {
             if (h === GATE_HASH) {
-              localStorage.setItem('trove_ops_pass', $('gate-input').value.trim());
+              localStorage.setItem('trove_ops_pass', entered);
               unlock();
             } else {
               $('gate-err').textContent = 'Not it — try again.';
@@ -1298,9 +1406,9 @@
       }
 
       // The remembered value is the passcode itself (on your own device only):
-      // it doubles as the bearer credential for /api/ops-stats, where the
-      // server re-hashes and verifies it. Storing the hash instead would be
-      // pointless — the hash is visible in this page's source.
+      // it doubles as the bearer credential for /api/ops-stats, where the server
+      // re-hashes and verifies it. Storing the hash instead would be pointless —
+      // the hash is visible in this page's source.
       var savedPass = localStorage.getItem('trove_ops_pass');
       if (savedPass) {
         sha256(savedPass).then(function (h) {
