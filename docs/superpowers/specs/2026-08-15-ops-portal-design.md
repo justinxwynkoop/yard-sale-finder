@@ -125,21 +125,42 @@ Stamped release: 2 features, 1 fix (+6 internal)
 
 ## Component 4 — backfill (one-time)
 
-A single reconstruction pass over existing history:
+`scripts/backfill-releases.mjs`, run once against
+`eas update:list --branch production --limit 50 --json`.
 
-1. `eas update:list --branch production --json --non-interactive` → the ordered
-   list of production update groups with their messages.
-2. Collapse the iOS/Android pair for each deploy into one record (they share a
-   message and ship together).
-3. For each message, find the commit whose subject matches → that commit's SHA
-   anchors the range, and its author date becomes `deployedAt`.
-4. Where the message was custom rather than a commit subject (the most recent
-   deploy is), fall back to the CLI's relative age (`"21 hours ago"`) resolved
-   against the run time.
-5. Every record produced this way is written with `source: "backfill"`.
+**The original plan was to anchor each deploy to the commit whose subject
+matched its message, and itemize the range from git. That does not work.**
+Measured against the real data: of 25 production deploys, exactly 1 message
+matches a commit subject, even under normalized fuzzy matching. The historical
+OTA messages were written by hand — and two are the literal string
+`$(git log -1 --pretty=%s)`, from a shell-quoting bug in an older deploy script
+where the subject never interpolated. Git anchoring was abandoned.
 
-The page renders backfilled rows with an *approximate* marker. Reconstructed
-timestamps must never be presented as measured ones.
+What the backfill does instead:
+
+1. Collapse the per-platform updates of each deploy into one record (they share
+   a message), preserving the CLI's newest-first order.
+2. Parse `"subject" (6 days ago by someone)` into a subject and a relative age;
+   resolve the age against run time for `deployedAt`.
+3. Run the subject through `splitMessage()` — the historical messages are
+   already itemized (`"Map: dot pins; fix item search; Following list"`), so
+   semicolons, and commas under a plural prefix, become separate change lines.
+4. Where nothing survives (the uninterpolated messages), write
+   `note: "Deploy message was not recorded"` rather than an empty row that
+   would just look like a bug.
+5. Stamp the **newest** record's `headSha` with the current git HEAD.
+
+Step 5 is load-bearing: it is the diff cursor for the first stamped release.
+Without it every backfilled row has `headSha: null`, `build-releases.mjs` finds
+no cursor, and the next `npm run ota` stamps the entire repo history as a single
+deploy. HEAD is the correct cursor — everything committed so far is already live.
+
+Ordering comes from EAS, not from the reconstructed dates: the ages are coarse
+enough to tie (six deploys all report "1 month ago") and sorting on them would
+scramble a sequence EAS already has right.
+
+Every record is written `source: "backfill"`, and the page marks those rows
+*approximate*. Reconstructed timestamps must never be presented as measured ones.
 
 ## Component 5 — `site/ops.html`
 
@@ -178,8 +199,15 @@ Deployments blade shows an empty state and every other blade still renders. A
 record missing `changes` renders its summary row with no expansion rather than
 throwing.
 
-**Responsive.** Below 900px the rail collapses to an icon strip and tiles go
-single-column — the page is checked from a phone.
+**Filter chips.** All / Features / Bug fixes above the feed. A filtered row's
+summary and the running tally both describe *what is on screen* — showing
+"16 features" while the Bug fixes filter is on would be a lie, and the
+`+N internal` suffix is suppressed under a filter for the same reason.
+
+**Responsive.** Below 900px the rail collapses to an icon strip and tiles
+reflow. In a deploy row the *approximate* pill is what gives way, not the
+change summary — the summary is the useful column on a phone, and the expanded
+row still spells the caveat out in full.
 
 ## Testing
 
@@ -195,9 +223,16 @@ single-column — the page is checked from a phone.
   `otherCount`
 - `buildRecord` preserves input (newest-first) order and carries `sinceSha`,
   `headSha`, `appVersion`, `source` through untouched
+- `splitMessage` returns one change for a plain message, splits on semicolons,
+  lets an item's own prefix override the inherited type, splits a comma list
+  only under a plural prefix, and returns `[]` for an empty or uninterpolated
+  message
+- `plural` produces `1 fix` / `2 fixes` — `fixs` shipped once in the stamper's
+  output before this was pulled into a tested helper
 
-The page itself is verified by opening it against a fixture `releases.json`
-(populated, empty array, and missing file).
+The page itself is verified in a browser against the real `releases.json`, at
+desktop and phone widths, with `/api/ops-stats` absent so the independent
+degradation of each blade is exercised.
 
 ## Out of scope
 

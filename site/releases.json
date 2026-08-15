@@ -1,0 +1,446 @@
+[
+  {
+    "deployedAt": "2026-08-14T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": "ae4a717",
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Drafts, repost prefill, event search, error states, edit-sale address, report alerts"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-09T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Neighborhood sales manage screen"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-09T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Neighborhood sales v1"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-08T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "My listings/sales refresh counts on focus"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-08T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Delete listing"
+      },
+      {
+        "type": "feature",
+        "text": "Guest views now count"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-08T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Profile message flow -> filtered inbox"
+      },
+      {
+        "type": "feature",
+        "text": "Empty-profile state"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-08T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "First-launch welcome sheet + guest sign-in pill"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-08-08T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Sign-up DoB step stuck disabled after Apple sign-in"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Splash timing (wait for map) + web share links"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Splash holds until map ready"
+      },
+      {
+        "type": "fix",
+        "text": "Share links open trove.sale landing pages"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Splash holds until map ready"
+      },
+      {
+        "type": "fix",
+        "text": "Share links now open trove.sale landing pages"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Saved Sales spinner (don't wipe favorites on screen open)"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "No cold-start double-spinner (keep splash until first screen ready)"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Enable Sentry crash reporting (DSN)"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Pin expo-font@55 (SDK-54) - resolves immediate launch crash"
+      },
+      {
+        "type": "fix",
+        "text": "Includes private_profiles PII/onboarding fix"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Rollback: revert to last-good bundle (expo-font@55) while fixing OTA launch crash"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Write profile PII (birthdate/zip) to private_profiles - resolves 'could not find birthdate column' onboarding error"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-07-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Map: small dot pins + zoom thinning + live/new/saved (heart, NEW)"
+      },
+      {
+        "type": "fix",
+        "text": "Item search"
+      },
+      {
+        "type": "feature",
+        "text": "Inline Listings search"
+      },
+      {
+        "type": "feature",
+        "text": "Following list"
+      },
+      {
+        "type": "feature",
+        "text": "Per-user notify bell + new-item notifications"
+      },
+      {
+        "type": "fix",
+        "text": "Sharing"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [],
+    "otherCount": 0,
+    "source": "backfill",
+    "note": "Deploy message was not recorded"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [],
+    "otherCount": 0,
+    "source": "backfill",
+    "note": "Deploy message was not recorded"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Bare pressable hits, visual styles on inner Views"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Request camera + library perms before launching"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Kill safe-area band between composer + keyboard"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Live-status accuracy"
+      },
+      {
+        "type": "fix",
+        "text": "Map US-center flash"
+      },
+      {
+        "type": "fix",
+        "text": "Tab-root header consistency"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  },
+  {
+    "deployedAt": "2026-06-16T10:24:00.676Z",
+    "channel": "production",
+    "appVersion": null,
+    "headSha": null,
+    "sinceSha": null,
+    "platforms": ["android", "ios"],
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Ui: unify headers with PageHeader"
+      },
+      {
+        "type": "feature",
+        "text": "Fold Archived into Inbox via Segmented"
+      }
+    ],
+    "otherCount": 0,
+    "source": "backfill"
+  }
+]

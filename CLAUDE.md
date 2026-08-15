@@ -162,6 +162,22 @@ No external state library — state lives in custom hooks:
 
 Shared primitives exported via `src/components/ui/index.ts`: `Button`, `Input`, `Card`, `Badge`, `Chip`, `IconButton`, `Avatar`, `AvatarEditor`, `EmptyState`, `Section`, `StatusBadge`, `Skeleton`/`SaleCardSkeleton`, `DateTimeField`, `DateRangePresets`, `SettingsRow`/`SettingsGroup`, `CategoryPicker`.
 
+### Ops dashboard (`site/ops.html`) and the deployment feed
+
+`trove.sale/ops` is a passcode-gated Azure-portal-style dashboard (left rail, sticky command bar, tile blades). It is static HTML/CSS/vanilla JS — no build step, no external requests. Data comes from three independent sources and every blade degrades on its own:
+
+- Public counts — straight from Supabase with the publishable key
+- Private counts (messaging, reports, blocks, follows) — `site/api/ops-stats.js`, a serverless function holding the service-role key and verifying the passcode against `OPS_PASS_HASH`
+- App Store status — Apple's public iTunes API via JSONP (no CORS headers)
+
+The **Deployments blade** reads `site/releases.json`, a committed feed of production OTA deploys:
+
+- `scripts/lib/releases.js` — pure, unit-tested parsing (`classify`, `buildRecord`, `splitMessage`, `plural`). CommonJS so jest's repo-wide `testMatch` picks up `scripts/__tests__/releases.test.js` with no config change
+- `scripts/build-releases.mjs` — chained after `eas update` in `npm run ota`, so a failed OTA never stamps a record. Diffs `git log` from the newest record's `headSha` (the cursor) to HEAD, keeps `feat`/`fix` as change lines and counts the rest as `otherCount`, and no-ops when there are no new commits
+- `scripts/backfill-releases.mjs` — one-time reconstruction from `eas update:list`, NOT part of the deploy path. Historical OTA messages were hand-written, so they can't be anchored to commits; the message itself is the record, split into change lines. Those rows are `source: "backfill"` and render as *approximate*
+
+Stamping writes a local file only — the ops page won't show a new deploy until `site/` is redeployed to Vercel. The script prints a reminder rather than firing a site deploy as a side effect of an app deploy.
+
 ### Environment Variables
 
 Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for required values: Supabase URL, anon key, Mapbox token.
