@@ -337,6 +337,16 @@ export default function ProfileScreen() {
             onPress={() => navigation.navigate('MyListings')}
           />
           <Row
+            icon="storefront-outline"
+            label="My store"
+            sublabel={
+              liveListingsCount > 0
+                ? `${liveListingsCount} item${liveListingsCount !== 1 ? 's' : ''} listed`
+                : 'Showcase your listings'
+            }
+            onPress={() => profile?.id && navigation.navigate('ManageStore')}
+          />
+          <Row
             icon="heart-outline"
             label={ROUTE_PLANNER_ENABLED ? 'Saved & routes' : 'Saved sales'}
             sublabel={

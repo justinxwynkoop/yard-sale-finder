@@ -621,6 +621,34 @@ export default function PublicProfileScreen() {
             </Text>
           </Pressable>
           <Pressable
+            onPress={() =>
+              navigation.navigate('Store', {
+                userId,
+                displayName,
+                avatarUrl: profile?.avatar_url ?? null,
+                memberSince: profile?.created_at
+                  ? new Date(profile.created_at).getFullYear().toString()
+                  : '',
+              })
+            }
+            style={{
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              borderWidth: 1,
+              borderColor: HAIRLINE,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: '#fff',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Visit store"
+          >
+            <Ionicons name="storefront-outline" size={15} color={INK} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: INK }}>Store</Text>
+          </Pressable>
+          <Pressable
             onPress={handleMessage}
             style={{
               flex: 1,
