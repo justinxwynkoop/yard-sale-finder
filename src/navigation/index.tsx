@@ -61,6 +61,9 @@ import SavedScreen from '../screens/profile/SavedScreen';
 import MySalesScreenV3 from '../screens/profile/MySalesScreen';
 import MyListingsScreen from '../screens/profile/MyListingsScreen';
 import PublicProfileScreen from '../screens/profile/PublicProfileScreen';
+import StoreScreen from '../screens/profile/StoreScreen';
+import ManageStoreScreen from '../screens/profile/ManageStoreScreen';
+import StoreSectionDetailScreen from '../screens/profile/StoreSectionDetailScreen';
 import SavedListingsScreen from '../screens/listings/SavedListingsScreen';
 import InboxScreen from '../screens/messages/InboxScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
@@ -146,6 +149,11 @@ function MapNavigator() {
         component={PublicProfileScreen as any}
         options={{ headerShown: false }}
       />
+      <MapStack.Screen
+        name="Store"
+        component={StoreScreen as any}
+        options={{ headerShown: false }}
+      />
     </MapStack.Navigator>
   );
 }
@@ -210,6 +218,11 @@ function ListingsNavigator() {
         component={PublicProfileScreen as any}
         options={{ headerShown: false }}
       />
+      <ListingsStack.Screen
+        name="Store"
+        component={StoreScreen as any}
+        options={{ headerShown: false }}
+      />
     </ListingsStack.Navigator>
   );
 }
@@ -234,6 +247,11 @@ function MessagesNavigator() {
       <MessagesStack.Screen
         name="PublicProfile"
         component={PublicProfileScreen as any}
+        options={{ headerShown: false }}
+      />
+      <MessagesStack.Screen
+        name="Store"
+        component={StoreScreen as any}
         options={{ headerShown: false }}
       />
     </MessagesStack.Navigator>
@@ -350,6 +368,21 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="ListingDetail"
         component={ListingDetailScreen as any}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Store"
+        component={StoreScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="ManageStore"
+        component={ManageStoreScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="StoreSectionDetail"
+        component={StoreSectionDetailScreen}
         options={{ headerShown: false }}
       />
     </ProfileStack.Navigator>
