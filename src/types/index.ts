@@ -113,6 +113,17 @@ export interface ReviewSummary {
   review_count: number;
 }
 
+export interface StoreSectionConfig {
+  id: string;
+  name: string;
+  listingIds: string[];
+}
+
+export interface StoreConfig {
+  featured: string[];
+  sections: StoreSectionConfig[];
+}
+
 export interface Follow {
   follower_id: string;
   followed_id: string;
@@ -226,6 +237,7 @@ export type MessagesStackParamList = {
   InboxHome: undefined;
   Conversation: { conversationId: string };
   PublicProfile: { userId: string; self?: boolean };
+  Store: { userId: string; displayName: string; avatarUrl: string | null; memberSince: string };
 };
 
 export type ListingsStackParamList = {
@@ -241,6 +253,7 @@ export type ListingsStackParamList = {
   ListingsFilter: undefined;
   Search: undefined;
   PublicProfile: { userId: string; self?: boolean };
+  Store: { userId: string; displayName: string; avatarUrl: string | null; memberSince: string };
 };
 
 export type MapStackParamList = {
@@ -251,6 +264,7 @@ export type MapStackParamList = {
   ActiveRoute: { saleIds: string[] };
   Search: undefined;
   PublicProfile: { userId: string; self?: boolean };
+  Store: { userId: string; displayName: string; avatarUrl: string | null; memberSince: string };
 };
 
 export type SaleStackParamList = {
@@ -288,6 +302,9 @@ export type ProfileStackParamList = {
   PublicProfile: { userId: string; self?: boolean };
   SaleDetail: { saleId: string };
   ListingDetail: { listingId: string };
+  Store: { userId: string; displayName: string; avatarUrl: string | null; memberSince: string };
+  ManageStore: undefined;
+  StoreSectionDetail: { sectionId: string; sectionName: string };
 };
 
 export type ReportTargetType = 'sale' | 'listing' | 'profile';
