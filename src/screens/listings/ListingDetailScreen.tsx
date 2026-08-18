@@ -34,7 +34,7 @@ import {
   PLACEHOLDER_BLURHASH,
   transformedImageUrl,
 } from '../../lib/imageUrl';
-import { Avatar } from '../../components/ui';
+import { Avatar, HeaderButton } from '../../components/ui';
 import { formatPostedDate } from '../../utils/format';
 import { getCategoryLabel } from '../../lib/categories';
 import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
@@ -297,11 +297,9 @@ export default function ListingDetailScreen() {
               alignItems: 'center',
             }}
           >
-            <GlassButton
-              icon="chevron-back"
-              size={38}
-              iconSize={20}
+            <HeaderButton
               onPress={() => navigation.goBack()}
+              variant="glass"
               accessibilityLabel="Back"
             />
             <View style={{ flex: 1 }} />
@@ -612,7 +610,9 @@ export default function ListingDetailScreen() {
             borderTopColor: HAIRLINE,
             paddingHorizontal: 14,
             paddingTop: 12,
-            paddingBottom: Math.max(insets.bottom, 14) + 14,
+            // Sits above the tab bar (which clears the home indicator) —
+            // no safe-area inset needed; it only made a big gap.
+            paddingBottom: 16,
             flexDirection: 'row',
           }}
         >

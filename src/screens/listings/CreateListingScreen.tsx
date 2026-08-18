@@ -20,10 +20,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
-import { Button, CategoryPicker, IconButton, Input } from '../../components/ui';
+import { CategoryPicker, HeaderButton, Input } from '../../components/ui';
 import { PostSection, PostProgressBar } from '../../components/PostFormShell';
 
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'CreateListing'>;
@@ -270,9 +271,13 @@ export default function CreateListingScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(listing.id);
 
-      // Go straight to My Sales → Listings tab so the user can review
-      // or quickly edit the new post without any extra taps.
-      navigation.navigate('MySalesHome', { initialTab: 'listings' });
+      // goBack() instead of navigate('MySalesHome'): this screen lives in
+      // BOTH the Listings and Profile stacks, and navigate() to a route
+      // not present in the current stack PUSHED it, leaving CreateListing
+      // lingering underneath (it resurfaced when tapping the Profile tab).
+      // goBack() reliably pops it from whichever stack hosted it.
+      toast.success('Listing posted');
+      navigation.goBack();
     } catch (e: any) {
       const parts = [
         e?.message,
@@ -323,15 +328,12 @@ export default function CreateListingScreen() {
             paddingVertical: 10,
           }}
         >
-          <Pressable
+          <HeaderButton
             onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="close" size={24} color="#171513" />
-          </Pressable>
+            icon="close"
+            variant="tile"
+            accessibilityLabel="Cancel"
+          />
           <Text
             style={{
               flex: 1,
@@ -564,7 +566,8 @@ export default function CreateListingScreen() {
           borderTopColor: '#E5DECC',
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+          // Sits above the tab bar (which clears the home indicator).
+          paddingBottom: 16,
         }}
       >
         {validationError ? (

@@ -13,11 +13,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFavoriteListings } from '../../hooks/useFavoriteListings';
 import { ListingsStackParamList, Listing } from '../../types';
+import { EmptyState } from '../../components/ui';
+import { SubHeader } from '../../components/SubHeader';
 
 function isNew(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
 }
-import { EmptyState } from '../../components/ui';
 
 type Nav = NativeStackNavigationProp<ListingsStackParamList, 'SavedListings'>;
 
@@ -33,7 +34,8 @@ export default function SavedListingsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F2E8' }} edges={['bottom']}>
+      <SubHeader title="Saved listings" />
       <FlatList
         data={favorites}
         keyExtractor={(l) => l.id}

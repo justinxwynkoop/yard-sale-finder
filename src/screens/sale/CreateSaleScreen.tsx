@@ -19,15 +19,16 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
 import { compressImage } from '../../lib/imageCompression';
 import {
-  Button,
   CategoryPicker,
   DateRangePresets,
   DateTimeField,
+  HeaderButton,
   IconButton,
   Input,
 } from '../../components/ui';
@@ -350,9 +351,14 @@ export default function CreateSaleScreen() {
       if (error) throw error;
       if (media.length > 0) await uploadMedia(sale.id);
 
-      // Go straight to My Sales so the user can review or quickly edit
-      // the new post without any extra taps.
-      navigation.navigate('MySalesHome', { initialTab: 'sales' });
+      // Pop this screen off the stack. Previously we navigate()'d to
+      // 'MySalesHome', but that route isn't in the stack, so navigate
+      // PUSHED it and left CreateSale lingering underneath — tapping the
+      // Profile tab then resurfaced the Create screen. goBack() removes
+      // CreateSale from whichever stack hosted it (Profile or the Post
+      // flow); the realtime My Sales list shows the new post.
+      toast.success('Sale posted');
+      navigation.goBack();
     } catch (e: any) {
       // Surface full PostgREST error context (code + table) so RLS
       // rejections aren't a mystery -- the bare e.message often
@@ -403,15 +409,12 @@ export default function CreateSaleScreen() {
             paddingVertical: 10,
           }}
         >
-          <Pressable
+          <HeaderButton
             onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="close" size={24} color="#171513" />
-          </Pressable>
+            icon="close"
+            variant="tile"
+            accessibilityLabel="Cancel"
+          />
           <Text
             style={{
               flex: 1,
@@ -765,7 +768,8 @@ export default function CreateSaleScreen() {
             borderTopColor: '#E5DECC',
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+            // Sits above the tab bar (which clears the home indicator).
+            paddingBottom: 16,
           }}
         >
           {validationError ? (

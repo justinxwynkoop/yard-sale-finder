@@ -6,6 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Dimensions,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -22,10 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useSales } from '../../hooks/useSales';
 import { useAuth } from '../../hooks/useAuth';
-import {
-  saleDisplayLocation,
-  approximateAreaLabel,
-} from '../../lib/locationPrivacy';
+import { saleDisplayLocation } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useLocationLabel } from '../../hooks/useLocationLabel';
 import { useLastMapRegion } from '../../hooks/useLastMapRegion';
@@ -38,9 +37,7 @@ import SaleCard from '../../components/SaleCard';
 import { Chip } from '../../components/ui';
 import { haversineMeters, formatDistanceMiles } from '../../utils/distance';
 import { isOpenNow } from '../../utils/saleStatus';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import {
-  countActiveFilters,
   setMapFilters,
   useMapFilters,
 } from '../../lib/mapFilters';
@@ -60,7 +57,10 @@ const DEFAULT_REGION: Region = {
 // carousel — so it only needs ~the header height. The map gets the
 // rest of the screen until the user expands to the list.
 const SHEET_PEEK = 100;
-const SHEET_OPEN = 420;
+// Open list fills most of the screen (leaving the search card + chips
+// visible up top) so you can actually browse the whole list, not a
+// 420pt window of it. Adapts to the device height.
+const SHEET_OPEN = Math.round(Dimensions.get('window').height * 0.66);
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -96,7 +96,6 @@ export default function MapHomeScreen() {
     () => new Set(filters.categories.filter((c) => c === 'furniture' || c === 'tools') as QuickCat[]),
     [filters.categories],
   );
-  const activeFilterCount = countActiveFilters(filters);
 
   const [sheetState, setSheetState] = useState<SheetState>('peek');
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
@@ -665,13 +664,10 @@ export default function MapHomeScreen() {
         peekHeight={SHEET_PEEK}
         openHeight={SHEET_OPEN}
       >
-        {/* Gorhom owns ALL dragging: the grabber handle drags from
-            anywhere, and BottomSheetFlatList coordinates vertical
-            scroll ↔ sheet collapse natively in the open state. We do
-            NOT layer our own PanGestureHandler on top — doing so made
-            two gesture systems set sheetState in the same frame and
-            the sheet "fought" the drag. The header's List/Map pill is
-            the explicit tap-to-toggle. */}
+        {/* Sheet dragging is disabled (see BottomSheet.tsx) — the
+            List/Map pill in the header is the only open/close control.
+            The open-state list is a PLAIN RN FlatList so it scrolls
+            natively without gorhom routing the swipe into a sheet-drag. */}
         <SheetHeader
           state={sheetState}
           count={sortedSales.length}
@@ -683,7 +679,13 @@ export default function MapHomeScreen() {
             the space, and tapping the header expands to the full list.
             (Carousel cards were getting clipped by the peek height.) */}
         {sheetState === 'open' ? (
-          <BottomSheetFlatList
+          // Plain RN FlatList (NOT gorhom's) + dragging disabled on the
+          // sheet: the list scrolls natively with nothing competing for
+          // the gesture. With gorhom's BottomSheetFlatList the upward
+          // swipe got eaten as a sheet-drag and collapsed the sheet.
+          // flex:1 gives it the bounded height it needs to scroll.
+          <FlatList
+            style={{ flex: 1 }}
             data={sortedSales}
             keyExtractor={(s) => s.id}
             contentContainerStyle={{

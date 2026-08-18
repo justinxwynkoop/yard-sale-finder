@@ -642,7 +642,8 @@ export default function RoutePlannerScreen() {
             borderTopColor: HAIRLINE,
             paddingTop: 12,
             paddingHorizontal: 16,
-            paddingBottom: Math.max(insets.bottom, 12) + 14,
+            // Sits above the tab bar (which clears the home indicator).
+            paddingBottom: 16,
           }}
         >
           <Pressable

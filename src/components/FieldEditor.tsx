@@ -12,9 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
-const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
@@ -136,7 +134,13 @@ function EditorBody({
   const [pwConfirm, setPwConfirm] = useState('');
 
   return (
-    <View style={{ flex: 1 }}>
+    // KeyboardAvoidingView must own the full modal height (flex: 1) so
+    // its `padding` behavior lifts the whole sheet above the keyboard.
+    // The scrim is a flex: 1 child that pushes the sheet to the bottom.
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Scrim */}
       <Pressable
         onPress={onClose}
@@ -144,20 +148,17 @@ function EditorBody({
         accessibilityRole="button"
         accessibilityLabel="Close"
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <View
+        style={{
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          paddingHorizontal: 18,
+          paddingTop: 12,
+          paddingBottom: insets.bottom + 16,
+          maxHeight: '85%',
+        }}
       >
-        <View
-          style={{
-            backgroundColor: '#fff',
-            borderTopLeftRadius: 22,
-            borderTopRightRadius: 22,
-            paddingHorizontal: 18,
-            paddingTop: 12,
-            paddingBottom: insets.bottom + 24,
-            maxHeight: '88%',
-          }}
-        >
           <View
             style={{
               width: 38,
@@ -192,7 +193,15 @@ function EditorBody({
             </Text>
           ) : null}
 
-          <ScrollView keyboardShouldPersistTaps="handled">
+          {/* flexShrink lets the list shrink within the sheet's maxHeight
+              and become scrollable when the content is taller than the
+              space above the keyboard (e.g. the 3-field password form). */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 4 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {editor.type === 'text' ? (
               <>
                 <TextInput
@@ -300,11 +309,11 @@ function EditorBody({
                     lineHeight: 18,
                   }}
                 >
-                  We&rsquo;ll text a 6-digit code to verify it&rsquo;s you.
-                  Verified numbers get a trust badge.
+                  Saved to your account and never shown publicly. Phone
+                  verification (with a trust badge) is coming soon.
                 </Text>
                 <PrimaryButton
-                  label="Send code"
+                  label="Save number"
                   onPress={() => onSave(editor.key, text)}
                 />
               </>
@@ -425,7 +434,6 @@ function EditorBody({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-    </View>
   );
 }
 

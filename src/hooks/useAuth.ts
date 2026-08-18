@@ -22,7 +22,15 @@ export function useAuth() {
         return;
       }
       setSession(session);
-      setUser(session?.user ?? null);
+      // Keep the `user` REFERENCE stable when the id is unchanged. Supabase
+      // emits a fresh session.user object on every token refresh / realtime
+      // heartbeat (a few seconds apart); without this guard that new identity
+      // cascades through useBlockedUsers → useSales → sortedSales and forces
+      // the whole map's markers to rebuild, which reads as the map
+      // "refreshing every few seconds".
+      setUser((prev) =>
+        prev?.id === session?.user?.id ? prev : session?.user ?? null,
+      );
       setLoading(false);
     });
 
@@ -36,7 +44,15 @@ export function useAuth() {
         return;
       }
       setSession(session);
-      setUser(session?.user ?? null);
+      // Keep the `user` REFERENCE stable when the id is unchanged. Supabase
+      // emits a fresh session.user object on every token refresh / realtime
+      // heartbeat (a few seconds apart); without this guard that new identity
+      // cascades through useBlockedUsers → useSales → sortedSales and forces
+      // the whole map's markers to rebuild, which reads as the map
+      // "refreshing every few seconds".
+      setUser((prev) =>
+        prev?.id === session?.user?.id ? prev : session?.user ?? null,
+      );
       if (event === 'PASSWORD_RECOVERY') {
         setInRecovery(true);
       }

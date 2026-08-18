@@ -6,7 +6,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import {
@@ -22,12 +21,12 @@ import { CATEGORY_GROUPS } from '../../lib/categories';
 import { ItemCategory } from '../../types';
 import { useSales } from '../../hooks/useSales';
 import { isOpenNow } from '../../utils/saleStatus';
+import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
 const INK = '#171513';
-const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
 
@@ -119,14 +118,12 @@ export default function FilterSheet() {
           alignItems: 'center',
         }}
       >
-        <Pressable
+        <HeaderButton
           onPress={() => navigation.goBack()}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Close filters"
-        >
-          <Ionicons name="close" size={24} color={INK} />
-        </Pressable>
+          icon="close"
+          variant="tile"
+          accessibilityLabel="Close"
+        />
         <Text
           style={{
             flex: 1,

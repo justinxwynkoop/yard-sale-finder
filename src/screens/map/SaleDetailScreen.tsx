@@ -43,7 +43,7 @@ import {
 } from '../../lib/locationPrivacy';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
-import { Avatar } from '../../components/ui';
+import { Avatar, HeaderButton } from '../../components/ui';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 
@@ -99,6 +99,11 @@ export default function SaleDetailScreen() {
   const { start: startConversation } = useStartConversation();
   const [startingConversation, setStartingConversation] = useState(false);
   const userLocation = useUserLocation();
+  // Sticky-CTA height (the "Mark visited" row only shows for non-owners,
+  // so it varies). Declared up here with the other hooks — NOT after the
+  // loading/!sale early returns below — or the hook order changes once
+  // the sale loads ("rendered more hooks than during the previous render").
+  const [ctaHeight, setCtaHeight] = useState(180);
 
   const isOwnSale = sale?.user_id === user?.id;
   // Address-privacy resolution. exactUnlocked is true for the owner; the
@@ -297,7 +302,7 @@ export default function SaleDetailScreen() {
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView
         bounces={false}
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: ctaHeight + 16 }}
       >
         {/* Hero */}
         <View style={{ height: HERO_HEIGHT, backgroundColor: BRAND_SOFT }}>
@@ -359,11 +364,9 @@ export default function SaleDetailScreen() {
               alignItems: 'center',
             }}
           >
-            <GlassButton
-              icon="chevron-back"
-              size={38}
-              iconSize={20}
+            <HeaderButton
               onPress={() => navigation.goBack()}
+              variant="glass"
               accessibilityLabel="Back"
             />
             <View style={{ flex: 1 }} />
@@ -933,6 +936,7 @@ export default function SaleDetailScreen() {
 
       {/* Sticky CTA */}
       <View
+        onLayout={(e) => setCtaHeight(e.nativeEvent.layout.height)}
         style={{
           position: 'absolute',
           left: 0,
@@ -943,7 +947,10 @@ export default function SaleDetailScreen() {
           borderTopColor: HAIRLINE,
           paddingHorizontal: 14,
           paddingTop: 12,
-          paddingBottom: Math.max(insets.bottom, 14) + 14,
+          // No insets.bottom here: this bar sits ABOVE the bottom tab bar,
+          // which already clears the home indicator. Adding the inset just
+          // created a big dead gap between the buttons and the tabs.
+          paddingBottom: 16,
         }}
       >
         {/* Mark visited — the standalone primitive behind the (currently
@@ -1084,14 +1091,18 @@ function GlassButton({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: 'rgba(255,255,255,0.92)',
+        backgroundColor: 'rgba(255,255,255,0.94)',
+        borderWidth: 1,
+        borderColor: 'rgba(20,18,15,0.08)',
         alignItems: 'center',
         justifyContent: 'center',
+        // Tight low shadow (match HeaderButton glass) — defined edge does
+        // the work, so it doesn't float over light photos.
         shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+        elevation: 2,
       }}
     >
       <Ionicons name={icon} size={iconSize} color={iconColor} />

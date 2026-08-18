@@ -10,6 +10,7 @@ import { Avatar } from '../../components/ui';
 import { FieldEditor, FieldEditorConfig } from '../../components/FieldEditor';
 import { useProfile, useUpdateProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../lib/supabase';
 import { useMySales } from '../../hooks/useSales';
 import { uploadAvatar, deleteAvatar } from '../../lib/avatarUpload';
 import { LocationPrivacy, PAYMENT_METHODS, Profile } from '../../types';
@@ -27,15 +28,14 @@ const AMBER = '#B8772C';
 const AMBER_SOFT = '#FBEFD6';
 
 const BIO_MAX = 140;
-const BLUR_OPTIONS = [1, 2, 3, 5] as const;
 
 /**
  * v7 Profile & account — a genuine editing surface. Every row opens the
  * reusable FieldEditor bottom-sheet; commits write to the profile row
- * and flash a "Saved" pill. The Address-privacy control is the
- * yard-sale-specific bit: it stores how a host's exact address is
- * exposed when they run a sale (honored in MapHomeScreen / SaleDetail
- * via lib/locationPrivacy).
+ * and flash a "Saved" pill. The "Location & privacy" section is now
+ * purely informational: yard sales always show their exact address,
+ * while one-off listings only ever expose the general pickup area the
+ * seller enters — so there's no per-account address-privacy toggle.
  */
 export default function AccountScreen() {
   const navigation = useNavigation<any>();
@@ -82,6 +82,34 @@ export default function AccountScreen() {
     } else {
       flash();
     }
+  };
+
+  // Real password change. Supabase's updateUser doesn't verify the old
+  // password, so re-authenticate with it first — otherwise anyone with
+  // the unlocked phone could silently take over the account.
+  const changePassword = async (current: string, next: string) => {
+    const email = user?.email;
+    if (!email) {
+      Alert.alert('Not signed in', 'Sign in again and retry.');
+      return;
+    }
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email,
+      password: current,
+    });
+    if (reauthError) {
+      Alert.alert(
+        'Wrong current password',
+        'The current password you entered didn\u2019t match.',
+      );
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: next });
+    if (error) {
+      Alert.alert('Could not update password', error.message);
+      return;
+    }
+    flash();
   };
 
   const pickAvatar = async (source: 'camera' | 'library') => {
@@ -148,8 +176,6 @@ export default function AccountScreen() {
       : profile?.city || 'Add your neighborhood';
   const phoneMasked = profile?.phone || 'Add a phone number';
   const pay = profile?.accepted_payments ?? [];
-  const privacy: LocationPrivacy = profile?.location_privacy ?? 'reply';
-  const blurRadius = profile?.blur_radius_blocks ?? 3;
   const memberYear = profile?.created_at
     ? new Date(profile.created_at).getFullYear()
     : new Date().getFullYear();
@@ -288,7 +314,7 @@ export default function AccountScreen() {
             value={phoneMasked}
             muted={!profile?.phone}
             last
-            badge={profile?.phone_verified ? <VerifiedPill /> : <VerifyPill />}
+            badge={profile?.phone_verified ? <VerifiedPill /> : null}
             onPress={() =>
               setEditor({
                 type: 'verifyPhone',
@@ -300,8 +326,8 @@ export default function AccountScreen() {
           />
         </Card>
         <Caption top>
-          A verified phone earns a badge on your profile and unlocks
-          higher-trust sales. Contact info is never shown publicly.
+          Your phone number helps coordinate pickups if you choose to
+          share it in chat. Contact info is never shown publicly.
         </Caption>
 
         {/* Payment accepted */}
@@ -359,107 +385,37 @@ export default function AccountScreen() {
           <Ionicons name="chevron-forward" size={14} color={INK_MUTED} />
         </Pressable>
 
-        {/* Address privacy */}
-        <SectionLabel>Address privacy</SectionLabel>
+        {/* Location & privacy — informational. Yard sales always show
+            their exact address (shoppers need it); one-off listings only
+            ever show the general pickup area the seller enters. There's
+            no per-account toggle because the policy differs by content
+            type. */}
+        <SectionLabel>Location &amp; privacy</SectionLabel>
         <View
           style={{
             backgroundColor: '#fff',
             borderRadius: 14,
             borderWidth: 1,
             borderColor: HAIRLINE,
-            overflow: 'hidden',
+            padding: 14,
+            gap: 12,
           }}
         >
-          <View style={{ padding: 14 }}>
-            <Text
-              style={{
-                fontSize: 13,
-                color: INK_SOFT,
-                lineHeight: 19,
-                marginBottom: 12,
-              }}
-            >
-              When you host a sale, how should your exact address appear on
-              the map?
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Ionicons name="home-outline" size={18} color={BRAND} />
+            <Text style={{ flex: 1, fontSize: 13, color: INK_SOFT, lineHeight: 19 }}>
+              <Text style={{ fontWeight: '700', color: INK }}>Yard sales </Text>
+              show your exact address on the map so shoppers can find you.
             </Text>
-            <RadioRow
-              first
-              on={privacy === 'reply'}
-              title="Approximate until you reply"
-              sub="Map shows a circle near your block. Exact address unlocks once you message a buyer back."
-              onPress={() => commit('locationPrivacy', 'reply')}
-            />
-            <RadioRow
-              on={privacy === 'live'}
-              title="Exact when the sale is live"
-              sub="Pin drops on your address while the sale is open, then hides again after."
-              onPress={() => commit('locationPrivacy', 'live')}
-            />
           </View>
-          {privacy === 'reply' ? (
-            <View
-              style={{
-                borderTopWidth: 1,
-                borderTopColor: HAIRLINE,
-                padding: 14,
-                backgroundColor: BONE,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'baseline',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: INK }}>
-                  Blur radius
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '700',
-                    color: BRAND,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  ~{blurRadius} blocks
-                </Text>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
-                {BLUR_OPTIONS.map((r) => {
-                  const on = blurRadius === r;
-                  return (
-                    <Pressable
-                      key={r}
-                      onPress={() => commit('approxRadius', String(r))}
-                      style={{
-                        flex: 1,
-                        alignItems: 'center',
-                        paddingVertical: 8,
-                        borderRadius: 9,
-                        backgroundColor: on ? BRAND : '#fff',
-                        borderWidth: 1,
-                        borderColor: on ? BRAND : HAIRLINE,
-                      }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: on }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: '700',
-                          color: on ? '#fff' : INK,
-                        }}
-                      >
-                        {r} blk
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ) : null}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Ionicons name="pricetag-outline" size={18} color={BRAND} />
+            <Text style={{ flex: 1, fontSize: 13, color: INK_SOFT, lineHeight: 19 }}>
+              <Text style={{ fontWeight: '700', color: INK }}>One-off listings </Text>
+              only show the general pickup area you enter — never your exact
+              address. You arrange the meet-up by message.
+            </Text>
+          </View>
         </View>
 
         {/* Account */}
@@ -608,7 +564,7 @@ export default function AccountScreen() {
         onClose={() => setEditor(null)}
         onSave={commit}
         onDelete={handleDelete}
-        onPassword={() => flash()}
+        onPassword={changePassword}
       />
     </View>
   );
@@ -755,74 +711,6 @@ function VerifyPill() {
   );
 }
 
-function RadioRow({
-  on,
-  title,
-  sub,
-  onPress,
-  first,
-}: {
-  on: boolean;
-  title: string;
-  sub: string;
-  onPress: () => void;
-  first?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        gap: 11,
-        paddingVertical: 11,
-        borderTopWidth: first ? 0 : 1,
-        borderTopColor: HAIRLINE,
-      }}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: on }}
-    >
-      <View
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 99,
-          marginTop: 1,
-          borderWidth: 2,
-          borderColor: on ? BRAND : HAIRLINE,
-          backgroundColor: on ? BRAND : '#fff',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {on ? (
-          <View
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: 99,
-              backgroundColor: '#fff',
-            }}
-          />
-        ) : null}
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13.5, fontWeight: '700', color: INK }}>
-          {title}
-        </Text>
-        <Text
-          style={{
-            fontSize: 11.5,
-            color: INK_MUTED,
-            marginTop: 2,
-            lineHeight: 16,
-          }}
-        >
-          {sub}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
 
 function AvatarAction({
   icon,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState , useEffect } from 'react';
 import { View, ActivityIndicator, Image, Pressable, Text } from 'react-native';
 import {
   NavigationContainer,
@@ -10,7 +10,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/useProfile';
@@ -53,7 +52,6 @@ import ListingDetailScreen from '../screens/listings/ListingDetailScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
-import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
 import BlockedScreen from '../screens/profile/BlockedScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 import AccountScreen from '../screens/profile/AccountScreen';
@@ -180,15 +178,7 @@ function ListingsNavigator() {
       <ListingsStack.Screen
         name="SavedListings"
         component={SavedListingsScreen}
-        options={{
-          headerShown: true,
-          title: 'Saved Listings',
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: false,
-          headerTintColor: '#18181B',
-          headerBackTitle: 'Back',
-        }}
+        options={{ headerShown: false }}
       />
       <ListingsStack.Screen
         name="SaleDetail"
@@ -235,7 +225,6 @@ function MessagesNavigator() {
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
         headerShadowVisible: false,
         headerTintColor: '#18181B',
-        headerBackTitle: 'Back',
       }}
     >
       <MessagesStack.Screen
@@ -266,7 +255,6 @@ function ProfileNavigator() {
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
         headerShadowVisible: false,
         headerTintColor: '#18181B',
-        headerBackTitle: 'Back',
       }}
     >
       <ProfileStack.Screen
@@ -277,17 +265,14 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Edit Profile' }}
+        options={{ headerShown: false }}
       />
-      <ProfileStack.Screen
-        name="BlockedUsers"
-        component={BlockedUsersScreen}
-        options={{ title: 'Blocked Users' }}
-      />
+      {/* 'BlockedUsers' (legacy native-header screen) was removed — the
+          live route is 'Blocked' (BlockedScreen, SubHeader). */}
       <ProfileStack.Screen
         name="DeleteAccount"
         component={DeleteAccountScreen}
-        options={{ title: 'Delete Account' }}
+        options={{ headerShown: false }}
       />
       <ProfileStack.Screen
         name="MySalesHome"
@@ -302,7 +287,7 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="EditSale"
         component={EditSaleScreen}
-        options={{ title: 'Edit Sale', headerBackTitle: 'Back' }}
+        options={{ headerShown: false }}
       />
       <ProfileStack.Screen
         name="Capture"
@@ -321,7 +306,7 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="EditListing"
         component={EditListingScreen as any}
-        options={{ title: 'Edit Listing', headerBackTitle: 'Back' }}
+        options={{ headerShown: false }}
       />
       {/* v3 Profile expansion — all push screens hide the default
           header because they ship their own SubHeader component. */}
@@ -521,15 +506,18 @@ function MainTabs() {
         },
       })}
     >
+      {/* popToTopOnBlur: leaving a tab resets its nested stack to the
+          root, so returning to a tab shows its home (the list/map) rather
+          than a stale detail screen you'd pushed earlier. */}
       <Tab.Screen
         name="Map"
         component={MapNavigator}
-        options={{ tabBarLabel: 'Discover' }}
+        options={{ tabBarLabel: 'Discover', popToTopOnBlur: true }}
       />
       <Tab.Screen
         name="Listings"
         component={ListingsNavigator}
-        options={{ tabBarLabel: 'Listings' }}
+        options={{ tabBarLabel: 'Listings', popToTopOnBlur: true }}
       />
       <Tab.Screen
         name="Post"
@@ -547,12 +535,12 @@ function MainTabs() {
       <Tab.Screen
         name="Inbox"
         component={MessagesNavigator}
-        options={{ tabBarLabel: 'Inbox' }}
+        options={{ tabBarLabel: 'Inbox', popToTopOnBlur: true }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileNavigator}
-        options={{ tabBarLabel: 'Profile' }}
+        options={{ tabBarLabel: 'Profile', popToTopOnBlur: true }}
       />
     </Tab.Navigator>
 
@@ -634,7 +622,11 @@ function MainGate() {
   const { loading: onboardingLoading, completed: onboardingCompleted } =
     useOnboarding();
 
-  if (profileLoading || onboardingLoading) {
+  // Only block on profileLoading before we have ANY profile (first load).
+  // Once a profile exists, a background refetch must never swap MainTabs
+  // for the spinner — that remount resets the tab navigator to Discover
+  // and bounces the user out of whatever tab/stack they were in.
+  if ((profileLoading && !profile) || onboardingLoading) {
     return (
       <View
         style={{

@@ -3,5 +3,8 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"],
+  // Edge Functions are Deno code (Deno globals, https: imports) —
+  // typechecked by Deno's tooling, not the app's tsc.
+  "exclude": ["node_modules", "supabase/functions"]
 }

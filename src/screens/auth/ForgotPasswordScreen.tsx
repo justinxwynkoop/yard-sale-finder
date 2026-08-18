@@ -17,11 +17,11 @@ import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { RootStackParamList } from '../../types';
+import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
-const CREAM = '#EFE8D6';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
@@ -74,23 +74,7 @@ export default function ForgotPasswordScreen() {
           borderBottomColor: HAIRLINE,
         }}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            backgroundColor: BONE,
-            borderWidth: 1,
-            borderColor: HAIRLINE,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="chevron-back" size={20} color={INK} />
-        </Pressable>
+        <HeaderButton onPress={() => navigation.goBack()} accessibilityLabel="Back" />
         <Text
           style={{
             flex: 1,

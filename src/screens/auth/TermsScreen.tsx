@@ -7,14 +7,14 @@ import {
   Text,
   View,
 } from 'react-native';
-
-const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile, invalidateProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui';
+
+const SUPPORT_MAILTO = 'mailto:jasonwynkoop1@yahoo.com';
 
 const TERMS_VERSION = 'v1';
 

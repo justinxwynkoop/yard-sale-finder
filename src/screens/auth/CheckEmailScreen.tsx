@@ -13,16 +13,15 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { HeaderButton } from '../../components/ui';
 import { RootStackParamList } from '../../types';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
-const CREAM = '#EFE8D6';
 const INK = '#171513';
 const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
-const HAIRLINE = '#E5DECC';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CheckEmail'>;
 type Route = RouteProp<RootStackParamList, 'CheckEmail'>;
@@ -63,23 +62,11 @@ export default function CheckEmailScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BONE }} edges={['top']}>
       <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
-        <Pressable
+        <HeaderButton
           onPress={() => navigation.goBack()}
-          accessibilityRole="button"
+          variant="tile"
           accessibilityLabel="Back"
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 12,
-            backgroundColor: '#fff',
-            borderWidth: 1,
-            borderColor: HAIRLINE,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="chevron-back" size={18} color={INK} />
-        </Pressable>
+        />
       </View>
 
       <View

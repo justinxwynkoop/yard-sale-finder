@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
-import { Avatar, Button, EmptyState } from '../../components/ui';
+import { Avatar, EmptyState } from '../../components/ui';
 
 /**
  * Settings screen listing every user the current user has blocked,

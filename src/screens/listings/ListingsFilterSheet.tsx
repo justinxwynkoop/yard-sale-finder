@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { CATEGORY_GROUPS } from '../../lib/categories';
@@ -16,6 +15,7 @@ import {
   setListingsFilters,
 } from '../../lib/listingsFilters';
 import { useListings } from '../../hooks/useListings';
+import { HeaderButton } from '../../components/ui';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -96,14 +96,12 @@ export default function ListingsFilterSheet() {
           alignItems: 'center',
         }}
       >
-        <Pressable
+        <HeaderButton
           onPress={() => navigation.goBack()}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Close filters"
-        >
-          <Ionicons name="close" size={24} color={INK} />
-        </Pressable>
+          icon="close"
+          variant="tile"
+          accessibilityLabel="Close"
+        />
         <Text
           style={{
             flex: 1,
