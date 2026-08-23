@@ -1,11 +1,70 @@
 [
   {
+    "deployedAt": "2026-08-23T15:47:48.887Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "008e5d0",
+    "sinceSha": "ae4a717",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Inbox thread deleted in-session reappears when a new message arrives",
+        "sha": "008e5d0"
+      },
+      {
+        "type": "fix",
+        "text": "Message photo bubbles show a tap-to-retry state instead of a blank square",
+        "sha": "0e4bdb2"
+      },
+      {
+        "type": "feature",
+        "text": "Hide-my-city privacy toggle on the Account screen",
+        "sha": "b3b046b"
+      },
+      {
+        "type": "feature",
+        "text": "Follows vital counts real follows only",
+        "sha": "d2f0e50"
+      },
+      {
+        "type": "feature",
+        "text": "Accounts vital shows real users only",
+        "sha": "9ebaaee"
+      },
+      {
+        "type": "feature",
+        "text": "Seed-free Accounts + Real accounts vital (excludes Apple review)",
+        "sha": "b23b716"
+      },
+      {
+        "type": "fix",
+        "text": "Following someone you already follow no longer appears to unfollow",
+        "sha": "6ca81d0"
+      },
+      {
+        "type": "feature",
+        "text": "Redesign the ops dashboard around the shipping timeline",
+        "sha": "b3cd517"
+      },
+      {
+        "type": "feature",
+        "text": "Azure-style ops portal with a production deployment feed",
+        "sha": "33e28ab"
+      }
+    ],
+    "otherCount": 0,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-14T10:24:00.676Z",
     "channel": "production",
     "appVersion": null,
     "headSha": "ae4a717",
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -21,7 +80,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -37,7 +99,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -53,7 +118,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -69,7 +137,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -89,7 +160,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -109,7 +183,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -125,7 +202,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -141,7 +221,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -157,7 +240,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -177,7 +263,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -197,7 +286,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -213,7 +305,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -229,7 +324,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -245,7 +343,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -265,7 +366,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -281,7 +385,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -297,7 +404,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
@@ -333,7 +443,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [],
     "otherCount": 0,
     "source": "backfill",
@@ -345,7 +458,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [],
     "otherCount": 0,
     "source": "backfill",
@@ -357,7 +473,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -373,7 +492,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -389,7 +511,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -405,7 +530,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "fix",
@@ -429,7 +557,10 @@
     "appVersion": null,
     "headSha": null,
     "sinceSha": null,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "changes": [
       {
         "type": "feature",
