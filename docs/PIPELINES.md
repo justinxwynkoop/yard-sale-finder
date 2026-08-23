@@ -86,6 +86,23 @@ npm run ota
 That publishes a JS bundle to the `production` channel on u.expo.dev,
 tagged with your last commit message.
 
+**Runtime version gate.** An update only reaches phones whose installed
+build has the _same runtime version_. `app.json` pins `runtimeVersion`
+to an explicit string (currently the value baked into the 1.0.0 App
+Store build), and `npm run ota` runs `scripts/check-runtime.mjs` before
+publishing: it reads the latest FINISHED production iOS build from EAS
+and refuses to publish if the pinned value differs. Check by hand with
+
+```bash
+node scripts/check-runtime.mjs --print
+```
+
+History: the runtime used to be derived from Expo's native _fingerprint_.
+That hash also covers `package.json` scripts and `.gitignore`, so an
+ordinary script edit changed it, and on 2026-08-23 an OTA was published
+"successfully" under a runtime no phone had. Pinning + the gate makes
+that loud instead of silent.
+
 On your phone, in the dev client launcher: tap
 **trove → production** branch. The new bundle downloads
 on launch.
@@ -180,4 +197,9 @@ This is the only time you must rebuild every binary you care about:
 3. `npm run build:dev:ios` (so your dev client has the native side)
 4. Install the new dev client on your phone
 5. From now on, Metro / OTA work with the new package
-6. Before the next App Store submission: `npm run ship:beta`
+6. **Bump `runtimeVersion` in `app.json`** to a new string (e.g. the
+   date, `2026.09.01`). Old binaries must never receive JS that imports
+   a native module they don't have; a new runtime string fences them
+   off. `npm run ota` will refuse to publish until a production build
+   with the new runtime has finished — that's the gate working.
+7. Before the next App Store submission: `npm run ship:beta`

@@ -8,9 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "trove",
-    "runtimeVersion": {
-      "policy": "fingerprint"
-    },
+    "runtimeVersion": "13ae0c60e5076289ce40f51bf3d5ab10f1b1810a",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
