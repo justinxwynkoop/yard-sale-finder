@@ -4,6 +4,23 @@ import { Conversation } from '../types';
 import { useAuth } from './useAuth';
 
 /**
+ * Session-delete tombstone check. A conversation deleted THIS session is
+ * hidden from refetch results as a race guard (a refetch that started
+ * before the delete RPC landed would otherwise resurrect the row). But a
+ * message NEWER than the tombstone means the thread genuinely came back
+ * (standard chat behavior, mirroring the DB's *_deleted_at filter) — the
+ * tombstone must yield, otherwise the revived thread stays invisible until
+ * the app restarts.
+ */
+export function tombstoneHides(
+  deletedAtMs: number | undefined,
+  lastMessageAt: string,
+): boolean {
+  if (deletedAtMs == null) return false;
+  return new Date(lastMessageAt).getTime() <= deletedAtMs;
+}
+
+/**
  * Loads the current user's conversation inbox, sorted by most-recent
  * activity. For each row we resolve:
  *   - the OTHER participant's profile (display name + avatar)
@@ -26,10 +43,12 @@ export function useInbox() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // IDs deleted in this session. Applied as a post-filter on every fetch
-  // result so a focus-triggered refetch can't resurrect a row that was
-  // deleted but whose DB round-trip hasn't finished yet.
-  const deletedIdsRef = useRef(new Set<string>());
+  // Conversations deleted in this session, mapped to WHEN (device ms).
+  // Applied as a post-filter on every fetch result so a focus-triggered
+  // refetch can't resurrect a row whose delete round-trip hasn't finished
+  // yet. Timestamped so a message that arrives AFTER the delete clears the
+  // tombstone and the thread reappears live (see tombstoneHides).
+  const deletedIdsRef = useRef(new Map<string, number>());
 
   // useInbox is mounted in multiple places (Discover header, Profile,
   // InboxScreen) -- each needs its own Realtime channel because
@@ -180,9 +199,15 @@ export function useInbox() {
       };
     });
 
-    // Filter out any IDs deleted in this session (guards against a
-    // focus-triggered refetch racing the DB delete).
-    const visible = hydrated.filter((c) => !deletedIdsRef.current.has(c.id));
+    // Filter out rows deleted in this session (guards against a
+    // focus-triggered refetch racing the DB delete). A newer message
+    // resurrects the thread — drop its tombstone so it stays live.
+    const visible = hydrated.filter((c) => {
+      const deletedAtMs = deletedIdsRef.current.get(c.id);
+      if (tombstoneHides(deletedAtMs, c.last_message_at)) return false;
+      if (deletedAtMs != null) deletedIdsRef.current.delete(c.id);
+      return true;
+    });
     // Split inbox vs archived. A thread is archived-for-me only while no newer
     // message has arrived since I archived it (then it returns to the inbox).
     const isArchived = (c: Conversation) => {
@@ -231,7 +256,8 @@ export function useInbox() {
   // *_deleted_at, so the other participant keeps their copy; the thread
   // reappears for me on a newer message (see the doFetch filter).
   const deleteConversations = useCallback(async (ids: string[]) => {
-    ids.forEach((id) => deletedIdsRef.current.add(id));
+    const now = Date.now();
+    ids.forEach((id) => deletedIdsRef.current.set(id, now));
     setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
     setArchived((prev) => prev.filter((c) => !ids.includes(c.id)));
     await Promise.all(
