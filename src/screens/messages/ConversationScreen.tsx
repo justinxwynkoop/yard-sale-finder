@@ -46,21 +46,29 @@ function MessageBubble({
   isGrouped: boolean;
 }) {
   // message-media is private — resolve the stored path to a short-lived
-  // signed URL (only participants can mint one).
+  // signed URL (only participants can mint one). Signing can fail
+  // transiently (offline moment, cold session); without an error state the
+  // bubble used to sit as a blank square forever, which reads as an empty
+  // message — so track failure and let the user tap to retry.
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   useEffect(() => {
     let active = true;
     if (!message.image_url) {
       setImageUri(null);
       return;
     }
+    setImageFailed(false);
     getSignedMessageImage(message.image_url).then((u) => {
-      if (active) setImageUri(u);
+      if (!active) return;
+      setImageUri(u);
+      if (!u) setImageFailed(true);
     });
     return () => {
       active = false;
     };
-  }, [message.image_url]);
+  }, [message.image_url, retryToken]);
 
   return (
     <View
@@ -85,18 +93,45 @@ function MessageBubble({
         }}
       >
         {message.image_url ? (
-          <Image
-            source={imageUri ? { uri: imageUri } : undefined}
-            style={{
-              width: 220,
-              height: 220,
-              borderRadius: 12,
-              backgroundColor: '#EFE8D6',
-              marginBottom: message.body ? 6 : 0,
-            }}
-            contentFit="cover"
-            transition={120}
-          />
+          imageFailed ? (
+            <Pressable
+              onPress={() => setRetryToken((t) => t + 1)}
+              accessibilityRole="button"
+              accessibilityLabel="Photo unavailable. Tap to retry."
+              style={{
+                width: 220,
+                height: 220,
+                borderRadius: 12,
+                backgroundColor: '#EFE8D6',
+                marginBottom: message.body ? 6 : 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <Ionicons name="image-outline" size={26} color="#8A857C" />
+              <Text style={{ fontSize: 12, color: '#8A857C' }}>
+                Photo unavailable — tap to retry
+              </Text>
+            </Pressable>
+          ) : (
+            <Image
+              source={imageUri ? { uri: imageUri } : undefined}
+              style={{
+                width: 220,
+                height: 220,
+                borderRadius: 12,
+                backgroundColor: '#EFE8D6',
+                marginBottom: message.body ? 6 : 0,
+              }}
+              contentFit="cover"
+              transition={120}
+              // A signed URL can still 404 later (e.g. the object was
+              // deleted). Surface the same retryable state instead of a
+              // silent blank square.
+              onError={() => setImageFailed(true)}
+            />
+          )
         ) : null}
         {message.body ? (
           <Text
