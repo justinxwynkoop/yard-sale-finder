@@ -868,8 +868,8 @@
           Vitals read already-public aggregates (Supabase read policies, Apple&rsquo;s public iTunes
           API) plus a passcode-checked API that holds the privileged key server-side &mdash; nothing
           sensitive ships in this page, and counts are aggregate only, never identities. The
-          Accounts tile counts real users only &mdash; seed sellers and Apple App Review
-          (privaterelay) sign-ins are excluded. The shipping
+          Accounts and Follows tiles count real activity only &mdash; seed sellers, Apple App
+          Review (privaterelay) sign-ins, and follows involving them are excluded. The shipping
           feed is generated from git at deploy time. Rows marked <em>approx.</em> predate that and
           were reconstructed from EAS history, which records only a relative age &mdash; those dates
           are estimates, not measurements, and are shown at day precision for that reason.
@@ -1003,7 +1003,8 @@
             setNum('v-messages', d.messages);
             $('v-messages-48h').textContent = d.messages48h ? '+' + d.messages48h + ' in 48h' : '';
             setNum('v-push', d.push);
-            setNum('v-follows', d.follows);
+            // Only follows between real users — seed/Apple-review rows excluded.
+            setNum('v-follows', d.realFollows);
             setNum('v-blocks', d.blocks);
             setNum('v-reports', d.reports);
             $('v-reports-d').textContent =

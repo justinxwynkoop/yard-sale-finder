@@ -38,6 +38,26 @@ module.exports = async (req, res) => {
   const key = process.env.SUPABASE_SERVICE_KEY;
   const since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
 
+  // IDs of the accounts that aren't real people — the seed sellers plus
+  // Apple's App Review (privaterelay) sign-ins. Fetched up front so the
+  // follow count can drop any follow that touches one of them. The list is
+  // a handful of rows, so inlining it into a not.in filter is fine.
+  const excludedIds = await fetch(
+    SUPA +
+      'private_profiles?select=user_id' +
+      '&or=(email.like.*@localhauls.test,email.like.*@privaterelay.appleid.com)',
+    { headers: { apikey: key, Authorization: 'Bearer ' + key } },
+  )
+    .then((r) => r.json())
+    .then((rows) => (Array.isArray(rows) ? rows.map((row) => row.user_id) : null))
+    .catch(() => null);
+
+  // Real follows = neither side is an excluded account. If the exclusion
+  // list couldn't be fetched, report null rather than an inflated number.
+  const notIn =
+    excludedIds && excludedIds.length ? '=not.in.(' + excludedIds.join(',') + ')' : '';
+  const realFollowsFilter = notIn ? 'follower_id' + notIn + '&followed_id' + notIn : null;
+
   const [
     conversations,
     messages,
@@ -46,6 +66,7 @@ module.exports = async (req, res) => {
     reports,
     blocks,
     follows,
+    realFollows,
     totalUsers,
     seedUsers,
     appleUsers,
@@ -59,6 +80,7 @@ module.exports = async (req, res) => {
       count('reports', null, key),
       count('blocked_users', null, key),
       count('follows', null, key),
+      excludedIds === null ? Promise.resolve(null) : count('follows', realFollowsFilter, key),
       // Account exclusions: seed sellers and Apple's App Review accounts are
       // only identifiable by email, which lives in owner-only private_profiles
       // — hence counted here, not client-side. Review accounts always sign in
@@ -97,6 +119,7 @@ module.exports = async (req, res) => {
       reports,
       blocks,
       follows,
+      realFollows,
       accounts,
       realUsers,
       seedUsers,
