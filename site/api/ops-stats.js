@@ -38,7 +38,19 @@ module.exports = async (req, res) => {
   const key = process.env.SUPABASE_SERVICE_KEY;
   const since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
 
-  const [conversations, messages, messages48h, push, reports, blocks, follows, newest] =
+  const [
+    conversations,
+    messages,
+    messages48h,
+    push,
+    reports,
+    blocks,
+    follows,
+    totalUsers,
+    seedUsers,
+    appleUsers,
+    newest,
+  ] =
     await Promise.all([
       count('conversations', null, key),
       count('messages', null, key),
@@ -47,6 +59,15 @@ module.exports = async (req, res) => {
       count('reports', null, key),
       count('blocked_users', null, key),
       count('follows', null, key),
+      // Account exclusions: seed sellers and Apple's App Review accounts are
+      // only identifiable by email, which lives in owner-only private_profiles
+      // — hence counted here, not client-side. Review accounts always sign in
+      // with Apple + Hide My Email, so they surface as @privaterelay.appleid.com.
+      // (A genuine user who hides their email is excluded too — best signal
+      // available without tracking reviewers by hand.)
+      count('profiles', null, key),
+      count('private_profiles', 'email=like.*@localhauls.test', key),
+      count('private_profiles', 'email=like.*@privaterelay.appleid.com', key),
       // Newest signup timestamp (aggregate only — no identity data leaves here).
       fetch(SUPA + 'profiles?select=created_at&order=created_at.desc&limit=1', {
         headers: { apikey: key, Authorization: 'Bearer ' + key },
@@ -55,6 +76,14 @@ module.exports = async (req, res) => {
         .then((rows) => (rows && rows[0] ? rows[0].created_at : null))
         .catch(() => null),
     ]);
+
+  // Accounts = everything minus seed sellers; realUsers additionally drops
+  // Apple App Review sign-ins. Null-safe: a failed sub-count yields null
+  // rather than a silently-wrong number.
+  const accounts =
+    totalUsers === null || seedUsers === null ? null : totalUsers - seedUsers;
+  const realUsers =
+    accounts === null || appleUsers === null ? null : accounts - appleUsers;
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json');
@@ -68,6 +97,10 @@ module.exports = async (req, res) => {
       reports,
       blocks,
       follows,
+      accounts,
+      realUsers,
+      seedUsers,
+      appleUsers,
       newestSignupAt: newest,
     }),
   );

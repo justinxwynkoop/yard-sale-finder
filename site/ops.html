@@ -738,6 +738,11 @@
               <div class="d up" id="v-users-48h"></div>
             </div>
             <div class="vital">
+              <div class="k">Real accounts</div>
+              <div class="v num" id="v-real">&mdash;</div>
+              <div class="d" id="v-real-d"></div>
+            </div>
+            <div class="vital">
               <div class="k">Live sales</div>
               <div class="v num" id="v-sales">&mdash;</div>
               <div class="d"></div>
@@ -867,7 +872,9 @@
         <footer>
           Vitals read already-public aggregates (Supabase read policies, Apple&rsquo;s public iTunes
           API) plus a passcode-checked API that holds the privileged key server-side &mdash; nothing
-          sensitive ships in this page, and counts are aggregate only, never identities. The shipping
+          sensitive ships in this page, and counts are aggregate only, never identities. Account
+          tiles exclude the seed sellers; Real accounts also excludes Apple App Review
+          (privaterelay) sign-ins. The shipping
           feed is generated from git at deploy time. Rows marked <em>approx.</em> predate that and
           were reconstructed from EAS history, which records only a relative age &mdash; those dates
           are estimates, not measurements, and are shown at day precision for that reason.
@@ -967,9 +974,10 @@
 
       function refreshSupabase() {
         var since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
-        supaCount('profiles').then(function (v) {
-          setNum('v-users', v);
-        });
+        // "Accounts" is NOT set here: the raw profiles count includes the seed
+        // sellers, which are only identifiable by email in owner-only
+        // private_profiles — so refreshPrivate() fills it, seed-free.
+        // (The 48h delta stays public: the seed accounts are months old.)
         supaCount('profiles', 'created_at=gt.' + since48h).then(function (v) {
           $('v-users-48h').textContent = v ? '+' + v + ' in 48h' : '';
         });
@@ -991,6 +999,15 @@
           })
           .then(function (d) {
             if (!d) return;
+            // Accounts = total minus seed sellers; Real accounts additionally
+            // drops Apple App Review (privaterelay) sign-ins. Both need
+            // private_profiles emails, so they ride this API like Last signup.
+            setNum('v-users', d.accounts);
+            setNum('v-real', d.realUsers);
+            $('v-real-d').textContent =
+              d.realUsers === null || d.realUsers === undefined
+                ? ''
+                : '− ' + d.appleUsers + ' Apple review';
             setNum('v-convos', d.conversations);
             setNum('v-messages', d.messages);
             $('v-messages-48h').textContent = d.messages48h ? '+' + d.messages48h + ' in 48h' : '';
