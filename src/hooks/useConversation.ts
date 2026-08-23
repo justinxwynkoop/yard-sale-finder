@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Conversation, Listing, Message, Profile, Sale } from '../types';
 import { useAuth } from './useAuth';
+import { useAppForeground } from './useAppForeground';
+
+/** Delay before rebuilding a Realtime channel that errored or timed out. */
+const REALTIME_RETRY_MS = 3000;
 
 /**
  * The polymorphic "thing being discussed". Conversation.target_type
@@ -192,13 +196,58 @@ export function useConversation(conversationId: string | undefined) {
     fetchAll();
   }, [fetchAll]);
 
+  // Silent catch-up: re-pull the message list without the full-screen
+  // spinner. Keeps any in-flight optimistic bubble (not on the server yet)
+  // and marks the thread read if the other party said something while the
+  // socket was down.
+  const messagesRef = useRef<Message[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  const syncMessages = useCallback(async () => {
+    if (!conversationId || !user) return;
+    const { data: msgs } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+    if (!msgs) return;
+    const server = msgs as Message[];
+    const known = new Set(messagesRef.current.map((m) => m.id));
+    const sawNewFromOther = server.some(
+      (m) => !known.has(m.id) && m.sender_id !== user.id,
+    );
+    setMessages((prev) => {
+      const serverIds = new Set(server.map((m) => m.id));
+      // Keep optimistic bubbles whose real row hasn't landed yet.
+      const pendingOptimistic = prev.filter(
+        (m) => m.id.startsWith('optimistic-') && !serverIds.has(m.id),
+      );
+      return [...server, ...pendingOptimistic];
+    });
+    if (sawNewFromOther) {
+      await supabase.rpc('mark_conversation_read', {
+        p_conversation_id: conversationId,
+      });
+    }
+  }, [conversationId, user]);
+
   // Live tail. We filter client-side by conversation_id because
   // Realtime's server-side filter needs the table to be enrolled
   // with row filters; the messages publication is enrolled without,
   // so every connected client sees every INSERT and drops the ones
   // that aren't theirs.
+  //
+  // Self-healing like useInbox: an errored / timed-out channel (expired JWT
+  // after a long background, dropped socket) is rebuilt after a short
+  // delay, and the app returning to the foreground rebuilds it outright —
+  // a channel that died while iOS had the socket suspended never rejoins
+  // on its own, which left an open thread silently missing replies.
+  const [channelEpoch, setChannelEpoch] = useState(0);
   useEffect(() => {
     if (!conversationId) return;
+    let active = true;
+    let retry: ReturnType<typeof setTimeout> | null = null;
     const channel = supabase
       .channel(channelIdRef.current)
       .on(
@@ -221,11 +270,27 @@ export function useConversation(conversationId: string | undefined) {
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (!active) return;
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          if (retry) clearTimeout(retry);
+          retry = setTimeout(() => {
+            if (active) setChannelEpoch((e) => e + 1);
+          }, REALTIME_RETRY_MS);
+        }
+      });
     return () => {
+      active = false;
+      if (retry) clearTimeout(retry);
       supabase.removeChannel(channel);
     };
-  }, [conversationId, user]);
+  }, [conversationId, user, channelEpoch]);
+
+  useAppForeground(() => {
+    if (!conversationId || !user) return;
+    syncMessages();
+    setChannelEpoch((e) => e + 1);
+  });
 
   const send = useCallback(
     async (body: string, imageUrl?: string | null) => {
@@ -288,6 +353,8 @@ export function useConversation(conversationId: string | undefined) {
     sending,
     send,
     refetch: fetchAll,
+    // Silent message re-pull (no spinner) — for pull-to-refresh in the thread.
+    syncMessages,
   };
 }
 

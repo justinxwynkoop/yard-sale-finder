@@ -1,4 +1,5 @@
 import 'react-native-url-polyfill/auto';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
@@ -26,4 +27,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+});
+
+// Supabase's React Native guidance: the session auto-refresh timer should
+// only run while the app is in the foreground. Without this, the timer
+// stalls in the background, the access token expires, and on return the
+// Realtime server rejects the stale JWT on every channel — which is one of
+// the ways the inbox and conversation screens went silently dead until the
+// user navigated away and back. Refreshing on foreground also triggers
+// supabase-js's TOKEN_REFRESHED handler, which pushes the fresh token to
+// Realtime.
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
 });

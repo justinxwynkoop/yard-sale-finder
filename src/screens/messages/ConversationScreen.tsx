@@ -295,6 +295,7 @@ export default function ConversationScreen() {
     error,
     send,
     refetch,
+    syncMessages,
   } = useConversation(conversationId);
 
   // Seed the composer from the route (e.g. the Make-offer template).
@@ -304,11 +305,13 @@ export default function ConversationScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [attaching, setAttaching] = useState(false);
 
+  // Pull-to-refresh re-pulls messages silently — the full refetch() would
+  // flip `loading` and blank the thread under the user's finger.
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
+    await syncMessages();
     setRefreshing(false);
-  }, [refetch]);
+  }, [syncMessages]);
   const inputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
   const [keyboardOpen, setKeyboardOpen] = useState(false);

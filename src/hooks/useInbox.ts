@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Conversation } from '../types';
 import { useAuth } from './useAuth';
+import { useAppForeground } from './useAppForeground';
+
+/** Delay before rebuilding a Realtime channel that errored or timed out. */
+const REALTIME_RETRY_MS = 3000;
 
 /**
  * Session-delete tombstone check. A conversation deleted THIS session is
@@ -227,8 +231,18 @@ export function useInbox() {
 
   // Realtime: any insert into messages we participate in bumps the
   // inbox so previews + ordering stay live.
+  //
+  // The channel is self-healing. Bumping `channelEpoch` tears it down and
+  // builds a fresh one — done when the server reports an error / timeout
+  // (expired JWT after a long background, dropped socket) and whenever the
+  // app returns to the foreground, because a channel that died while iOS
+  // had the socket suspended never rejoins by itself. Before this, the
+  // inbox only caught up when the user navigated away and back.
+  const [channelEpoch, setChannelEpoch] = useState(0);
   useEffect(() => {
     if (!user) return;
+    let active = true;
+    let retry: ReturnType<typeof setTimeout> | null = null;
     const channel = supabase
       .channel(channelIdRef.current)
       .on(
@@ -246,11 +260,29 @@ export function useInbox() {
         { event: 'UPDATE', schema: 'public', table: 'conversations' },
         () => doFetch(),
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (!active) return;
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          if (retry) clearTimeout(retry);
+          retry = setTimeout(() => {
+            if (active) setChannelEpoch((e) => e + 1);
+          }, REALTIME_RETRY_MS);
+        }
+      });
     return () => {
+      active = false;
+      if (retry) clearTimeout(retry);
       supabase.removeChannel(channel);
     };
-  }, [user, doFetch]);
+  }, [user, doFetch, channelEpoch]);
+
+  // Foreground: catch up on anything that arrived while the socket was
+  // suspended, and rebuild the channel so it's live again.
+  useAppForeground(() => {
+    if (!user) return;
+    doFetch();
+    setChannelEpoch((e) => e + 1);
+  });
 
   // Per-user delete (bulk). hide_conversation stamps only the caller's
   // *_deleted_at, so the other participant keeps their copy; the thread
@@ -318,14 +350,21 @@ export function useInbox() {
     await supabase.rpc('unmark_conversation_read', { p_conversation_id: id });
   }, [user]);
 
+  // Stable identities. InboxScreen keys a useFocusEffect on silentRefetch;
+  // when these were inline arrows, every fetch produced a new identity, the
+  // focus effect re-ran, and the inbox refetched in a tight loop for as
+  // long as the screen was open.
+  const refetch = useCallback(() => doFetch({ pull: true }), [doFetch]);
+  const silentRefetch = useCallback(() => doFetch(), [doFetch]);
+
   return {
     conversations,
     loading,
     refreshing,
     // refetch — used by FlatList onRefresh (shows pull-to-refresh spinner)
-    refetch: () => doFetch({ pull: true }),
-    // silentRefetch — used by useFocusEffect (no spinner)
-    silentRefetch: () => doFetch(),
+    refetch,
+    // silentRefetch — used by useFocusEffect + the focused poll (no spinner)
+    silentRefetch,
     unreadCount: conversations.filter((c) => c.has_unread).length,
     archived,
     deleteConversation,

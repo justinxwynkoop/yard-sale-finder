@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   View,
@@ -32,6 +33,9 @@ const INK_SOFT = '#54504A';
 const INK_MUTED = '#8A857C';
 const ROSE = '#A23E2D';
 const HAIRLINE = '#E5DECC';
+
+/** Background poll cadence while the inbox is focused (see useFocusEffect). */
+const FOCUSED_POLL_MS = 30_000;
 
 type Filter = 'all' | 'unread' | 'buying' | 'selling';
 type ViewMode = 'inbox' | 'archived';
@@ -85,9 +89,17 @@ export default function InboxScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Catch up on focus, then keep polling quietly while the tab is open.
+  // Realtime is the primary live signal (and now self-heals after a
+  // background), but the poll guarantees a new message shows up within
+  // FOCUSED_POLL_MS even if the socket is wedged — without the user
+  // having to leave the tab and come back. Cheap at current scale; the
+  // interval is cleared the moment the screen blurs.
   useFocusEffect(
     useCallback(() => {
       silentRefetch();
+      const id = setInterval(silentRefetch, FOCUSED_POLL_MS);
+      return () => clearInterval(id);
     }, [silentRefetch]),
   );
 
@@ -318,13 +330,22 @@ export default function InboxScreen() {
           <ActivityIndicator size="large" color={BRAND} />
         </View>
       ) : filtered.length === 0 ? (
-        <View
-          style={{
-            flex: 1,
+        // Empty state is a ScrollView so pull-to-refresh works here too —
+        // "No messages yet" is exactly when someone drags down to check.
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
             alignItems: 'center',
             justifyContent: 'center',
             paddingHorizontal: 32,
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refetch}
+              tintColor={BRAND}
+            />
+          }
         >
           <Ionicons
             name={view === 'archived' ? 'archive-outline' : 'chatbubbles-outline'}
@@ -356,7 +377,7 @@ export default function InboxScreen() {
                 ? 'Threads you archive will show up here.'
                 : 'When you message a seller, your conversation will show up here.'}
           </Text>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={filtered}
