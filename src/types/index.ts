@@ -79,6 +79,13 @@ export interface Profile {
   location_privacy?: LocationPrivacy;
   /** Approximate blur radius in blocks for 'reply' mode (1/2/3/5). */
   blur_radius_blocks?: number;
+  /**
+   * Whether city/state appear on the public profile. Lives on
+   * private_profiles; when false the public city/state columns are null and
+   * the real values live only on private_profiles (merged back for the
+   * owner by useProfile so the completion gate still passes).
+   */
+  show_city?: boolean;
   created_at: string;
 }
 

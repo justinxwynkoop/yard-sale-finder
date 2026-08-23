@@ -54,6 +54,33 @@ describe('splitProfilePatch', () => {
       privatePatch: { phone: '5' },
     });
   });
+
+  it('keeps city public by default, but while hidden moves it private and pins the public columns to null', () => {
+    expect(
+      splitProfilePatch({ city: 'Muncie', state: 'IN' } as Partial<Profile>, {
+        cityHidden: false,
+      }),
+    ).toEqual({
+      profilesPatch: { city: 'Muncie', state: 'IN' },
+      privatePatch: {},
+    });
+    expect(
+      splitProfilePatch(
+        { city: 'Muncie', state: 'IN', bio: 'hi' } as Partial<Profile>,
+        { cityHidden: true },
+      ),
+    ).toEqual({
+      profilesPatch: { city: null, state: null, bio: 'hi' },
+      privatePatch: { city: 'Muncie', state: 'IN' },
+    });
+  });
+
+  it('routes the show_city preference to the private patch', () => {
+    expect(splitProfilePatch({ show_city: false } as Partial<Profile>)).toEqual({
+      profilesPatch: {},
+      privatePatch: { show_city: false },
+    });
+  });
 });
 
 describe('isProfileComplete (gate also depends on the merged birthdate)', () => {

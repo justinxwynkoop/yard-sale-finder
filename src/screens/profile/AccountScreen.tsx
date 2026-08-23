@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Modal,
+  Alert,
+  Switch,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +16,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { SubHeader } from '../../components/SubHeader';
 import { Avatar } from '../../components/ui';
 import { FieldEditor, FieldEditorConfig } from '../../components/FieldEditor';
-import { useProfile, useUpdateProfile } from '../../hooks/useProfile';
+import {
+  useProfile,
+  useUpdateProfile,
+  useSetCityVisibility,
+} from '../../hooks/useProfile';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { useMySales } from '../../hooks/useSales';
@@ -45,14 +57,36 @@ export default function AccountScreen() {
   const updateProfile = useUpdateProfile();
   const { sales } = useMySales(user?.id);
 
+  const setCityVisibility = useSetCityVisibility();
+
   const [editor, setEditor] = useState<FieldEditorConfig | null>(null);
   const [avatarSheet, setAvatarSheet] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [togglingCity, setTogglingCity] = useState(false);
 
   const flash = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 1400);
+  };
+
+  // Hide-my-city: moves city/state between the public profiles row and the
+  // owner-only private_profiles copy (see useSetCityVisibility). Default is
+  // visible, matching every other marketplace's "show your area" behavior.
+  const showCity = profile?.show_city !== false;
+  const toggleCityVisibility = async (next: boolean) => {
+    if (!profile || togglingCity) return;
+    setTogglingCity(true);
+    const { error } = await setCityVisibility(next, {
+      city: profile.city ?? null,
+      state: profile.state ?? null,
+    });
+    setTogglingCity(false);
+    if (error) {
+      Alert.alert('Could not save', error.message ?? 'Please try again.');
+    } else {
+      flash();
+    }
   };
 
   // Persist a single field, close the editor, flash. `key` is the
@@ -385,11 +419,11 @@ export default function AccountScreen() {
           <Ionicons name="chevron-forward" size={14} color={INK_MUTED} />
         </Pressable>
 
-        {/* Location & privacy — informational. Yard sales always show
-            their exact address (shoppers need it); items only
-            ever show the general pickup area the seller enters. There's
-            no per-account toggle because the policy differs by content
-            type. */}
+        {/* Location & privacy. The address rows are informational — yard
+            sales always show their exact address (shoppers need it); items
+            only ever show the general pickup area the seller enters. The
+            one per-account control is the city toggle: whether "Local to
+            {city}" appears on the public profile. */}
         <SectionLabel>Location &amp; privacy</SectionLabel>
         <View
           style={{
@@ -415,6 +449,34 @@ export default function AccountScreen() {
               only show the general pickup area you enter — never your exact
               address. You arrange the meet-up by message.
             </Text>
+          </View>
+          <View style={{ height: 1, backgroundColor: HAIRLINE }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="location-outline" size={18} color={BRAND} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: INK }}>
+                Show your city on your profile
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: INK_SOFT,
+                  lineHeight: 17,
+                  marginTop: 2,
+                }}
+              >
+                When off, &ldquo;Local to&rdquo; disappears from your public
+                profile. Your city stays saved privately for nearby features.
+              </Text>
+            </View>
+            <Switch
+              value={showCity}
+              onValueChange={toggleCityVisibility}
+              disabled={togglingCity || !profile}
+              trackColor={{ false: HAIRLINE, true: BRAND }}
+              thumbColor="#fff"
+              accessibilityLabel="Show your city on your profile"
+            />
           </View>
         </View>
 

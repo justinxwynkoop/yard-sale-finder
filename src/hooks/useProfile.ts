@@ -72,10 +72,19 @@ export function useProfile() {
       if (data) {
         const { data: priv } = await supabase
           .from('private_profiles')
-          .select('email, phone, birthdate, zip_code')
+          .select('email, phone, birthdate, zip_code, city, state, show_city')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (priv) profile = { ...data, ...priv } as Profile;
+        if (priv) {
+          // City/state normally live on profiles; while hidden (show_city
+          // false) they live ONLY on private_profiles. Merge them back for
+          // the owner so the completion gate and Account screen still see
+          // them — but never let a null private copy clobber the public one.
+          const { city: privCity, state: privState, ...rest } = priv;
+          profile = { ...data, ...rest } as Profile;
+          if (privCity != null) profile.city = privCity;
+          if (privState != null) profile.state = privState;
+        }
       }
       hasLoadedRef.current = true;
       setState({ profile, loading: false, error: null });
@@ -123,8 +132,15 @@ export const PRIVATE_PROFILE_COLUMNS = [
 /**
  * Split a profile patch into the part that belongs on `profiles` and the part
  * that belongs on the owner-only `private_profiles` table.
+ *
+ * `cityHidden` is the hide-my-city preference: while it's on, city/state
+ * edits belong on the private copy, and the public columns are pinned to
+ * null so a later edit can never re-leak the value.
  */
-export function splitProfilePatch(patch: Partial<Profile>): {
+export function splitProfilePatch(
+  patch: Partial<Profile>,
+  opts?: { cityHidden?: boolean },
+): {
   profilesPatch: Record<string, unknown>;
   privatePatch: Record<string, unknown>;
 } {
@@ -132,8 +148,12 @@ export function splitProfilePatch(patch: Partial<Profile>): {
   const profilesPatch: Record<string, unknown> = {};
   const privatePatch: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch)) {
-    if (priv.includes(k)) privatePatch[k] = v;
-    else profilesPatch[k] = v;
+    // show_city is a preference, not PII, but it lives on private_profiles.
+    if (priv.includes(k) || k === 'show_city') privatePatch[k] = v;
+    else if (opts?.cityHidden && (k === 'city' || k === 'state')) {
+      privatePatch[k] = v;
+      profilesPatch[k] = null;
+    } else profilesPatch[k] = v;
   }
   return { profilesPatch, privatePatch };
 }
@@ -143,7 +163,20 @@ export function useUpdateProfile() {
   return useCallback(
     async (patch: Partial<Profile>) => {
       if (!user) return { error: new Error('Not signed in') };
-      const { profilesPatch, privatePatch } = splitProfilePatch(patch);
+      // City edits must respect the hide-my-city preference: while hidden,
+      // the new value belongs on private_profiles, never the public row.
+      let cityHidden = false;
+      if ('city' in patch || 'state' in patch) {
+        const { data: priv } = await supabase
+          .from('private_profiles')
+          .select('show_city')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        cityHidden = priv?.show_city === false;
+      }
+      const { profilesPatch, privatePatch } = splitProfilePatch(patch, {
+        cityHidden,
+      });
       let error: { message: string } | null = null;
       if (Object.keys(profilesPatch).length > 0) {
         error = (
@@ -157,6 +190,58 @@ export function useUpdateProfile() {
             .upsert({ user_id: user.id, ...privatePatch }, { onConflict: 'user_id' })
         ).error;
       }
+      if (!error) invalidateProfile();
+      return { error };
+    },
+    [user],
+  );
+}
+
+/**
+ * Flip whether city/state appear on the public profile. The write order is
+ * deliberate so a mid-flight failure can duplicate the value but never lose
+ * it: hiding stashes the private copy BEFORE clearing the public columns;
+ * showing republishes the public columns BEFORE clearing the private copy.
+ */
+export function useSetCityVisibility() {
+  const { user } = useAuth();
+  return useCallback(
+    async (
+      show: boolean,
+      current: { city: string | null; state: string | null },
+    ) => {
+      if (!user) return { error: new Error('Not signed in') };
+      if (show) {
+        const { error: publishError } = await supabase
+          .from('profiles')
+          .update({ city: current.city, state: current.state })
+          .eq('id', user.id);
+        if (publishError) return { error: publishError };
+        const { error } = await supabase
+          .from('private_profiles')
+          .upsert(
+            { user_id: user.id, show_city: true, city: null, state: null },
+            { onConflict: 'user_id' },
+          );
+        if (!error) invalidateProfile();
+        return { error };
+      }
+      const { error: stashError } = await supabase
+        .from('private_profiles')
+        .upsert(
+          {
+            user_id: user.id,
+            show_city: false,
+            city: current.city,
+            state: current.state,
+          },
+          { onConflict: 'user_id' },
+        );
+      if (stashError) return { error: stashError };
+      const { error } = await supabase
+        .from('profiles')
+        .update({ city: null, state: null })
+        .eq('id', user.id);
       if (!error) invalidateProfile();
       return { error };
     },
