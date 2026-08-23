@@ -1,5 +1,26 @@
 [
   {
+    "deployedAt": "2026-08-23T16:15:00.324Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "025d70c",
+    "sinceSha": "008e5d0",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Pin runtimeVersion to the live build and gate publishes on it",
+        "sha": "025d70c"
+      },
+      {
+        "type": "fix",
+        "text": "Inbox and threads stay live after backgrounding; pull-to-refresh on empty inbox",
+        "sha": "45197f9"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-23T15:47:48.887Z",
     "channel": "production",
     "appVersion": "1.0.0",
