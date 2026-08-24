@@ -12,6 +12,7 @@
     { "src": "^/sitemap\\.xml$", "dest": "/api/sitemap" },
     { "src": "^/event/[a-z0-9]+$", "dest": "/open.html" },
     { "src": "^/privacy$", "dest": "/privacy.html" },
+    { "src": "^/delete-account$", "dest": "/delete-account.html" },
     { "src": "^/terms$", "dest": "/terms.html" },
     { "src": "^/open$", "dest": "/open.html" },
     { "src": "^/ops$", "dest": "/ops.html" }
