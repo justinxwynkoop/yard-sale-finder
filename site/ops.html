@@ -1101,12 +1101,17 @@
 
       // ── Site health ───────────────────────────────────────────────────────
       function refreshSite() {
-        var pages = ['/', '/privacy', '/terms', '/sale/health-check'];
+        // /sale/health-check probes the SSR share-page function. Its id isn't
+        // a UUID, so a healthy function answers 404 — that still proves
+        // routing + function execution end-to-end. Only 5xx/network failure
+        // means the share pages are actually down. /sitemap.xml exercises the
+        // sitemap function plus its Supabase read.
+        var pages = ['/', '/privacy', '/terms', '/sitemap.xml', '/sale/health-check'];
         return Promise.all(
           pages.map(function (p) {
             return fetch(p, { method: 'HEAD' })
               .then(function (r) {
-                return r.ok;
+                return r.ok || (p.indexOf('/sale/') === 0 && r.status === 404);
               })
               .catch(function () {
                 return false;
