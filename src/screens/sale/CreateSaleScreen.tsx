@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../lib/toast';
+import { track } from '../../lib/analytics';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleEvent, SaleStackParamList } from '../../types';
 import { captureBus } from '../../lib/captureBus';
@@ -576,6 +577,7 @@ export default function CreateSaleScreen() {
       // and disable Post.
       resetForm();
       if (draftsEnabled) void clearDraft('sale');
+      track('sale_posted', { saleId: sale.id });
 
       // Proximity prompt (spec §3, door two): location-only match against
       // upcoming events, skipped when the sale already joined via link or

@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { supabase } from '../../lib/supabase';
+import { track } from '../../lib/analytics';
 import { toast } from '../../lib/toast';
 import { Listing, ListingMedia, ListingStatus, ListingsStackParamList } from '../../types';
 import { PhotoViewer } from '../../components/PhotoViewer';
@@ -97,6 +98,10 @@ export default function ListingDetailScreen() {
     }
   };
   const favorited = listing ? isFavorited(listing.id) : false;
+
+  useEffect(() => {
+    track('listing_viewed', { listingId });
+  }, [listingId]);
 
   useEffect(() => {
     setLoading(true);

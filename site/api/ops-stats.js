@@ -71,6 +71,7 @@ module.exports = async (req, res) => {
     seedUsers,
     appleUsers,
     newest,
+    eventStats,
   ] =
     await Promise.all([
       count('conversations', null, key),
@@ -96,6 +97,20 @@ module.exports = async (req, res) => {
       })
         .then((r) => r.json())
         .then((rows) => (rows && rows[0] ? rows[0].created_at : null))
+        .catch(() => null),
+      // Behavior funnel from the events table. The RPC is service-role-only
+      // (EXECUTE revoked from clients) and returns aggregates, never rows.
+      // Null until the events migration lands — the tiles show a dash.
+      fetch(SUPA + 'rpc/ops_event_stats', {
+        method: 'POST',
+        headers: {
+          apikey: key,
+          Authorization: 'Bearer ' + key,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      })
+        .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ]);
 
@@ -125,6 +140,7 @@ module.exports = async (req, res) => {
       seedUsers,
       appleUsers,
       newestSignupAt: newest,
+      events: eventStats,
     }),
   );
 };

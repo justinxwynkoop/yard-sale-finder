@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../lib/toast';
+import { track } from '../../lib/analytics';
 import { useAuth } from '../../hooks/useAuth';
 import { ItemCategory, SaleStackParamList } from '../../types';
 import { compressImage } from '../../lib/imageCompression';
@@ -398,6 +399,7 @@ export default function CreateListingScreen() {
       // "reopened Post and it re-posted my last item" duplicate bug.
       resetForm();
       void clearDraft('listing');
+      track('listing_posted', { listingId: listing.id });
 
       // goBack() instead of navigate('MySalesHome'): this screen lives in
       // BOTH the Listings and Profile stacks, and navigate() to a route

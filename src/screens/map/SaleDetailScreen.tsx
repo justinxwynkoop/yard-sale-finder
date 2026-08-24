@@ -27,6 +27,7 @@ import { useStackBack } from '../../hooks/useStackBack';
 
 import { Listing, MapStackParamList, Sale } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { track } from '../../lib/analytics';
 import {
   PLACEHOLDER_BLURHASH,
   transformedImageUrl,
@@ -97,6 +98,7 @@ export default function SaleDetailScreen() {
   // the map (it's no longer new to someone who's already looked at it).
   useEffect(() => {
     markSeen(saleId);
+    track('sale_viewed', { saleId });
   }, [saleId, markSeen]);
 
   const [sale, setSale] = useState<Sale | null>(null);

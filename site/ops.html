@@ -782,6 +782,26 @@
               <div class="v sm" id="v-newest">&mdash;</div>
               <div class="d"></div>
             </div>
+            <div class="vital">
+              <div class="k">Active users (48h)</div>
+              <div class="v num" id="v-active">&mdash;</div>
+              <div class="d" id="v-active-7d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Content views (48h)</div>
+              <div class="v num" id="v-views">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">Posts (7d)</div>
+              <div class="v num" id="v-posts">&mdash;</div>
+              <div class="d"></div>
+            </div>
+            <div class="vital">
+              <div class="k">New convos (7d)</div>
+              <div class="v num" id="v-newconvos">&mdash;</div>
+              <div class="d"></div>
+            </div>
           </div>
         </section>
 
@@ -1011,6 +1031,17 @@
               d.reports === null ? '' : d.reports > 0 ? 'needs review' : 'nothing pending';
             $('v-reports').style.color = d.reports > 0 ? 'var(--warn)' : '';
             $('v-newest').textContent = relative(d.newestSignupAt);
+            // Behavior funnel (events table). Signed-in users only — guests
+            // log events with no user_id, so they can't be counted as actives.
+            var ev = d.events;
+            setNum('v-active', ev ? ev.active48h : null);
+            $('v-active-7d').textContent =
+              ev && ev.active7d !== null && ev.active7d !== undefined
+                ? ev.active7d + ' in 7d'
+                : '';
+            setNum('v-views', ev ? ev.views48h : null);
+            setNum('v-posts', ev ? ev.posts7d : null);
+            setNum('v-newconvos', ev ? ev.convos7d : null);
           })
           .catch(function () {});
       }

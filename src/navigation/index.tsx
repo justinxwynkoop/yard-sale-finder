@@ -13,8 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../hooks/useAuth';
-import { useProfile, isProfileComplete, hasAcceptedTerms } from '../hooks/useProfile';
+import { useProfile } from '../hooks/useProfile';
 import { useOnboarding } from '../hooks/useOnboarding';
+import { gateStep } from './gate';
 import { useInbox } from '../hooks/useInbox';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useNearbyLocationSync } from '../hooks/useNearbyLocationSync';
@@ -24,6 +25,7 @@ import {
   navigateToSale,
   navigateToListing,
 } from '../lib/navigationRef';
+import { track } from '../lib/analytics';
 import { promptSignIn } from '../lib/guestGate';
 import { GuestWelcomeSheet } from '../components/GuestWelcomeSheet';
 import {
@@ -397,6 +399,12 @@ function MainTabs() {
   const { user } = useAuth();
   const { profile } = useProfile();
 
+  // One session-open event per MainTabs mount (guests included — their
+  // user_id is null). Drives the Active-users tiles on the ops page.
+  useEffect(() => {
+    track('app_open');
+  }, []);
+
   // Lifted to the navigator level so any tab can open the Post sheet.
   const [postMenuOpen, setPostMenuOpen] = useState(false);
 
@@ -662,7 +670,16 @@ function MainGate() {
   // sites via promptSignIn (src/lib/guestGate.ts).
   const isGuest = !user;
 
-  const booting = !isGuest && ((profileLoading && !profile) || onboardingLoading);
+  // Decision logic is pure and unit-tested in ./gate — keep ordering
+  // changes there, not inline here.
+  const step = gateStep({
+    isGuest,
+    profile,
+    profileLoading,
+    onboardingDone,
+    onboardingLoading,
+  });
+  const booting = step === 'booting';
 
   // Which screen this gate will render once boot settles. The native splash
   // stays up through the whole decision: gate screens hide it here the moment
@@ -671,13 +688,7 @@ function MainGate() {
   // (region resolved + native map initialized). Otherwise cold start flashes
   // the map screen's loading placeholder: splash → spinner → map. hideAsync is
   // idempotent with Navigation's recovery-path hide and App's safety timeout.
-  const destination = booting
-    ? null
-    : isGuest
-      ? 'tabs'
-      : !isProfileComplete(profile) || !hasAcceptedTerms(profile) || !onboardingDone
-        ? 'gate'
-        : 'tabs';
+  const destination = booting ? null : step === 'tabs' ? 'tabs' : 'gate';
 
   useEffect(() => {
     if (destination === 'gate') SplashScreen.hideAsync().catch(() => {});
@@ -702,23 +713,23 @@ function MainGate() {
     );
   }
 
-  // Order of gates after sign-in:
+  // Order of gates after sign-in (decided by gateStep, tested in gate.ts):
   //   1) profile fields missing -> CompleteProfileScreen
   //   2) terms not accepted     -> TermsScreen
   //   3) onboarding not seen     -> OnboardingScreen (one-time slides)
   //   4) otherwise              -> MainTabs
   // Gate 1 — collect name, birthdate (18+), and location
-  if (!isProfileComplete(profile)) {
+  if (step === 'complete_profile') {
     return <CompleteProfileScreen />;
   }
 
   // Gate 2 — must accept Terms of Service before entering the app
-  if (!hasAcceptedTerms(profile)) {
+  if (step === 'terms') {
     return <TermsScreen />;
   }
 
   // Gate 3 — one-time welcome slides, right after they finish setup
-  if (!onboardingDone) {
+  if (step === 'onboarding') {
     return <OnboardingScreen />;
   }
 

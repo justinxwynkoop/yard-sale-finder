@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile, invalidateProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
+import { track } from '../../lib/analytics';
 import { Button, Input } from '../../components/ui';
 
 // ─── US states ────────────────────────────────────────────────────────────────
@@ -186,6 +187,7 @@ export default function CompleteProfileScreen() {
         { onConflict: 'user_id' },
       );
       if (privError) { Alert.alert('Could not save', privError.message); return; }
+      track('profile_completed');
       await refetch();
       invalidateProfile();
     } catch (e: any) {

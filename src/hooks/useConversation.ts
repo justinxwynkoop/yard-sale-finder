@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { track } from '../lib/analytics';
 import { Conversation, Listing, Message, Profile, Sale } from '../types';
 import { useAuth } from './useAuth';
 import { useAppForeground } from './useAppForeground';
@@ -325,6 +326,7 @@ export function useConversation(conversationId: string | undefined) {
         setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
         return { error: sendErr };
       }
+      track('message_sent', { conversationId, hasImage: !!imageUrl });
       // Reconcile the optimistic bubble with the real row. The realtime
       // INSERT echo for this same message can land BEFORE this insert()
       // resolves — in which case the real row is already in the list and a
@@ -371,6 +373,7 @@ export function useStartConversation() {
         p_target_id: targetId,
       });
       if (error) return { id: null, error };
+      track('conversation_started', { targetType, targetId });
       return { id: data as string, error: null };
     },
     [],
