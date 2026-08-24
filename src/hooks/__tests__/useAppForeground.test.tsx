@@ -43,9 +43,10 @@ describe('useAppForeground', () => {
   it('calls the latest callback without re-subscribing', async () => {
     const first = jest.fn();
     const second = jest.fn();
-    const { rerender } = await renderHook(({ cb }) => useAppForeground(cb), {
-      initialProps: { cb: first },
-    });
+    const { rerender } = await renderHook(
+      ({ cb }: { cb: () => void }) => useAppForeground(cb),
+      { initialProps: { cb: first } },
+    );
     // Relative count: the test renderer registers its own AppState listener.
     const subscriptions = (AppState.addEventListener as jest.Mock).mock.calls.length;
 
