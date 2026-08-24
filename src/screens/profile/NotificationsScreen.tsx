@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Animated } from 'react-native';
 import { SubHeader } from '../../components/SubHeader';
+import { CategoryPicker } from '../../components/ui';
 import { useProfile, invalidateProfile } from '../../hooks/useProfile';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../lib/toast';
+import { ItemCategory } from '../../types';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -28,6 +30,10 @@ export default function NotificationsScreen() {
   const [nearby, setNearby] = useState(true);
   const [messages, setMessages] = useState(true);
   const [radius, setRadius] = useState(5);
+  // Category alerts: alertCats is what's persisted; alertsOn is a local UI
+  // gate so the picker can be revealed before the first category is chosen.
+  const [alertsOn, setAlertsOn] = useState(false);
+  const [alertCats, setAlertCats] = useState<ItemCategory[]>([]);
 
   // Hydrate from the profile once loaded.
   useEffect(() => {
@@ -35,6 +41,9 @@ export default function NotificationsScreen() {
     setNearby(profile.notify_sales_nearby ?? true);
     setMessages(profile.notify_messages ?? true);
     setRadius(profile.nearby_radius_miles ?? 5);
+    const cats = (profile.alert_categories ?? []) as ItemCategory[];
+    setAlertCats(cats);
+    setAlertsOn(cats.length > 0);
   }, [profile]);
 
   const persist = async (patch: Record<string, unknown>, rollback: () => void) => {
@@ -68,6 +77,28 @@ export default function NotificationsScreen() {
     const prev = radius;
     setRadius(mi);
     persist({ nearby_radius_miles: mi }, () => setRadius(prev));
+  };
+
+  // Toggling alerts off clears the persisted categories (empty array = off
+  // for the notify-new-listing edge function). Toggling on just reveals the
+  // picker — nothing is persisted until a category is chosen.
+  const toggleAlerts = () => {
+    const next = !alertsOn;
+    setAlertsOn(next);
+    if (!next && alertCats.length > 0) {
+      const prev = alertCats;
+      setAlertCats([]);
+      persist({ alert_categories: [] }, () => {
+        setAlertCats(prev);
+        setAlertsOn(true);
+      });
+    }
+  };
+
+  const changeAlertCats = (cats: ItemCategory[]) => {
+    const prev = alertCats;
+    setAlertCats(cats);
+    persist({ alert_categories: cats }, () => setAlertCats(prev));
   };
 
   return (
@@ -125,6 +156,27 @@ export default function NotificationsScreen() {
                   );
                 })}
               </View>
+            </View>
+          ) : null}
+        </Card>
+
+        {/* Item alerts */}
+        <SectionLabel>Item alerts</SectionLabel>
+        <Card>
+          <Row
+            label="New listings in my categories"
+            sub={
+              alertsOn && alertCats.length === 0
+                ? 'Pick at least one category below'
+                : 'Ping me when someone lists something I hunt for'
+            }
+            on={alertsOn}
+            onPress={toggleAlerts}
+            last={!alertsOn}
+          />
+          {alertsOn ? (
+            <View style={{ paddingHorizontal: 14, paddingBottom: 14, paddingTop: 4 }}>
+              <CategoryPicker selected={alertCats} onChange={changeAlertCats} />
             </View>
           ) : null}
         </Card>

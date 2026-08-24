@@ -1,10 +1,14 @@
 /**
  * notify-new-listing
  *
- * Triggered by a DB webhook (trigger) on public.listings INSERT. Pushes
- * "{host} listed a new item" to the host's followers who have the per-follow
- * `notify` flag on. (Unlike notify-new-sale there is no "nearby" push — that
- * is sales-only.)
+ * Triggered by a DB webhook (trigger) on public.listings INSERT. Pushes to
+ * two audiences, deduped (follower message wins):
+ *   1. The host's followers with the per-follow `notify` bell on —
+ *      "{host} listed a new item".
+ *   2. Category subscribers: profiles whose alert_categories overlaps the
+ *      listing's categories — "New {category} listing". Empty
+ *      alert_categories = not subscribed.
+ * (Unlike notify-new-sale there is no "nearby" push — that is sales-only.)
  *
  * Webhook body: { type, table, record: { ...new row } }
  * Env (auto-injected): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -90,29 +94,58 @@ Deno.serve(async (req: Request) => {
     .single();
   const sellerName = seller?.display_name ?? 'Someone you follow';
 
-  // Followers with the bell on.
+  // Audience 1: followers with the bell on.
   const { data: followers, error: fErr } = await supabase
     .from('follows')
     .select('follower_id')
     .eq('followed_id', sellerId)
     .eq('notify', true);
   if (fErr) console.error('follows lookup failed:', fErr.message);
-  const followerIds = (followers ?? []).map((f) => f.follower_id as string);
-  if (followerIds.length === 0) return new Response('No recipients', { status: 200 });
+  const followerIds = new Set(
+    (followers ?? []).map((f) => f.follower_id as string),
+  );
+
+  // Audience 2: category subscribers — alert_categories overlaps (&&) the
+  // listing's categories. Sellers don't get pinged about their own items,
+  // and anyone who is also a follower gets the (more personal) follower
+  // message instead.
+  const categories = (record.categories as string[] | null) ?? [];
+  const subscriberIds = new Set<string>();
+  if (categories.length > 0) {
+    const { data: subs, error: sErr } = await supabase
+      .from('profiles')
+      .select('id')
+      .overlaps('alert_categories', categories)
+      .neq('id', sellerId);
+    if (sErr) console.error('alert_categories lookup failed:', sErr.message);
+    for (const s of subs ?? []) {
+      const id = s.id as string;
+      if (!followerIds.has(id)) subscriberIds.add(id);
+    }
+  }
+
+  const allIds = [...followerIds, ...subscriberIds];
+  if (allIds.length === 0) return new Response('No recipients', { status: 200 });
 
   const { data: recipients } = await supabase
     .from('user_push_tokens')
-    .select('token')
-    .in('user_id', followerIds);
+    .select('user_id, token')
+    .in('user_id', allIds);
+
+  // "furniture_living_room" -> "furniture" head for a readable alert title.
+  const catLabel = (categories[0] ?? 'item').split('_')[0];
 
   const messages: PushMessage[] = [];
   for (const r of recipients ?? []) {
     const to = r.token as string;
+    const userId = r.user_id as string;
     if (to) {
       messages.push({
         to,
         sound: 'default',
-        title: `${sellerName} listed a new item`,
+        title: followerIds.has(userId)
+          ? `${sellerName} listed a new item`
+          : `New ${catLabel} listing`,
         body,
         data: { listingId },
         channelId: 'sales',
