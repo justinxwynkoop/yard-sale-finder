@@ -54,7 +54,6 @@ supabase/.temp/
 # EAS / submission secrets (Play service-account key, App Store API key, etc.)
 secrets/
 *.p8
-google-services.json
 GoogleService-Info.plist
 
 .env.local
