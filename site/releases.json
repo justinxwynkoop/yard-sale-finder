@@ -1,5 +1,36 @@
 [
   {
+    "deployedAt": "2026-08-24T19:04:06.117Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "14c4b38",
+    "sinceSha": "025d70c",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Server-rendered sale/listing pages, sitemap, robots",
+        "sha": "5d127ba"
+      },
+      {
+        "type": "feature",
+        "text": "Category alerts — ping me when someone lists what I hunt for",
+        "sha": "cd796a5"
+      },
+      {
+        "type": "feature",
+        "text": "Auto-hide content reported by 3+ distinct users",
+        "sha": "01b72df"
+      },
+      {
+        "type": "feature",
+        "text": "Self-hosted behavior funnel (events table -> ops vitals)",
+        "sha": "fb6a9f9"
+      }
+    ],
+    "otherCount": 3,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-23T16:15:00.324Z",
     "channel": "production",
     "appVersion": "1.0.0",
