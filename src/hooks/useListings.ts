@@ -28,6 +28,9 @@ export function useListings(filters: ListingFilters) {
         // screen fetches the seller profile itself.
         .select('*, media:listing_media(*)')
         .eq('status', 'available')
+        // Auto-hidden content (3+ distinct reporters) stays out of public
+        // feeds; useMyListings deliberately doesn't filter.
+        .is('hidden_at', null)
         .order('created_at', { ascending: false });
 
       if (filters.categories && filters.categories.length > 0) {

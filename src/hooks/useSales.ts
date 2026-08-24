@@ -38,6 +38,10 @@ export function useSales() {
         .from('sales')
         .select('*, media:sale_media(*)')
         .neq('status', 'ended')
+        // Auto-hidden content (3+ distinct reporters — see the
+        // auto_hide_reported migration) stays out of public feeds. Owners
+        // still see theirs via useMySales, which doesn't filter.
+        .is('hidden_at', null)
         .order('created_at', { ascending: false });
       if (fetchError) throw fetchError;
       setSales(data ?? []);

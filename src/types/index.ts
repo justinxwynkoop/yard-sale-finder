@@ -71,6 +71,11 @@ export interface Profile {
   notify_weekly_digest?: boolean;
   notify_tips?: boolean;
   nearby_radius_miles?: number;
+  /**
+   * Category alerts: push me when a new listing overlaps these categories
+   * (notify-new-listing edge function). Empty array = alerts off.
+   */
+  alert_categories?: ItemCategory[];
   // Account v7 — verification + payment + address-privacy.
   email_verified?: boolean;
   phone_verified?: boolean;
@@ -146,6 +151,8 @@ export interface Sale {
   location_privacy?: LocationPrivacy | null;
   blur_radius_blocks?: number | null;
   event_id?: string | null;
+  /** Set when auto-hidden from feeds (3+ distinct reporters); null = visible. */
+  hidden_at?: string | null;
   created_at: string;
   updated_at: string;
   profile?: Profile;
@@ -179,6 +186,8 @@ export interface Listing {
   save_count?: number;
   /** Optional link to a yard sale this listing will be sold at. */
   sale_id: string | null;
+  /** Set when auto-hidden from feeds (3+ distinct reporters); null = visible. */
+  hidden_at?: string | null;
   created_at: string;
   updated_at: string;
   profile?: Profile;
