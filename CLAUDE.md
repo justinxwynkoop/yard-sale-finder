@@ -135,7 +135,19 @@ No external state library — state lives in custom hooks:
   - `listing_favorites` — saved listings (user → listing)
   - `conversations` + `messages` — in-app messaging; `target_type` is `'sale' | 'listing'`
   - `blocked_users` — block relationships
-  - `reports` — abuse reports targeting sales, listings, or profiles
+  - `reports` — abuse reports targeting sales, listings, or profiles. An
+    AFTER INSERT trigger (`auto_hide_reported`) stamps `hidden_at` on a
+    sale/listing once 3+ **distinct** users report it; `useSales`/`useListings`
+    filter `hidden_at is null` (the `useMy*` variants deliberately don't, so
+    owners keep seeing their content). Reversible: clear `hidden_at`.
+  - `events` — insert-only product analytics (`src/lib/analytics.ts` →
+    `track()`); no client SELECT policies. Aggregates via the
+    service-role-only `ops_event_stats()` RPC, surfaced on the ops page.
+    Event names are a fixed vocabulary — extend `EventName`, don't invent
+    ad-hoc names at call sites.
+  - `profiles.alert_categories` — category alerts ("ping me when someone
+    lists X"); empty array = off. Set from NotificationsScreen; consumed by
+    the `notify-new-listing` edge function via array-overlaps.
   - `user_push_tokens` — Expo push tokens per user
 - **Auth**: Supabase Auth — email+password primary, Google/Apple OAuth available
 - **Storage**: `sale-media` and `avatars` buckets
@@ -189,4 +201,13 @@ Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for require
 - `useInbox` must create a unique Supabase Realtime channel per hook instance (random suffix) because the hook is mounted in multiple places simultaneously; duplicate channel topics are rejected by Realtime
 - Multi-category listing filter is partially client-side: `@>` (contains-all) is used for the first category as a DB hint, then JS filters the rest for OR semantics
 - `invalidateProfile()` uses a plain JS listener set rather than Supabase Realtime because the profiles table realtime subscription was unreliable; call it after any profile `upsert`/`update`
+- `trove.sale/sale/<id>` and `/listing/<id>` are **server-rendered SEO pages**
+  (`site/api/share-page.js`, plus `site/api/sitemap.js` → `/sitemap.xml`).
+  They read public data with the publishable key and must keep degrading
+  gracefully (missing `hidden_at` column, fetch failure → generic
+  interstitial). `/event/<id>` still uses the static `open.html`.
+- Known scale cliffs (full-fetch hooks, inbox hydration, event-log growth)
+  are catalogued with thresholds and fixes in `docs/SCALING.md` — check it
+  before "optimizing" one of those paths early, or when a vital approaches
+  its listed trigger.
 - Adding a new native dependency requires rebuilding the dev client (`npm run build:dev:ios`) before Metro or OTA will work, **and** bumping `expo.runtimeVersion` in `app.json`. The runtime version is a pinned string (not the fingerprint policy — that hash drifts on npm-script/.gitignore edits and once orphaned an OTA). `npm run ota` runs `scripts/check-runtime.mjs`, which refuses to publish unless the pinned value matches the latest FINISHED production iOS build on EAS; logic in `scripts/lib/runtime.js` (unit-tested)
