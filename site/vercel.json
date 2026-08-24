@@ -7,7 +7,9 @@
       "dest": "/.well-known/apple-app-site-association"
     },
     { "handle": "filesystem" },
-    { "src": "^/(?:sale|listing)/[^/]+$", "dest": "/open.html" },
+    { "src": "^/sale/([^/]+)$", "dest": "/api/share-page?type=sale&id=$1" },
+    { "src": "^/listing/([^/]+)$", "dest": "/api/share-page?type=listing&id=$1" },
+    { "src": "^/sitemap\\.xml$", "dest": "/api/sitemap" },
     { "src": "^/event/[a-z0-9]+$", "dest": "/open.html" },
     { "src": "^/privacy$", "dest": "/privacy.html" },
     { "src": "^/terms$", "dest": "/terms.html" },

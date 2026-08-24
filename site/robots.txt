@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /ops
+Disallow: /api/
+
+Sitemap: https://trove.sale/sitemap.xml
