@@ -1,5 +1,26 @@
 [
   {
+    "deployedAt": "2026-08-26T23:30:18.827Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "07c55d0",
+    "sinceSha": "013deed",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Full tracing, profiling, logs, and product breadcrumbs",
+        "sha": "07c55d0"
+      },
+      {
+        "type": "feature",
+        "text": "Upload OTA source maps so update crashes symbolicate",
+        "sha": "ce7b997"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-26T23:16:14.430Z",
     "channel": "production",
     "appVersion": "1.0.0",
