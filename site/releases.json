@@ -1,5 +1,66 @@
 [
   {
+    "deployedAt": "2026-08-26T18:47:10.012Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "134fe1a",
+    "sinceSha": "b9f2ef0",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Deep-linked details keep a home screen beneath them",
+        "sha": "134fe1a"
+      },
+      {
+        "type": "fix",
+        "text": "Replay cold-start deep links once MainTabs mounts",
+        "sha": "b4bdda1"
+      },
+      {
+        "type": "fix",
+        "text": "Event badge opens EventDetail on tap",
+        "sha": "0bee08d"
+      },
+      {
+        "type": "feature",
+        "text": "Registration-flow breadcrumbs + Sentry failure capture",
+        "sha": "f14de21"
+      },
+      {
+        "type": "fix",
+        "text": "Register tokens on Android emulators",
+        "sha": "459eb91"
+      },
+      {
+        "type": "feature",
+        "text": "App links, monochrome notification icon; event links in AASA",
+        "sha": "1e0744d"
+      },
+      {
+        "type": "fix",
+        "text": "Event marker fits the fixed-size marker bitmap",
+        "sha": "98ed9b7"
+      },
+      {
+        "type": "fix",
+        "text": "Sale pins and event pills render on Google Maps",
+        "sha": "5ba6ac5"
+      },
+      {
+        "type": "fix",
+        "text": "Circle-safe splash icon for the Android 12 splash mask",
+        "sha": "8034f5c"
+      },
+      {
+        "type": "fix",
+        "text": "Runtime gate resolves npx.cmd on Windows",
+        "sha": "5ce12d7"
+      }
+    ],
+    "otherCount": 3,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-26T03:09:37.118Z",
     "channel": "production",
     "appVersion": "1.0.0",
