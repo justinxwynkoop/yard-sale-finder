@@ -35,7 +35,7 @@
         "backgroundColor": "#F7F2E8"
       },
       "splash": {
-        "image": "./assets/splash-icon.png",
+        "image": "./assets/adaptive-icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#F7F2E8"
       },
@@ -101,7 +101,11 @@
           "backgroundColor": "#F7F2E8",
           "image": "./assets/splash-icon.png",
           "imageWidth": 300,
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "android": {
+            "image": "./assets/adaptive-icon.png",
+            "imageWidth": 288
+          }
         }
       ],
       "expo-video",
