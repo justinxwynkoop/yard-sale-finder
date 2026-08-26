@@ -99,8 +99,8 @@ const EVENT = {
   description:
     'The whole town is selling at once! 45+ homes across Yorktown, Friday & ' +
     'Saturday 8am–4pm. Mapped by Trove from the community flyer — tap ' +
-    'each stop for what they’re selling, and use the route planner to hit ' +
-    'them all. Happy hunting!',
+    'each stop for what they’re selling, and save your favorites to plan ' +
+    'your rounds. Happy hunting!',
 };
 // The account that will OWN the event and all 45 stops — resolved to a user
 // id by the SQL at run time, so you can edit/delete everything in-app.
