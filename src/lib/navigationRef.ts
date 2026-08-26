@@ -34,6 +34,10 @@ export function navigateToConversation(
     screen: 'Inbox',
     params: {
       screen: 'Conversation',
+      // If the Messages stack hasn't mounted yet (cold start), the target
+      // would otherwise BECOME the initial screen and back would exit the
+      // app; initial: false puts InboxHome underneath instead.
+      initial: false,
       params: { conversationId, initialDraft: opts?.initialDraft },
     },
   } as any);
@@ -79,7 +83,7 @@ export function navigateToSale(saleId: string) {
   navigationRef.navigate('Main' as any, { screen: 'Map' } as any);
   navigationRef.navigate('Main' as any, {
     screen: 'Map',
-    params: { screen: 'SaleDetail', params: { saleId } },
+    params: { screen: 'SaleDetail', initial: false, params: { saleId } },
   } as any);
 }
 
@@ -92,7 +96,7 @@ export function navigateToEvent(params: { eventId?: string; slug?: string }) {
   navigationRef.navigate('Main' as any, { screen: 'Map' } as any);
   navigationRef.navigate('Main' as any, {
     screen: 'Map',
-    params: { screen: 'EventDetail', params },
+    params: { screen: 'EventDetail', initial: false, params },
   } as any);
 }
 
@@ -106,6 +110,6 @@ export function navigateToListing(listingId: string) {
   navigationRef.navigate('Main' as any, { screen: 'Listings' } as any);
   navigationRef.navigate('Main' as any, {
     screen: 'Listings',
-    params: { screen: 'ListingDetail', params: { listingId } },
+    params: { screen: 'ListingDetail', initial: false, params: { listingId } },
   } as any);
 }
