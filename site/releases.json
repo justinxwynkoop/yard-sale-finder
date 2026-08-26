@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-26T22:27:36.760Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "823520b",
+    "sinceSha": "76fbe02",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Picking a start time auto-fills the end an hour later",
+        "sha": "823520b"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-26T22:17:03.791Z",
     "channel": "production",
     "appVersion": "1.0.0",
