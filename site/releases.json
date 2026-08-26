@@ -1,5 +1,36 @@
 [
   {
+    "deployedAt": "2026-08-26T03:09:37.118Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "b9f2ef0",
+    "sinceSha": "14c4b38",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Join dates to weekdays in the sale detail schedule strip",
+        "sha": "b9f2ef0"
+      },
+      {
+        "type": "fix",
+        "text": "Site health probe counts share-page 404 as alive",
+        "sha": "f48fba0"
+      },
+      {
+        "type": "feature",
+        "text": "Wire Firebase config for FCM push",
+        "sha": "3805fc6"
+      },
+      {
+        "type": "feature",
+        "text": "Dedicated account-deletion page at /delete-account",
+        "sha": "36bed64"
+      }
+    ],
+    "otherCount": 4,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-24T19:04:06.117Z",
     "channel": "production",
     "appVersion": "1.0.0",
