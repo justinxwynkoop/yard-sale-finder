@@ -14,10 +14,15 @@ export function useSaleEvents() {
   const { blockedIds } = useBlockedUsers();
 
   const refetch = useCallback(async () => {
+    // The embedded count uses dotted filters so ended (nightly cron) and
+    // report-hidden stops don't inflate the map badge — same public-feed
+    // policy as useSales.
     const { data } = await supabase
       .from('sale_events')
       .select('*, sales(count)')
-      .gte('end_date', localTodayIso());
+      .gte('end_date', localTodayIso())
+      .neq('sales.status', 'ended')
+      .is('sales.hidden_at', null);
     setEvents(
       ((data as any[]) ?? []).map((e) => ({
         ...e,
@@ -56,17 +61,26 @@ export function useSaleEvent({ eventId, slug }: { eventId?: string; slug?: strin
 
   const refetch = useCallback(async () => {
     if (!eventId && !slug) { setLoading(false); return; }
-    let q = supabase.from('sale_events').select('*, sales(count)');
+    let q = supabase
+      .from('sale_events')
+      .select('*, sales(count)')
+      .neq('sales.status', 'ended')
+      .is('sales.hidden_at', null);
     q = eventId ? q.eq('id', eventId) : q.eq('share_slug', slug!);
     const { data: ev } = await q.maybeSingle();
     if (!ev) { setEvent(null); setSales([]); setLoading(false); return; }
 
+    // Roster excludes ended stops (a Friday-only stop must drop off the
+    // page once the nightly cron ends it, not send Saturday shoppers to a
+    // closed house) and report-hidden ones — matching useSales' filters.
     const [{ data: organizer }, { data: memberSales }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', ev.organizer_id).maybeSingle(),
       supabase
         .from('sales')
         .select('*, media:sale_media(*)')
         .eq('event_id', ev.id)
+        .neq('status', 'ended')
+        .is('hidden_at', null)
         .order('created_at', { ascending: true }),
     ]);
     setEvent({
