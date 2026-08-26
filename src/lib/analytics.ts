@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import { supabase } from './supabase';
 
 /**
@@ -24,6 +25,15 @@ export type EventName =
   | 'message_sent';
 
 export function track(name: EventName, props: Record<string, unknown> = {}): void {
+  // Mirror the event as a Sentry breadcrumb so crashes and traces carry the
+  // product-event trail (what the user was doing, in the app's own terms).
+  // addBreadcrumb is a no-op when Sentry is disabled (dev) — and wrapped
+  // anyway: analytics must never break the app.
+  try {
+    Sentry.addBreadcrumb({ category: 'product', message: name, data: props, level: 'info' });
+  } catch {
+    // ignore
+  }
   void (async () => {
     try {
       const { data } = await supabase.auth.getSession();

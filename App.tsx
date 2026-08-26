@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as Sentry from '@sentry/react-native';
+import { sentryNavigationIntegration } from './src/lib/sentryNav';
 import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
 import Navigation from './src/navigation';
@@ -26,7 +27,19 @@ if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
     debug: false,
-    tracesSampleRate: 0.2,
+    // Full tracing + profiling while the user base is beta-sized — every
+    // transaction feeds the performance metrics (app start, slow/frozen
+    // frames, HTTP timing, screen TTID). Dial these down before quota
+    // becomes a concern at scale.
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+    // Sentry Logs: console.warn/error stream in as structured logs (the
+    // push-registration [push] breadcrumbs ride this), joinable to traces.
+    enableLogs: true,
+    integrations: [
+      sentryNavigationIntegration,
+      Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
+    ],
     // Skip in dev so noisy hot-reload errors don't fill the Sentry inbox.
     enabled: !__DEV__,
   });

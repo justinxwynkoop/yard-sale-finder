@@ -27,6 +27,7 @@ import {
   navigateToEvent,
 } from '../lib/navigationRef';
 import { LINKING_CONFIG, contentRouteFromUrl } from './deepLinks';
+import { sentryNavigationIntegration } from '../lib/sentryNav';
 import { track } from '../lib/analytics';
 import { promptSignIn } from '../lib/guestGate';
 import { GuestWelcomeSheet } from '../components/GuestWelcomeSheet';
@@ -827,7 +828,13 @@ export default function Navigation() {
   // instead of returning null — that way useNavigation / useRoute
   // hooks anywhere in the tree never see an empty context.
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      // Hands the container to Sentry's react-navigation integration so
+      // screen transitions become performance spans (see lib/sentryNav).
+      onReady={() => sentryNavigationIntegration.registerNavigationContainer(navigationRef)}
+    >
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {loading ? (
           <RootStack.Screen name="Loading" component={LoadingScreen} />
