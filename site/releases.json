@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-26T23:08:26.472Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "9224e22",
+    "sinceSha": "823520b",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Ended and report-hidden stops drop off event pages",
+        "sha": "9224e22"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-26T22:27:36.760Z",
     "channel": "production",
     "appVersion": "1.0.0",
