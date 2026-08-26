@@ -32,7 +32,8 @@ import {
   PLACEHOLDER_BLURHASH,
   transformedImageUrl,
 } from '../../lib/imageUrl';
-import { formatHM, formatSaleDate } from '../../utils/format';
+import { formatHM } from '../../utils/format';
+import { saleScheduleTiles } from '../../utils/saleSchedule';
 import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useVisited } from '../../hooks/useVisited';
@@ -1288,12 +1289,13 @@ function OpenNowChip({ sale }: { sale: Sale }) {
 }
 
 function StatStrip({ sale }: { sale: Sale }) {
-  // Day 1 (+ Day 2 for multi-day sales) hours, then the date range. Pricing is
-  // NOT shown here — it's a full-width row below (see the Pricing block in the
-  // detail body) so longer notes with several options aren't cut off.
-  const day1Label = weekdayLabel(sale.start_date);
-  const day1Hours = `${formatHM(sale.start_time.slice(0, 5))}–${formatHM(sale.end_time.slice(0, 5))}`;
-  const isMultiDay = sale.end_date !== sale.start_date;
+  // One tile per sale day, date joined to the weekday ("FRI · AUG 28") so the
+  // reader never has to match a bare weekday against a separate date range;
+  // 4+ day spans collapse to a single range tile. Pricing is NOT shown here —
+  // it's a full-width row below (see the Pricing block in the detail body) so
+  // longer notes with several options aren't cut off.
+  const hours = `${formatHM(sale.start_time.slice(0, 5))}–${formatHM(sale.end_time.slice(0, 5))}`;
+  const tiles = saleScheduleTiles(sale.start_date, sale.end_date, hours);
   return (
     <View
       style={{
@@ -1301,15 +1303,9 @@ function StatStrip({ sale }: { sale: Sale }) {
         flexDirection: 'row',
       }}
     >
-      <StatTile label={day1Label} value={day1Hours} flex first />
-      {isMultiDay ? (
-        <StatTile label={weekdayLabel(sale.end_date)} value={day1Hours} flex />
-      ) : null}
-      <StatTile
-        label="WHEN"
-        value={formatSaleDate(sale.start_date, sale.end_date)}
-        flex
-      />
+      {tiles.map((tile, i) => (
+        <StatTile key={tile.label} label={tile.label} value={tile.value} flex first={i === 0} />
+      ))}
     </View>
   );
 }
@@ -1354,14 +1350,6 @@ function StatTile({
       </Text>
     </View>
   );
-}
-
-function weekdayLabel(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const date = new Date(y, (m ?? 1) - 1, d ?? 1);
-  return date
-    .toLocaleDateString('en-US', { weekday: 'short' })
-    .toUpperCase();
 }
 
 function labelForCategory(c: string): string {
