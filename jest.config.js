@@ -9,7 +9,9 @@ module.exports = {
   // Claude Code parks git worktrees under .claude/worktrees — each holds a
   // full copy of the repo, so without this the suite runs once per worktree
   // (and haste-map complains about duplicate mocks).
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
+  // <rootDir>-anchored so the pattern doesn't ALSO match when jest runs from
+  // inside a worktree (whose own absolute path contains .claude).
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
   modulePathIgnorePatterns: ['<rootDir>/.claude/'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
