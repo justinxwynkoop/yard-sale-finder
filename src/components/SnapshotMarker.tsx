@@ -8,6 +8,13 @@ type Props = Omit<MapMarkerProps, 'tracksViewChanges'> & {
    * colors, count). A change re-arms one snapshot window so Android repaints.
    */
   redrawKey?: string | number;
+  /**
+   * Keep tracking view changes permanently on Android instead of freezing
+   * after the settle window. For markers whose frozen bitmap Android clips
+   * (complex children with icon fonts / row layout — the event pill). Only
+   * use for a handful of markers; a live marker keeps invalidating the map.
+   */
+  live?: boolean;
 };
 
 /**
@@ -23,20 +30,20 @@ type Props = Omit<MapMarkerProps, 'tracksViewChanges'> & {
  * static, per the AIRMap insertReactSubview crash constraints in
  * MapHomeScreen.
  */
-export function SnapshotMarker({ redrawKey, children, ...rest }: Props) {
+export function SnapshotMarker({ redrawKey, live, children, ...rest }: Props) {
   const [tracking, setTracking] = useState(Platform.OS === 'android');
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS !== 'android' || live) return;
     setTracking(true);
     // One settle window: long enough for the child's first draw (icon fonts
     // included), short enough that 45 pins don't keep invalidating the map.
     const t = setTimeout(() => setTracking(false), 500);
     return () => clearTimeout(t);
-  }, [redrawKey]);
+  }, [redrawKey, live]);
   return (
     <Marker
       {...rest}
-      tracksViewChanges={Platform.OS === 'android' ? tracking : false}
+      tracksViewChanges={Platform.OS === 'android' ? live || tracking : false}
     >
       {children}
     </Marker>

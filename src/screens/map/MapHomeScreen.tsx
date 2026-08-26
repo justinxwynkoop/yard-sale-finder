@@ -9,6 +9,7 @@ import {
   Dimensions,
   FlatList,
   Keyboard,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Circle, Region } from 'react-native-maps';
@@ -691,23 +692,51 @@ export default function MapHomeScreen() {
             <SnapshotMarker
               coordinate={{ latitude: ev.latitude, longitude: ev.longitude }}
               anchor={{ x: 0.5, y: 0.5 }}
-              redrawKey={ev.sale_count ?? 0}
+              live
               onPress={() => navigation.navigate('EventDetail', { eventId: ev.id })}
             >
-              <View
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 4,
-                  backgroundColor: '#1F4D3A', paddingHorizontal: 9, paddingVertical: 5,
-                  borderRadius: 999, borderWidth: 1.5, borderColor: '#fff',
-                  shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4,
-                  shadowOffset: { width: 0, height: 2 }, elevation: 3,
-                }}
-              >
-                <Ionicons name="home" size={11} color="#fff" />
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>
-                  {ev.sale_count ?? 0}
-                </Text>
-              </View>
+              {/* Android/new-arch gives a custom marker a fixed ~36dp bitmap
+                  and crops the child into it top-left (verified empirically:
+                  a 120×60 frame rendered only its top-left corner). So on
+                  Android the event marker is a 32dp cluster-style count badge
+                  that fits the box; iOS renders children live and keeps the
+                  home-icon pill. */}
+              {Platform.OS === 'android' ? (
+                <View
+                  style={{
+                    width: 28, height: 28, borderRadius: 14,
+                    backgroundColor: '#1F4D3A',
+                    borderWidth: 2, borderColor: '#fff',
+                    alignItems: 'center', justifyContent: 'center',
+                    // No elevation: the shadow inflates the drawn bounds past
+                    // the marker's fixed bitmap and gets clipped anyway.
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#fff', fontSize: 11, fontWeight: '800',
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {ev.sale_count ?? 0}
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: '#1F4D3A', paddingHorizontal: 9, paddingVertical: 5,
+                    borderRadius: 999, borderWidth: 1.5, borderColor: '#fff',
+                    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 2 },
+                  }}
+                >
+                  <Ionicons name="home" size={11} color="#fff" />
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>
+                    {ev.sale_count ?? 0}
+                  </Text>
+                </View>
+              )}
             </SnapshotMarker>
           </React.Fragment>
         ))}

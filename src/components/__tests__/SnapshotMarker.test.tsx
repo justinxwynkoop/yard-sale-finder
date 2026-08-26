@@ -16,10 +16,11 @@ jest.mock('react-native-maps', () => {
 
 import { SnapshotMarker } from '../SnapshotMarker';
 
-const marker = (redrawKey: string) => (
+const marker = (redrawKey: string, live?: boolean) => (
   <SnapshotMarker
     coordinate={{ latitude: 0, longitude: 0 }}
     redrawKey={redrawKey}
+    live={live}
   >
     <Text>pin</Text>
   </SnapshotMarker>
@@ -52,6 +53,19 @@ describe('SnapshotMarker', () => {
       jest.advanceTimersByTime(600);
     });
     expect(screen.getByTestId('tracking:false')).toBeTruthy();
+  });
+
+  it('on Android with live: keeps tracking past the settle window', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    jest.useFakeTimers();
+
+    await render(marker('a', true));
+    expect(screen.getByTestId('tracking:true')).toBeTruthy();
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+    expect(screen.getByTestId('tracking:true')).toBeTruthy();
   });
 
   it('on iOS: never tracks (children render live on Apple Maps)', async () => {
