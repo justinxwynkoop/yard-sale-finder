@@ -95,6 +95,34 @@ export default function MySalesScreen() {
     return matches;
   }, [sales, events, declinedEventIds]);
 
+  // Membership rows for joined sales (the mirror of the join chip). Only
+  // upcoming/in-progress events are in `events`; a stale event_id pointing
+  // at a past event renders nothing, matching the map's behavior.
+  const eventById = useMemo(
+    () => new Map(events.map((e) => [e.id, e])),
+    [events],
+  );
+
+  const leaveEvent = (sale: Sale, event: SaleEvent) => {
+    Alert.alert(
+      'Leave this event?',
+      `“${sale.title}” stays live — it just leaves the ${event.title}. You can rejoin from this screen while the event is on.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave', style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('sales').update({ event_id: null }).eq('id', sale.id);
+            if (error) toast.error("Couldn't leave the event");
+            else toast.success(`Left ${event.title}`);
+            refetchSales();
+          },
+        },
+      ],
+    );
+  };
+
   const handleJoinEvent = async (moveDates: boolean) => {
     if (!joinPrompt) return;
     const patch: Record<string, unknown> = { event_id: joinPrompt.event.id };
@@ -350,6 +378,11 @@ export default function MySalesScreen() {
                   const event = joinMatches.get(item.id);
                   if (event) setJoinPrompt({ event, sale: item });
                 }}
+                memberEvent={item.event_id ? eventById.get(item.event_id) : undefined}
+                onLeaveEvent={() => {
+                  const event = item.event_id ? eventById.get(item.event_id) : undefined;
+                  if (event) leaveEvent(item, event);
+                }}
                 onUpdateStatus={updateStatus}
                 onEndSale={() => confirmEndSale(item)}
                 onDelete={() => deleteSale(item)}
@@ -416,6 +449,8 @@ function SaleCard({
   sale,
   joinEvent,
   onJoinPress,
+  memberEvent,
+  onLeaveEvent,
   onUpdateStatus,
   onEndSale,
   onDelete,
@@ -426,6 +461,9 @@ function SaleCard({
   /** An overlapping neighborhood event this un-joined sale could join. */
   joinEvent?: SaleEvent;
   onJoinPress?: () => void;
+  /** The upcoming/in-progress event this sale has already joined. */
+  memberEvent?: SaleEvent;
+  onLeaveEvent?: () => void;
   onUpdateStatus: (id: string, status: SaleStatus) => void;
   onEndSale: () => void;
   onDelete: () => void;
@@ -488,6 +526,21 @@ function SaleCard({
           </Text>
           <Ionicons name="chevron-forward" size={15} color="#1F4D3A" />
         </Pressable>
+      )}
+
+      {memberEvent && (
+        <View
+          className="mx-3 mb-1 flex-row items-center rounded-xl px-3 py-2.5"
+          style={{ backgroundColor: '#F4F1EA' }}
+        >
+          <Ionicons name="home" size={15} color="#1F4D3A" />
+          <Text className="ml-2 flex-1 text-xs font-medium text-zinc-600" numberOfLines={1}>
+            Part of the {memberEvent.title}
+          </Text>
+          <Pressable onPress={onLeaveEvent} hitSlop={8} accessibilityRole="button" accessibilityLabel="Leave event">
+            <Text className="text-xs font-bold" style={{ color: '#A23E2D' }}>Leave</Text>
+          </Pressable>
+        </View>
       )}
 
       <View className="border-t border-zinc-100 px-3 py-2 flex-row flex-wrap" style={{ gap: 6 }}>
