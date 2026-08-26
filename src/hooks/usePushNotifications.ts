@@ -2,8 +2,15 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+
+// Registration-flow breadcrumbs. console.error is deliberate (not warn/log):
+// it survives to logcat/Console in release builds, so a device that never
+// registers can be diagnosed in the field. Failures also go to Sentry.
+const mark = (step: string, detail?: unknown) =>
+  console.error(`[push] ${step}`, detail ?? '');
 
 // ── EAS project id (must match app.json → extra.eas.projectId) ────────────
 const EAS_PROJECT_ID = '21cc3271-4b50-4f32-a4e4-6823f78ec3e7';
@@ -48,6 +55,7 @@ export function usePushNotifications() {
       if (!Device.isDevice && Platform.OS === 'ios') {
         return;
       }
+      mark('start', { platform: Platform.OS, isDevice: Device.isDevice });
 
       // ── 2. Permission ─────────────────────────────────────────────
       const { status: existing } = await Notifications.getPermissionsAsync();
@@ -58,7 +66,11 @@ export function usePushNotifications() {
         granted = status === 'granted';
       }
 
-      if (!granted) return; // User declined — respect it.
+      if (!granted) {
+        mark('permission declined', existing);
+        return; // User declined — respect it.
+      }
+      mark('permission granted');
 
       // ── 3. Android notification channel ───────────────────────────
       // Required on Android 8+ for notifications to appear. Harmless
@@ -91,6 +103,7 @@ export function usePushNotifications() {
       // getExpoPushTokenAsync can throw if the device has no internet
       // or FCM/APNs credentials aren't configured. We swallow and log
       // rather than crashing -- the app works fine without push.
+      mark('channels ready, fetching token');
       let token: string | null = null;
       try {
         const tokenData = await Notifications.getExpoPushTokenAsync({
@@ -98,9 +111,13 @@ export function usePushNotifications() {
         });
         token = tokenData.data;
       } catch (err) {
-        if (__DEV__) console.warn('[usePushNotifications] token fetch failed:', err);
+        mark('token fetch FAILED', err);
+        Sentry.captureException(err, {
+          tags: { flow: 'push-registration', step: 'getExpoPushToken' },
+        });
         return;
       }
+      mark('token fetched', token?.slice(0, 30));
 
       if (cancelled || !token) return;
 
@@ -112,8 +129,24 @@ export function usePushNotifications() {
       // signed in. A plain client UPDATE can't clear the token from other
       // users' rows (profiles UPDATE RLS is owner-only), which is what let
       // a stale token deliver another account's message notifications here.
-      await supabase.rpc('set_push_token', { p_token: token });
-    })();
+      const { error } = await supabase.rpc('set_push_token', { p_token: token });
+      if (error) {
+        mark('set_push_token RPC FAILED', error.message);
+        Sentry.captureMessage(`set_push_token failed: ${error.message}`, {
+          tags: { flow: 'push-registration', step: 'persist' },
+        } as any);
+        return;
+      }
+      mark('token persisted');
+    })().catch((err) => {
+      // Nothing above this line may fail invisibly — an await outside the
+      // token try/catch (permissions, channel setup) used to kill the whole
+      // chain with no trace.
+      mark('registration flow FAILED', err);
+      Sentry.captureException(err, {
+        tags: { flow: 'push-registration', step: 'outer' },
+      });
+    });
 
     return () => { cancelled = true; };
   }, [user]);
