@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jwynkoop.trove",
+      "sha256_cert_fingerprints": [
+        "4D:C6:13:2B:8C:74:B6:C6:7E:D3:E8:08:82:0F:4A:B3:D3:31:A1:89:C7:A9:26:2C:BD:DB:EC:88:69:9E:EB:55"
+      ]
+    }
+  }
+]

@@ -6,7 +6,8 @@
         "appIDs": ["8PHR5L3F6L.com.jwynkoop.trove"],
         "components": [
           { "/": "/sale/*", "comment": "Open sale detail in the app" },
-          { "/": "/listing/*", "comment": "Open listing detail in the app" }
+          { "/": "/listing/*", "comment": "Open listing detail in the app" },
+          { "/": "/event/*", "comment": "Open neighborhood-sale event in the app" }
         ]
       }
     ]
