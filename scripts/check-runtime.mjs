@@ -47,7 +47,13 @@ try {
       '--json',
       '--non-interactive',
     ],
-    { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      // Windows: npx is npx.cmd, which execFileSync only resolves via a shell.
+      shell: process.platform === 'win32',
+    },
   );
   builds = JSON.parse(out);
 } catch (err) {
