@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-26T22:17:03.791Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "76fbe02",
+    "sinceSha": "134fe1a",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Late-join for existing sales + new-event push alert",
+        "sha": "76fbe02"
+      }
+    ],
+    "otherCount": 2,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-26T18:47:10.012Z",
     "channel": "production",
     "appVersion": "1.0.0",
