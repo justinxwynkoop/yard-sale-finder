@@ -78,7 +78,19 @@ const STOPS = [
 
 // Hand overrides for addresses Nominatim can't resolve: fill in after a
 // failed run, e.g. '8209 Fairview Dr.': { lat: 40.17, lon: -85.49 }.
-const OVERRIDES = {};
+// These 9 came from the US Census geocoder / ArcGIS (rooftop matches) —
+// the flyer's spellings differ from the official street names where noted.
+const OVERRIDES = {
+  '8800 Greenville Dr.': { lat: 40.192403, lon: -85.489125 },
+  '1103 S. Cummings Dr.': { lat: 40.183729, lon: -85.460598 }, // S Cummins Dr, Muncie
+  '1805 N. Magnolia Dr.': { lat: 40.208208, lon: -85.487917 }, // N Magnolia Ln, Muncie
+  '2210 S. Marsh Rd.': { lat: 40.171742, lon: -85.499683 }, // S Marsh Ave
+  '2320 S. Daugherty Ln.': { lat: 40.172351, lon: -85.502879 },
+  '8004 W. Lindberg Dr.': { lat: 40.179436, lon: -85.47947 }, // W Lindbergh Dr
+  '10137 W. Lexington Blvd.': { lat: 40.172821, lon: -85.504909 },
+  '7829 W. Frankie Ln.': { lat: 40.165981, lon: -85.477068 },
+  '8420 W. Adeline St.': { lat: 40.174715, lon: -85.48442 }, // W Adaline St
+};
 
 const EVENT = {
   title: 'Yorktown Town-Wide Rummage Sale',
