@@ -42,9 +42,10 @@ export function usePushNotifications() {
 
     (async () => {
       // ── 1. Physical device check ──────────────────────────────────
-      if (!Device.isDevice) {
-        // Simulator / emulator — push notifications are not supported.
-        // Return silently; this is expected in dev.
+      // iOS simulators can't receive real pushes, but Android emulators
+      // with Google Play services can (FCM registers normally), so only
+      // iOS requires physical hardware.
+      if (!Device.isDevice && Platform.OS === 'ios') {
         return;
       }
 
