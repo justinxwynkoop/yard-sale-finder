@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,9 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useMySales } from '../../hooks/useSales';
 import { useMyListings } from '../../hooks/useListings';
+import { useSaleEvents } from '../../hooks/useSaleEvents';
+import { eventMatchForSale, localTodayIso } from '../../lib/eventMatch';
+import { EventJoinPrompt } from '../../components/EventJoinPrompt';
 import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
-import { Listing, Sale, ProfileStackParamList, SaleStatus } from '../../types';
+import { Listing, Sale, SaleEvent, ProfileStackParamList, SaleStatus } from '../../types';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import {
   Button,
@@ -54,6 +59,64 @@ export default function MySalesScreen() {
 
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
+
+  // Late-join: the proximity prompt in CreateSaleScreen only fires at posting
+  // time, so a neighborhood event created AFTER a sale was posted never got
+  // offered. Match each un-joined, still-upcoming sale against current events
+  // and surface a join chip on its card. Declines share the same AsyncStorage
+  // key as the create-time prompt, so "No thanks" anywhere sticks everywhere.
+  const { events } = useSaleEvents();
+  const [declinedEventIds, setDeclinedEventIds] = useState<Set<string>>(new Set());
+  const [joinPrompt, setJoinPrompt] = useState<{ event: SaleEvent; sale: Sale } | null>(null);
+
+  useEffect(() => {
+    if (events.length === 0) return;
+    const keys = events.map((e) => `trove:event-prompt-declined:${e.id}`);
+    AsyncStorage.multiGet(keys)
+      .then((pairs) => {
+        const declined = new Set<string>();
+        pairs.forEach(([key, value]) => {
+          if (value) declined.add(key.split(':').pop() as string);
+        });
+        setDeclinedEventIds(declined);
+      })
+      .catch(() => {});
+  }, [events]);
+
+  const joinMatches = useMemo(() => {
+    const today = localTodayIso();
+    const matches = new Map<string, SaleEvent>();
+    for (const s of sales) {
+      if (s.status === 'ended' || s.event_id) continue;
+      if (s.end_date < today) continue;
+      const match = eventMatchForSale(s, events, today);
+      if (match && !declinedEventIds.has(match.id)) matches.set(s.id, match);
+    }
+    return matches;
+  }, [sales, events, declinedEventIds]);
+
+  const handleJoinEvent = async (moveDates: boolean) => {
+    if (!joinPrompt) return;
+    const patch: Record<string, unknown> = { event_id: joinPrompt.event.id };
+    if (moveDates) {
+      patch.start_date = joinPrompt.event.start_date;
+      patch.end_date = joinPrompt.event.end_date;
+    }
+    const { error } = await supabase
+      .from('sales').update(patch).eq('id', joinPrompt.sale.id);
+    if (error) toast.error("Couldn't join the event");
+    else toast.success(`Joined ${joinPrompt.event.title}`);
+    setJoinPrompt(null);
+    refetchSales();
+  };
+
+  const handleDeclineEvent = async () => {
+    if (!joinPrompt) return;
+    const eventId = joinPrompt.event.id;
+    await AsyncStorage.setItem(`trove:event-prompt-declined:${eventId}`, '1').catch(() => {});
+    setDeclinedEventIds((prev) => new Set(prev).add(eventId));
+    setJoinPrompt(null);
+  };
 
   const counts = useMemo(() => ({
     all: sales.length,
@@ -282,6 +345,11 @@ export default function MySalesScreen() {
             renderItem={({ item }) => (
               <SaleCard
                 sale={item}
+                joinEvent={joinMatches.get(item.id)}
+                onJoinPress={() => {
+                  const event = joinMatches.get(item.id);
+                  if (event) setJoinPrompt({ event, sale: item });
+                }}
                 onUpdateStatus={updateStatus}
                 onEndSale={() => confirmEndSale(item)}
                 onDelete={() => deleteSale(item)}
@@ -328,12 +396,26 @@ export default function MySalesScreen() {
           />
         )
       )}
+
+      {joinPrompt && (
+        <EventJoinPrompt
+          visible
+          event={joinPrompt.event}
+          saleStart={joinPrompt.sale.start_date}
+          saleEnd={joinPrompt.sale.end_date}
+          onJoin={handleJoinEvent}
+          onDecline={handleDeclineEvent}
+          onDismiss={() => setJoinPrompt(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 function SaleCard({
   sale,
+  joinEvent,
+  onJoinPress,
   onUpdateStatus,
   onEndSale,
   onDelete,
@@ -341,6 +423,9 @@ function SaleCard({
   onView,
 }: {
   sale: Sale;
+  /** An overlapping neighborhood event this un-joined sale could join. */
+  joinEvent?: SaleEvent;
+  onJoinPress?: () => void;
   onUpdateStatus: (id: string, status: SaleStatus) => void;
   onEndSale: () => void;
   onDelete: () => void;
@@ -390,6 +475,20 @@ function SaleCard({
           </View>
         </View>
       </Pressable>
+
+      {joinEvent && (
+        <Pressable
+          onPress={onJoinPress}
+          className="mx-3 mb-1 flex-row items-center rounded-xl px-3 py-2.5 active:opacity-80"
+          style={{ backgroundColor: '#E8EFE9' }}
+        >
+          <Ionicons name="home-outline" size={16} color="#1F4D3A" />
+          <Text className="ml-2 flex-1 text-xs font-semibold" style={{ color: '#1F4D3A' }} numberOfLines={2}>
+            The {joinEvent.title} is happening around you — join it?
+          </Text>
+          <Ionicons name="chevron-forward" size={15} color="#1F4D3A" />
+        </Pressable>
+      )}
 
       <View className="border-t border-zinc-100 px-3 py-2 flex-row flex-wrap" style={{ gap: 6 }}>
         {sale.status !== 'active' && sale.status !== 'ended' && (

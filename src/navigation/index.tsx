@@ -454,6 +454,7 @@ function MainTabs() {
       if (data?.conversationId) navigateToConversation(data.conversationId as string);
       else if (data?.saleId) navigateToSale(data.saleId as string);
       else if (data?.listingId) navigateToListing(data.listingId as string);
+      else if (data?.eventId) navigateToEvent({ eventId: data.eventId as string });
     };
     Notifications.getLastNotificationResponseAsync().then((response) => {
       route(response?.notification.request.content.data);
