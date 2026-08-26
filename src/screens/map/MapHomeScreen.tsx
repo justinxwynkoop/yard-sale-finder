@@ -11,7 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Circle, Marker, Region } from 'react-native-maps';
+import MapView, { Circle, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -36,6 +36,7 @@ import { useVisited } from '../../hooks/useVisited';
 import { useSeenSales } from '../../hooks/useSeenSales';
 import { MapStackParamList, Sale } from '../../types';
 import { MapPin } from '../../components/MapPin';
+import { SnapshotMarker } from '../../components/SnapshotMarker';
 import { SelectedPinCallout } from '../../components/SelectedPinCallout';
 import { BottomSheet, SheetState } from '../../components/BottomSheet';
 import SaleCard from '../../components/SaleCard';
@@ -642,8 +643,12 @@ export default function MapHomeScreen() {
           // non-interactive. Pins never swap their child or change key — they
           // stay static MapPins; the selected callout is a separate overlay.
           const visible = visibleIds.has(sale.id);
+          const favorited = isFavorited(sale.id);
+          const isNew = isRecentlyPosted(sale.created_at) && !isSeen(sale.id);
+          const visited = isVisited(sale.id);
+          const openNow = isOpenNow(sale);
           return (
-            <Marker
+            <SnapshotMarker
               key={sale.id}
               coordinate={{
                 latitude: loc.latitude,
@@ -662,18 +667,16 @@ export default function MapHomeScreen() {
                     }
                   : undefined
               }
-              tracksViewChanges={false}
+              redrawKey={`${sale.status}|${favorited}|${isNew}|${visited}|${openNow}`}
             >
               <MapPin
                 status={sale.status}
-                favorited={isFavorited(sale.id)}
-                isNew={
-                  isRecentlyPosted(sale.created_at) && !isSeen(sale.id)
-                }
-                visited={isVisited(sale.id)}
-                openNow={isOpenNow(sale)}
+                favorited={favorited}
+                isNew={isNew}
+                visited={visited}
+                openNow={openNow}
               />
-            </Marker>
+            </SnapshotMarker>
           );
         })}
         {/* Neighborhood sale events — additive layer (spec: thinning untouched). */}
@@ -685,10 +688,10 @@ export default function MapHomeScreen() {
               strokeColor="rgba(31,77,58,0.40)"
               fillColor="rgba(31,77,58,0.07)"
             />
-            <Marker
+            <SnapshotMarker
               coordinate={{ latitude: ev.latitude, longitude: ev.longitude }}
               anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={false}
+              redrawKey={ev.sale_count ?? 0}
               onPress={() => navigation.navigate('EventDetail', { eventId: ev.id })}
             >
               <View
@@ -705,7 +708,7 @@ export default function MapHomeScreen() {
                   {ev.sale_count ?? 0}
                 </Text>
               </View>
-            </Marker>
+            </SnapshotMarker>
           </React.Fragment>
         ))}
       </MapView>
