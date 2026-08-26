@@ -689,11 +689,19 @@ export default function MapHomeScreen() {
               strokeColor="rgba(31,77,58,0.40)"
               fillColor="rgba(31,77,58,0.07)"
             />
+            {/* No custom anchor: Fabric-Android displaces the tap hit-region
+                for anchored markers (a center tap missed; a tap half a bitmap
+                up landed) — the default bottom anchor is the code path the 45
+                sale pins prove out. zIndex lifts the badge's hit-test above
+                the transparent padding of overlapping pin bitmaps. */}
             <SnapshotMarker
               coordinate={{ latitude: ev.latitude, longitude: ev.longitude }}
-              anchor={{ x: 0.5, y: 0.5 }}
-              live
-              onPress={() => navigation.navigate('EventDetail', { eventId: ev.id })}
+              zIndex={10}
+              redrawKey={ev.sale_count ?? 0}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                navigation.navigate('EventDetail', { eventId: ev.id });
+              }}
             >
               {/* Android/new-arch gives a custom marker a fixed ~36dp bitmap
                   and crops the child into it top-left (verified empirically:

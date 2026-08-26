@@ -7,7 +7,7 @@ import MapView, { Circle, Marker } from 'react-native-maps';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { useSaleEvent } from '../../hooks/useSaleEvents';
 import { useUserLocation } from '../../hooks/useUserLocation';
@@ -64,6 +64,21 @@ export default function EventDetailScreen() {
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+
+  // Defer mounting the mini-map until after the push animation has finished —
+  // same pattern (and reason) as SaleDetailScreen: arriving from MapHome, two
+  // map views reconciling subviews concurrently crashes the native maps layer.
+  // 350ms matches react-navigation's default push timing.
+  const isFocused = useIsFocused();
+  const [miniMapMounted, setMiniMapMounted] = useState(false);
+  useEffect(() => {
+    if (!isFocused) {
+      setMiniMapMounted(false);
+      return;
+    }
+    const t = setTimeout(() => setMiniMapMounted(true), 350);
+    return () => clearTimeout(t);
+  }, [isFocused]);
 
   // Saved state
   useEffect(() => {
@@ -287,7 +302,8 @@ export default function EventDetailScreen() {
         </View>
 
         {/* Mini-map */}
-        <View style={{ height: 180, borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, marginTop: 14, borderWidth: 1, borderColor: HAIRLINE }}>
+        <View style={{ height: 180, borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, marginTop: 14, borderWidth: 1, borderColor: HAIRLINE, backgroundColor: '#EDE7DA' }}>
+          {miniMapMounted ? (
           <MapView
             style={{ flex: 1 }}
             pointerEvents="none"
@@ -308,6 +324,7 @@ export default function EventDetailScreen() {
               </Marker>
             ))}
           </MapView>
+          ) : null}
         </View>
 
         {/* Actions */}
