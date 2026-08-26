@@ -24,7 +24,9 @@ import {
   navigateToConversation,
   navigateToSale,
   navigateToListing,
+  navigateToEvent,
 } from '../lib/navigationRef';
+import { LINKING_CONFIG, contentRouteFromUrl } from './deepLinks';
 import { track } from '../lib/analytics';
 import { promptSignIn } from '../lib/guestGate';
 import { GuestWelcomeSheet } from '../components/GuestWelcomeSheet';
@@ -395,6 +397,13 @@ function PostPlaceholder() {
   return <View />;
 }
 
+// Cold-start launch URLs must be replayed at most once per JS process:
+// MainTabs remounts when a guest signs in (the RootStack swaps branches),
+// and getInitialURL keeps returning the launch intent's URL for the life
+// of the process — without this flag that remount would yank the user
+// back into the deep-linked screen.
+let coldStartUrlHandled = false;
+
 function MainTabs() {
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -454,6 +463,33 @@ function MainTabs() {
       route(response.notification.request.content.data);
     });
     return () => sub.remove();
+  }, []);
+
+  // Cold-start deep links (trove://sale/<id> etc. tapped while the app was
+  // killed). React Navigation reads Linking.getInitialURL() the moment
+  // NavigationContainer mounts — while auth is still resolving and the
+  // RootStack registers ONLY the Loading screen — so the parsed state
+  // pointed at unmounted routes and was dropped: the link opened the app to
+  // MapHome. `linking.getInitialURL` (below) returns null to hand cold-start
+  // URLs to this effect instead, which replays the URL once MainTabs — and
+  // any profile/terms gate before it — has actually mounted. Warm links
+  // still flow through React Navigation's own `url` event subscription.
+  // Same replay pattern as the notification handler above.
+  useEffect(() => {
+    if (coldStartUrlHandled) return;
+    coldStartUrlHandled = true;
+    Linking.getInitialURL().then((url) => {
+      if (!url) return;
+      const target = contentRouteFromUrl(url);
+      if (!target) return;
+      if (target.name === 'SaleDetail') {
+        navigateToSale(target.params?.saleId as string);
+      } else if (target.name === 'EventDetail') {
+        navigateToEvent({ slug: target.params?.slug as string });
+      } else if (target.name === 'ListingDetail') {
+        navigateToListing(target.params?.listingId as string);
+      }
+    });
   }, []);
 
   return (
@@ -755,31 +791,19 @@ function LoadingScreen() {
 // https://trove.sale/sale/<id>) to the right screen + params. Share links
 // (src/lib/share.ts) are https://trove.sale/... — recipients without the app
 // land on the trove.sale "open in Trove" page, whose button fires the
-// trove:// scheme handled here. The https prefix only routes in-app once an
-// associatedDomains entitlement ships in a future native build (harmless
-// until then).
+// trove:// scheme handled here. The route table lives in ./deepLinks so the
+// cold-start replay (MainTabs effect) matches against the same config.
+//
+// getInitialURL returns null ON PURPOSE: at container-mount time auth is
+// still resolving, the RootStack only registers the Loading screen, and
+// React Navigation would parse the launch URL into state for routes that
+// don't exist yet — then silently drop it. Cold-start URLs are instead
+// replayed by the MainTabs effect once the real tree is up; warm links keep
+// using React Navigation's default `url` event subscription.
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [Linking.createURL('/'), 'https://trove.sale'],
-  config: {
-    screens: {
-      Main: {
-        screens: {
-          Map: {
-            screens: {
-              MapHome: 'map',
-              SaleDetail: 'sale/:saleId',
-              EventDetail: 'event/:slug',
-            },
-          },
-          Listings: {
-            screens: {
-              ListingDetail: 'listing/:listingId',
-            },
-          },
-        },
-      },
-    },
-  },
+  getInitialURL: () => null,
+  config: LINKING_CONFIG,
 };
 
 export default function Navigation() {
