@@ -145,3 +145,15 @@ function sameDate(a: Date, b: Date): boolean {
     a.getDate() === b.getDate()
   );
 }
+
+/**
+ * 'HH:MM' plus one hour, capped at 23:59 — a late start must not wrap the
+ * end time past midnight, which would make end <= start on a same-day sale
+ * and fail validation. Malformed input passes through unchanged.
+ */
+export function hourAfter(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return hhmm;
+  if (h >= 23) return '23:59';
+  return `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}

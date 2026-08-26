@@ -3,6 +3,7 @@ import {
   formatHM,
   formatSaleTime,
   formatSaleDate,
+  hourAfter,
 } from '../format';
 
 function isoHoursAgo(hours: number): string {
@@ -34,6 +35,21 @@ describe('formatPostedDate', () => {
 
 // The en-dash used between range parts (U+2013), not a hyphen.
 const EN_DASH = '–';
+
+describe('hourAfter', () => {
+  it('adds an hour, zero-padded', () => {
+    expect(hourAfter('08:00')).toBe('09:00');
+    expect(hourAfter('09:30')).toBe('10:30');
+  });
+  it('caps at 23:59 instead of wrapping past midnight', () => {
+    expect(hourAfter('23:00')).toBe('23:59');
+    expect(hourAfter('23:45')).toBe('23:59');
+  });
+  it('passes malformed input through unchanged', () => {
+    expect(hourAfter('')).toBe('');
+    expect(hourAfter('noon')).toBe('noon');
+  });
+});
 
 describe('formatHM', () => {
   it('drops the minutes and leading zero on the hour for a top-of-hour AM time', () => {

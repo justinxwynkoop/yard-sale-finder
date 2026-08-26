@@ -29,6 +29,7 @@ import { captureBus } from '../../lib/captureBus';
 import { compressImage } from '../../lib/imageCompression';
 import { eventMatchForSale, localTodayIso } from '../../lib/eventMatch';
 import { EventJoinPrompt } from '../../components/EventJoinPrompt';
+import { hourAfter } from '../../utils/format';
 import {
   Draft,
   clearDraft,
@@ -962,7 +963,13 @@ export default function CreateSaleScreen() {
                   label="Start time"
                   mode="time"
                   value={startTime}
-                  onChange={setStartTime}
+                  onChange={(t) => {
+                    setStartTime(t);
+                    // Auto-fill the end an hour later — but only when it's
+                    // empty or no longer after the new start, so a
+                    // deliberately chosen end (or a preset's) isn't clobbered.
+                    setEndTime((prev) => (!prev || prev <= t ? hourAfter(t) : prev));
+                  }}
                   placeholder="Start"
                 />
               </View>

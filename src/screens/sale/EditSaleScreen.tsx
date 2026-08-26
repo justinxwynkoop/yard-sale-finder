@@ -39,6 +39,7 @@ import {
 } from '../../components/ui';
 import { captureBus } from '../../lib/captureBus';
 import { toast } from '../../lib/toast';
+import { hourAfter } from '../../utils/format';
 import { compressImage } from '../../lib/imageCompression';
 
 type Route = RouteProp<SaleStackParamList, 'EditSale'>;
@@ -674,7 +675,12 @@ export default function EditSaleScreen() {
                 label="Start time"
                 mode="time"
                 value={startTime}
-                onChange={setStartTime}
+                onChange={(t) => {
+                  setStartTime(t);
+                  // Same auto-fill as CreateSaleScreen: only an empty or
+                  // now-invalid end time snaps to an hour after the start.
+                  setEndTime((prev) => (!prev || prev <= t ? hourAfter(t) : prev));
+                }}
                 placeholder="Start time"
               />
             </View>
