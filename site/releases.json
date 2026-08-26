@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-26T23:16:14.430Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "013deed",
+    "sinceSha": "9224e22",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Sale owners can leave a neighborhood event",
+        "sha": "013deed"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-26T23:08:26.472Z",
     "channel": "production",
     "appVersion": "1.0.0",
