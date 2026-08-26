@@ -6,6 +6,11 @@
 module.exports = {
   preset: 'jest-expo',
   testMatch: ['**/__tests__/**/*.test.(ts|tsx|js)'],
+  // Claude Code parks git worktrees under .claude/worktrees — each holds a
+  // full copy of the repo, so without this the suite runs once per worktree
+  // (and haste-map complains about duplicate mocks).
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
+  modulePathIgnorePatterns: ['<rootDir>/.claude/'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
