@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-27T10:25:47.593Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "1fb5c45",
+    "sinceSha": "9ccdcd5",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Pin variants track store versions, not stale readers",
+        "sha": "1fb5c45"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-27T00:08:16.586Z",
     "channel": "production",
     "appVersion": "1.0.0",
