@@ -18,7 +18,14 @@ let _userId: string | null = null;
 // Components subscribe by registering a forceRender callback.
 const _listeners = new Set<() => void>();
 
+// Monotonic change counter. `isFavorited` is identity-stable (it reads the
+// module set), so memos that derive from favorite STATE must depend on this
+// version — a count can collide when React batches a remove+add into one
+// render, a monotonic version cannot.
+let _version = 0;
+
 function _broadcast() {
+  _version++;
   _listeners.forEach((fn) => fn());
 }
 
@@ -206,6 +213,7 @@ export function useFavorites() {
   return {
     favorites: visibleFavorites,
     isFavorited,
+    favoritesVersion: _version,
     toggle,
     loading: _loading,
     refetch: fetchFavorites,

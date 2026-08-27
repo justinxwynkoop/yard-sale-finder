@@ -16,7 +16,13 @@ let _userId: string | null = null;
 let _loaded = false;
 const _listeners = new Set<() => void>();
 
+// Monotonic change counter — the honest memo dependency for derived state
+// (`isVisited` is identity-stable; a set size can collide when React batches
+// a remove+add into one render). Bumped at the single broadcast choke point.
+let _version = 0;
+
 function _broadcast() {
+  _version++;
   _listeners.forEach((fn) => fn());
 }
 
@@ -102,5 +108,5 @@ export function useVisited() {
     [user],
   );
 
-  return { isVisited, toggle, visitedCount: _ids.size, refetch: fetchVisits };
+  return { isVisited, toggle, visitedCount: _ids.size, visitedVersion: _version, refetch: fetchVisits };
 }

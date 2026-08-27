@@ -48,7 +48,7 @@ export default function FilterSheet() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { sales } = useSales();
-  const { isFavorited } = useFavorites();
+  const { isFavorited, favoritesVersion } = useFavorites();
   // The map's current viewport — so "Show N" matches what's actually in
   // view (Zillow-style), not a global count.
   const viewport = useViewport();
@@ -88,7 +88,9 @@ export default function FilterSheet() {
           (!draft.savedOnly || isFavorited(s.id)) &&
           (viewport ? regionContains(viewport, s.latitude, s.longitude) : true),
       ).length,
-    [sales, draft, viewport, isFavorited],
+    // favoritesVersion is the real dep — isFavorited is identity-stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, draft, viewport, isFavorited, favoritesVersion],
   );
 
   const handleApply = () => {

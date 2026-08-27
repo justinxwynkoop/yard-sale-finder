@@ -20,8 +20,16 @@ let _userId: string | null = null;
 let _loaded = false;
 const _listeners = new Set<() => void>();
 
+// Monotonic change counter — the honest memo dependency for derived state,
+// since `isSeen` is identity-stable and a set SIZE can collide across a
+// batched remove+add render. Bumped at the single broadcast choke point.
+let _version = 0;
+
 const keyFor = (userId: string) => `seenSales:${userId}`;
-const broadcast = () => _listeners.forEach((fn) => fn());
+const broadcast = () => {
+  _version++;
+  _listeners.forEach((fn) => fn());
+};
 
 async function hydrate(userId: string) {
   _userId = userId;
@@ -72,5 +80,5 @@ export function useSeenSales() {
     [user?.id],
   );
 
-  return { isSeen, markSeen, seenCount: _ids.size };
+  return { isSeen, markSeen, seenCount: _ids.size, seenVersion: _version };
 }

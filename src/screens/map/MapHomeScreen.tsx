@@ -96,9 +96,9 @@ export default function MapHomeScreen() {
   const { sales, loading, error: salesError, refetch: refetchSales } = useSales();
   const { events: saleEvents, refetch: refetchEvents } = useSaleEvents();
   const { user } = useAuth();
-  const { isFavorited, refetch: refetchFavorites } = useFavorites();
-  const { isVisited, visitedCount } = useVisited();
-  const { isSeen, seenCount } = useSeenSales();
+  const { isFavorited, favoritesVersion, refetch: refetchFavorites } = useFavorites();
+  const { isVisited, visitedVersion } = useVisited();
+  const { isSeen, seenVersion } = useSeenSales();
   const userLocation = useUserLocation();
   const { region: lastRegion, save: saveLastRegion } = useLastMapRegion();
 
@@ -337,7 +337,11 @@ export default function MapHomeScreen() {
       result = [...result].sort((a, b) => d(a) - d(b));
     }
     return result;
-  }, [sales, filters, isFavorited, userLocation]);
+    // favoritesVersion: isFavorited is identity-stable, and the savedOnly
+    // filter reads live favorite state — without the version dep, toggling a
+    // save while that filter is on left the filtered set stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sales, filters, isFavorited, favoritesVersion, userLocation]);
 
   // VISUAL pin thinning (Zillow-style level of detail). CRUCIAL: we do NOT
   // add/remove markers to thin them. Under the new architecture, ANY change to
@@ -370,10 +374,10 @@ export default function MapHomeScreen() {
           (s) => s.id,
         ),
       ),
-    // visitedCount changes when a visit is toggled (isVisited is stable), so
-    // it's the dep that re-thins after you mark a sale visited.
+    // isFavorited/isVisited are identity-stable module-store readers, so the
+    // store VERSIONS are the deps that re-thin after a save or visit toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mapSales, grid.kx, grid.ky, isFavorited, isVisited, visitedCount],
+    [mapSales, grid.kx, grid.ky, isFavorited, isVisited, favoritesVersion, visitedVersion],
   );
   // Layer the selected pin on top (kept visible through a zoom that thinned it
   // out). When nothing is selected — or it's already shown — reuse the base set
@@ -416,7 +420,9 @@ export default function MapHomeScreen() {
 
   const savedCount = useMemo(
     () => sales.filter((s) => isFavorited(s.id)).length,
-    [sales, isFavorited],
+    // favoritesVersion is the real dep — isFavorited is identity-stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, isFavorited, favoritesVersion],
   );
 
   const handleSaleTap = useCallback(
@@ -483,8 +489,9 @@ export default function MapHomeScreen() {
 
   // The 45-pin marker array, memoized so pans, selections, and unrelated
   // state changes stop re-running per-pin derivation on every render. The
-  // seen/visited hooks are identity-stable module stores, so their COUNTS
-  // are the honest cache keys; isFavorited's identity changes with the set.
+  // favorite/seen/visited readers are all identity-stable module stores, so
+  // their monotonic store VERSIONS are the honest cache keys (a set size can
+  // collide when React batches a remove+add into one render).
   const saleMarkers = useMemo(
     () =>
       mapSales.map((sale) => {
@@ -526,7 +533,7 @@ export default function MapHomeScreen() {
         );
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mapSales, visibleIds, isFavorited, isVisited, isSeen, visitedCount, seenCount, minuteTick, user?.id, onPinPress],
+    [mapSales, visibleIds, isFavorited, isVisited, isSeen, favoritesVersion, visitedVersion, seenVersion, minuteTick, user?.id, onPinPress],
   );
 
   const goToUserLocation = useCallback(async () => {
