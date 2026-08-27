@@ -1,7 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Sale } from '../types';
 import { useBlockedUsers } from './useBlockedUsers';
+
+// Stale-while-revalidate cache for the map's cold start: the last good
+// payload hydrates pins instantly while the network fetch replaces it a
+// beat later. Sales are public data, so one cache serves every account.
+const SALES_CACHE_KEY = 'trove:sales-cache:v1';
 
 /**
  * Loads every non-ended sale once and re-fetches on `postgres_changes`
@@ -24,6 +30,20 @@ export function useSales() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { blockedIds } = useBlockedUsers();
+  const networkLanded = useRef(false);
+
+  // Cache-first hydration: paint the last known pins immediately. Guarded so
+  // a slow cache read can never overwrite fresher network data, and wrapped
+  // because a corrupt/absent cache must degrade to the plain network path.
+  useEffect(() => {
+    AsyncStorage.getItem(SALES_CACHE_KEY)
+      .then((raw) => {
+        if (!raw || networkLanded.current) return;
+        const cached = JSON.parse(raw) as Sale[];
+        if (Array.isArray(cached) && !networkLanded.current) setSales(cached);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchSales = useCallback(async () => {
     setLoading(true);
@@ -44,7 +64,9 @@ export function useSales() {
         .is('hidden_at', null)
         .order('created_at', { ascending: false });
       if (fetchError) throw fetchError;
+      networkLanded.current = true;
       setSales(data ?? []);
+      AsyncStorage.setItem(SALES_CACHE_KEY, JSON.stringify(data ?? [])).catch(() => {});
     } catch (e: any) {
       setError(e.message);
     } finally {

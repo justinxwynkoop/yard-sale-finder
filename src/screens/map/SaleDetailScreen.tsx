@@ -40,7 +40,7 @@ import { useVisited } from '../../hooks/useVisited';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
-import { navigateToConversation } from '../../lib/navigationRef';
+import { navigateToConversation, navigateToEvent } from '../../lib/navigationRef';
 import { promptSignIn } from '../../lib/guestGate';
 import {
   saleDisplayLocation,
@@ -103,6 +103,7 @@ export default function SaleDetailScreen() {
   }, [saleId, markSeen]);
 
   const [sale, setSale] = useState<Sale | null>(null);
+  const [memberEvent, setMemberEvent] = useState<{ id: string; title: string } | null>(null);
   const [linkedListings, setLinkedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -161,28 +162,43 @@ export default function SaleDetailScreen() {
         setLoading(false);
         return;
       }
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', saleData.user_id)
-        .maybeSingle();
+      // Everything below depends only on saleData, so it runs in PARALLEL —
+      // the old sequential chain (profile, then listings) put two extra
+      // ~120ms round-trips on the critical path of every sale open.
+      const [{ data: profileData }, { data: linked }, { data: eventRow }] =
+        await Promise.all([
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', saleData.user_id)
+            .maybeSingle(),
+          // Best-effort fetch of listings the host linked to this sale.
+          // Featured Items rail renders from this; empty → falls back
+          // to a photo preview rail below.
+          supabase
+            .from('listings')
+            .select('*, media:listing_media(*)')
+            .eq('sale_id', saleId)
+            .eq('status', 'available')
+            .order('created_at', { ascending: false })
+            .limit(12),
+          // The neighborhood event this sale belongs to, if any — renders
+          // the tappable "Part of …" strip below the schedule.
+          saleData.event_id
+            ? supabase
+                .from('sale_events')
+                .select('id, title')
+                .eq('id', saleData.event_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
       if (cancelled) return;
       setSale({ ...saleData, profile: profileData ?? undefined });
+      setMemberEvent((eventRow as { id: string; title: string } | null) ?? null);
+      if (linked) setLinkedListings(linked as Listing[]);
       setLoading(false);
       // Count this view (the RPC skips the owner's own views).
       void supabase.rpc('increment_sale_view', { p_id: saleId });
-
-      // Best-effort fetch of listings the host linked to this sale.
-      // Featured Items rail renders from this; empty → falls back
-      // to a photo preview rail below.
-      const { data: linked } = await supabase
-        .from('listings')
-        .select('*, media:listing_media(*)')
-        .eq('sale_id', saleId)
-        .eq('status', 'available')
-        .order('created_at', { ascending: false })
-        .limit(12);
-      if (!cancelled && linked) setLinkedListings(linked as Listing[]);
     })();
     return () => {
       cancelled = true;
@@ -620,6 +636,34 @@ export default function SaleDetailScreen() {
 
           {/* Stat strip */}
           <StatStrip sale={sale} />
+
+          {/* Neighborhood event membership — tappable through to the event
+              page, so shoppers can hop from any stop to the whole group. */}
+          {memberEvent && (
+            <Pressable
+              onPress={() => navigateToEvent({ eventId: memberEvent.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`View the ${memberEvent.title}`}
+              style={{
+                marginTop: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: BRAND_SOFT,
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="home" size={16} color={BRAND} />
+              <Text
+                style={{ marginLeft: 8, flex: 1, fontSize: 13, fontWeight: '700', color: BRAND }}
+                numberOfLines={1}
+              >
+                Part of the {memberEvent.title}
+              </Text>
+              <Ionicons name="chevron-forward" size={15} color={BRAND} />
+            </Pressable>
+          )}
 
           {/* Pricing — full width + wrapping so longer notes (several options)
               show in full instead of being cut off in a tile. */}

@@ -98,7 +98,7 @@ export default function MapHomeScreen() {
   const { user } = useAuth();
   const { isFavorited, refetch: refetchFavorites } = useFavorites();
   const { isVisited, visitedCount } = useVisited();
-  const { isSeen } = useSeenSales();
+  const { isSeen, seenCount } = useSeenSales();
   const userLocation = useUserLocation();
   const { region: lastRegion, save: saveLastRegion } = useLastMapRegion();
 
@@ -456,6 +456,79 @@ export default function MapHomeScreen() {
     [user, positionCalloutFor],
   );
 
+  // The selected id in a ref so the pin press handler stays identity-stable:
+  // selecting a pin must not rebuild the 45-marker array below.
+  const selectedSaleIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedSaleIdRef.current = selectedSaleId; }, [selectedSaleId]);
+
+  const onPinPress = useCallback(
+    (sale: Sale, e: { stopPropagation?: () => void }) => {
+      e.stopPropagation?.();
+      if (sale.id === selectedSaleIdRef.current) {
+        handleSaleTap(sale.id);
+      } else {
+        selectPin(sale);
+      }
+    },
+    [handleSaleTap, selectPin],
+  );
+
+  // Re-derive openNow once a minute (a sale turning 8 AM should go green
+  // without waiting for an unrelated re-render).
+  const [minuteTick, setMinuteTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setMinuteTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // The 45-pin marker array, memoized so pans, selections, and unrelated
+  // state changes stop re-running per-pin derivation on every render. The
+  // seen/visited hooks are identity-stable module stores, so their COUNTS
+  // are the honest cache keys; isFavorited's identity changes with the set.
+  const saleMarkers = useMemo(
+    () =>
+      mapSales.map((sale) => {
+        // Honor the host's address privacy: a 'reply'-mode sale shows a
+        // deterministically-offset pin (near, not on, the real address)
+        // to anyone but the owner. 'live'/legacy sales show exact.
+        const loc = saleDisplayLocation(sale, {
+          isOwner: !!user && sale.user_id === user.id,
+        });
+        // Zillow-style thinning WITHOUT churning the marker set: EVERY pin
+        // stays mounted (adding/removing markers crashes AIRMap under the
+        // new arch); thinned-out pins are merely faded to opacity 0 and made
+        // non-interactive. Pins never swap their child or change key — they
+        // stay static MapPins; the selected callout is a separate overlay.
+        const visible = visibleIds.has(sale.id);
+        const favorited = isFavorited(sale.id);
+        const isNew = isRecentlyPosted(sale.created_at) && !isSeen(sale.id);
+        const visited = isVisited(sale.id);
+        const openNow = isOpenNow(sale);
+        return (
+          <SnapshotMarker
+            key={sale.id}
+            coordinate={{
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+            }}
+            opacity={visible ? 1 : 0}
+            onPress={visible ? (e) => onPinPress(sale, e) : undefined}
+            redrawKey={`${sale.status}|${favorited}|${isNew}|${visited}|${openNow}`}
+          >
+            <MapPin
+              status={sale.status}
+              favorited={favorited}
+              isNew={isNew}
+              visited={visited}
+              openNow={openNow}
+            />
+          </SnapshotMarker>
+        );
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapSales, visibleIds, isFavorited, isVisited, isSeen, visitedCount, seenCount, minuteTick, user?.id, onPinPress],
+  );
+
   const goToUserLocation = useCallback(async () => {
     // Tapping locate clears any active area search and returns to "me".
     setSearchArea(null);
@@ -631,55 +704,7 @@ export default function MapHomeScreen() {
           setCalloutPoint(null);
         }}
       >
-        {mapSales.map((sale) => {
-          // Honor the host's address privacy: a 'reply'-mode sale shows a
-          // deterministically-offset pin (near, not on, the real address)
-          // to anyone but the owner. 'live'/legacy sales show exact.
-          const loc = saleDisplayLocation(sale, {
-            isOwner: !!user && sale.user_id === user.id,
-          });
-          // Zillow-style thinning WITHOUT churning the marker set: EVERY pin
-          // stays mounted (adding/removing markers crashes AIRMap under the
-          // new arch); thinned-out pins are merely faded to opacity 0 and made
-          // non-interactive. Pins never swap their child or change key — they
-          // stay static MapPins; the selected callout is a separate overlay.
-          const visible = visibleIds.has(sale.id);
-          const favorited = isFavorited(sale.id);
-          const isNew = isRecentlyPosted(sale.created_at) && !isSeen(sale.id);
-          const visited = isVisited(sale.id);
-          const openNow = isOpenNow(sale);
-          return (
-            <SnapshotMarker
-              key={sale.id}
-              coordinate={{
-                latitude: loc.latitude,
-                longitude: loc.longitude,
-              }}
-              opacity={visible ? 1 : 0}
-              onPress={
-                visible
-                  ? (e) => {
-                      e.stopPropagation?.();
-                      if (sale.id === selectedSaleId) {
-                        handleSaleTap(sale.id);
-                      } else {
-                        selectPin(sale);
-                      }
-                    }
-                  : undefined
-              }
-              redrawKey={`${sale.status}|${favorited}|${isNew}|${visited}|${openNow}`}
-            >
-              <MapPin
-                status={sale.status}
-                favorited={favorited}
-                isNew={isNew}
-                visited={visited}
-                openNow={openNow}
-              />
-            </SnapshotMarker>
-          );
-        })}
+        {saleMarkers}
         {/* Neighborhood sale events — additive layer (spec: thinning untouched). */}
         {saleEvents.map((ev) => (
           <React.Fragment key={ev.id}>
