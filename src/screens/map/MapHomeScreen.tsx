@@ -43,7 +43,7 @@ import { BottomSheet, SheetState } from '../../components/BottomSheet';
 import SaleCard from '../../components/SaleCard';
 import { haversineMeters } from '../../utils/distance';
 import { isOpenNow, isRecentlyPosted } from '../../utils/saleStatus';
-import { useMapFilters } from '../../lib/mapFilters';
+import { useMapFilters, countActiveFilters, resetMapFilters } from '../../lib/mapFilters';
 import { saleMatchesFilters } from '../../lib/filterSales';
 import { useSearchArea, setSearchArea } from '../../lib/searchArea';
 import { useViewport, setViewport, regionContains } from '../../lib/viewport';
@@ -111,6 +111,7 @@ export default function MapHomeScreen() {
   // Filter state — driven by the shared mapFilters store so the
   // FilterSheet modal can read/write the same object.
   const filters = useMapFilters();
+  const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
 
   // The map's current visible region drives which sales show — Zillow
   // style, the viewport IS the filter. Updated on every settle below.
@@ -839,6 +840,8 @@ export default function MapHomeScreen() {
           hasArea={!!searchArea}
           searching={areaSearching}
           onFilters={handleFilterOpen}
+          activeFilterCount={activeFilterCount}
+          onClearFilters={resetMapFilters}
         />
 
         {salesError && !loading ? (
@@ -1065,6 +1068,8 @@ function SearchCard({
   hasArea,
   searching,
   onFilters,
+  activeFilterCount = 0,
+  onClearFilters,
 }: {
   value: string;
   onChangeText: (t: string) => void;
@@ -1073,6 +1078,8 @@ function SearchCard({
   hasArea?: boolean;
   searching?: boolean;
   onFilters: () => void;
+  activeFilterCount?: number;
+  onClearFilters?: () => void;
 }) {
   return (
     <View
@@ -1138,7 +1145,11 @@ function SearchCard({
       <Pressable
         onPress={onFilters}
         accessibilityRole="button"
-        accessibilityLabel="Open filters"
+        accessibilityLabel={
+          activeFilterCount > 0
+            ? `Open filters, ${activeFilterCount} active`
+            : 'Open filters'
+        }
         hitSlop={6}
         style={{
           width: 28,
@@ -1150,7 +1161,40 @@ function SearchCard({
         }}
       >
         <Ionicons name="options-outline" size={16} color={BRAND} />
+        {activeFilterCount > 0 ? (
+          <View
+            style={{
+              position: 'absolute',
+              top: -4,
+              right: -4,
+              minWidth: 16,
+              height: 16,
+              borderRadius: 8,
+              paddingHorizontal: 3,
+              backgroundColor: BRAND,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1.5,
+              borderColor: '#fff',
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>
+              {activeFilterCount}
+            </Text>
+          </View>
+        ) : null}
       </Pressable>
+      {activeFilterCount > 0 && onClearFilters ? (
+        <Pressable
+          onPress={onClearFilters}
+          accessibilityRole="button"
+          accessibilityLabel="Clear all filters"
+          hitSlop={6}
+          style={{ marginLeft: 6, padding: 2 }}
+        >
+          <Ionicons name="close-circle" size={18} color={INK_MUTED} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
