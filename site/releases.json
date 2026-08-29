@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-29T19:32:36.954Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "d286223",
+    "sinceSha": "1fb5c45",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Show active filter count + quick clear-all on the map screen",
+        "sha": "d286223"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-27T10:25:47.593Z",
     "channel": "production",
     "appVersion": "1.0.0",
