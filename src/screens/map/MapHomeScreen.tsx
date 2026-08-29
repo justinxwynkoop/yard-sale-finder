@@ -707,6 +707,12 @@ export default function MapHomeScreen() {
         }}
         showsUserLocation
         showsMyLocationButton={false}
+        // TEST (test/heading-cone branch): Apple Maps only shows the
+        // heading cone on the user-location dot when the map is tracking
+        // the user via followsUserLocation. This also auto-recenters the
+        // camera on the user — trading off against free panning to
+        // evaluate that tradeoff on a real device before deciding.
+        followsUserLocation
         onPress={() => {
           setSelectedSaleId(null);
           setCalloutPoint(null);
