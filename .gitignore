@@ -57,3 +57,6 @@ secrets/
 GoogleService-Info.plist
 
 .env.local
+
+# Vercel local project link (machine-specific)
+.vercel/
