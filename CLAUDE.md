@@ -113,7 +113,7 @@ No external state library — state lives in custom hooks:
 
 **Messaging**
 - `useInbox()` — loads conversations sorted by recency; hydrates other-party profile, target preview (sale/listing), last message body, and unread flag in JS (not DB joins) due to the polymorphic `target_type`; real-time via Postgres changes; exposes `deleteConversation`, `markAsUnread`, `unreadCount`
-- `useConversation(conversationId)` — loads a single conversation + messages, live tail, optimistic send; calls `mark_conversation_read` RPC on mount
+- `useConversation(conversationId)` — loads a single conversation + messages, live tail, optimistic send; calls `mark_conversation_read` RPC on mount; also exposes `sendOffer`/`respondToOffer` (thin wrappers over the `send_offer`/`respond_to_offer` RPCs — no optimistic insert, since an offer is server-authoritative and can be rejected) and `participants`, the pair authorized to act on this conversation's offers
 - `useStartConversation()` — wraps the `start_conversation` RPC (create-or-fetch idempotent)
 
 **Other**
@@ -133,7 +133,26 @@ No external state library — state lives in custom hooks:
   - `listings` + `listing_media` — individual item marketplace
   - `favorites` — saved sales (user → sale)
   - `listing_favorites` — saved listings (user → listing)
-  - `conversations` + `messages` — in-app messaging; `target_type` is `'sale' | 'listing'`
+  - `conversations` + `messages` — in-app messaging; `target_type` is `'sale' | 'listing'`.
+    `messages.kind` is `'text' | 'offer' | 'system'`; an `'offer'` row carries
+    `offer_amount` + `offer_status` (`'pending' | 'accepted' | 'declined' | 'countered'`),
+    a `'system'` row carries `recipient_id` (who the notice is FOR). Offers only
+    exist on `listing` conversations. Mutations go through `security definer`
+    RPCs (`send_offer`, `respond_to_offer`) rather than an UPDATE policy, because
+    `messages` deliberately has no UPDATE policy at all (keeps the moderation
+    trail intact) and RLS can't restrict which *columns* an update touches.
+    Authorization on `respond_to_offer` is "the participant who did NOT send
+    this offer", not "the listing owner" — a seller's counter-offer is accepted
+    by the buyer.
+  - `listing_holds` — occupancy for an offer-accepted listing (`listing_id` PK,
+    `buyer_id`, `offer_id`). Deliberately a side table, not a column on
+    `listings`: `listings` is world-readable via the publishable key shipped in
+    the app binary, so a buyer id there would let anyone enumerate who holds
+    what. The public signal stays `listings.status = 'pending'`. No expiry, no
+    cron — only `release_hold`/`mark_listing_sold` (seller-only) change it, via
+    the single write path `src/lib/listingStatus.ts`. `'pending'` isn't
+    manually selectable in the create/edit listing UI; it's set only by
+    `respond_to_offer` accepting an offer.
   - `blocked_users` — block relationships
   - `reports` — abuse reports targeting sales, listings, or profiles. An
     AFTER INSERT trigger (`auto_hide_reported`) stamps `hidden_at` on a
@@ -152,8 +171,8 @@ No external state library — state lives in custom hooks:
 - **Auth**: Supabase Auth — email+password primary, Google/Apple OAuth available
 - **Storage**: `sale-media` and `avatars` buckets
 - **RLS**: Row-level security on all tables — anyone can read, only owners can write
-- **RPCs**: `start_conversation`, `mark_conversation_read`, `unmark_conversation_read`, `delete_my_account`
-- **Edge functions** (`supabase/functions/`): `notify-new-sale`, `notify-new-listing`, `notify-new-message`, `notify-new-report` — invoked by DB webhook triggers with a bearer-token check; `notify-new-report` pushes report alerts to the operator (`OPERATOR_USER_ID` secret)
+- **RPCs**: `start_conversation`, `mark_conversation_read`, `unmark_conversation_read`, `hide_conversation`, `set_conversation_archived`, `delete_my_account`, `my_blocked_user_ids`, `clear_push_token`, `set_push_token`, `increment_sale_view`, `increment_listing_view`, `review_summary`, `can_review`, `remove_sale_from_event`, `nearby_sale_recipients` (called from the `notify-new-sale` edge function, not the client); offers/holds: `send_offer`, `respond_to_offer`, `release_hold`, `mark_listing_sold` (see below)
+- **Edge functions** (`supabase/functions/`): `notify-new-sale`, `notify-new-listing`, `notify-new-message`, `notify-new-report` — invoked by DB webhook triggers with a bearer-token check; `notify-new-report` pushes report alerts to the operator (`OPERATOR_USER_ID` secret). `notify-new-message` is kind-aware: an `'offer'` message gates on `profiles.notify_offers` instead of `notify_messages`, a `'system'` message titles the push "Trove" instead of a sender's name (and uses the row's explicit `recipient_id` rather than deriving recipient from sender/buyer, which used to fail open), and every message kind keeps `channelId: 'messages'` — Android silently drops a push whose channel isn't registered
 - **API pattern**: media sorted by `.order` field; profile NOT embedded in `useSales` (avoids PostgREST inner-join dropping sales whose owner has no profile row yet)
 
 ### Key Types (`src/types/index.ts`)
@@ -168,6 +187,7 @@ No external state library — state lives in custom hooks:
 - `toast.ts` — thin wrapper around `react-native-toast-message`
 - `imageCompression.ts` — wraps `expo-image-manipulator` for pre-upload compression
 - `avatarUpload.ts` — handles avatar uploads to the `avatars` bucket
+- `listingStatus.ts` — `setListingStatus(listingId, next)`, the single write path for a listing's status; `next` excludes `'pending'` by type (only `respond_to_offer` can set that, by accepting an offer) and routes `'sold'`/`'available'` through `mark_listing_sold`/`release_hold` so the `listing_holds` row always clears atomically with the status
 - `drafts.ts` — device-local one-per-type drafts for the Create Sale/Listing forms (AsyncStorage `trove:draft:<type>`, serialized writes); the create screens debounce-autosave into it, offer an explicit "Save draft" button, and clear on post
 
 ### UI Component Library (`src/components/ui/`)

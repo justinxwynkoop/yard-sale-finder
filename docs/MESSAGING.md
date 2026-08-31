@@ -210,9 +210,20 @@ in the user's known inbox.
 9. Read receipts (seen indicator under the last message you sent).
 10. Image messages (uses the existing photo upload path on a new
     bucket `message-media`).
-11. Structured **offers** — a separate row type with a price, an
-    accept/decline button, and a state machine. Worth its own design
-    doc when we get there.
+11. Structured **offers** — shipped, `listing` conversations only (a
+    yard sale event has no single price, so `sale` threads still get
+    quick replies but no offers). An offer is a `kind='offer'` message
+    (price + `offer_status`) with an accept/decline affordance inline
+    in the thread; whichever participant did **not** send it may
+    respond — so a seller's counter-offer is accepted by the buyer, not
+    the seller. Accepting puts the listing on hold for that buyer
+    (`listings.status = 'pending'`, occupancy recorded in a separate
+    `listing_holds` table so the buyer id never rides on a
+    publicly-readable row) until the seller releases it or marks it
+    sold — no expiry, no cron; only the seller changes it. See
+    `docs/superpowers/specs/2026-08-30-messaging-offers-design.md` for
+    the full design and `20260830100000_message_offers.sql` /
+    `20260830100100_listing_holds.sql` for the implementation.
 
 ## Open questions
 
