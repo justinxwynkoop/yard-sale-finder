@@ -333,6 +333,12 @@ export default function ConversationScreen() {
     syncMessages,
   } = useConversation(conversationId);
 
+  // Status of the listing this thread is about (undefined for sale threads and
+  // for a listing that no longer loads). The server refuses `accept` unless the
+  // listing is 'available' and refuses `send_offer` on a sold one, so every
+  // offer affordance below is gated on this rather than on the offer alone.
+  const listingStatus = target?.kind === 'listing' ? target.status : undefined;
+
   // Seed the composer from the route (e.g. the Make-offer template).
   // useState's initializer only runs on mount, so later param changes
   // can't clobber what the user is typing.
@@ -736,6 +742,7 @@ export default function ConversationScreen() {
                   message={item.message}
                   viewerId={user?.id}
                   participants={participants}
+                  listingStatus={listingStatus}
                   onAccept={() => handleRespond(item.message.id, 'accept')}
                   onDecline={() => handleRespond(item.message.id, 'decline')}
                   onCounter={() => openCounterSheet(item.message.offer_amount)}
@@ -833,9 +840,14 @@ export default function ConversationScreen() {
           </Pressable>
           {/* Make an offer -- listing conversations only, and never for the
               listing's own owner (they counter from the bubble, not here).
+              Also only while the item is actually available: an offer on a
+              sold item is refused outright by send_offer, and one on a held
+              item can be sent but never accepted (respond_to_offer's accept
+              requires 'available'), so both would be dead ends.
               A fourth sibling in this row, same as the Pressables around it
               -- see the comment above this row. */}
           {conversation?.target_type === 'listing' &&
+          listingStatus === 'available' &&
           !!user?.id &&
           conversation.seller_id !== user.id ? (
             <Pressable
