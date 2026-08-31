@@ -3,6 +3,45 @@ import { supabase } from '../lib/supabase';
 import { Listing, ItemCategory } from '../types';
 import { useBlockedUsers } from './useBlockedUsers';
 
+/**
+ * `useMyListings`-only shape: a listing plus who a 'pending' one is held
+ * for. Kept local rather than folded into the shared `Listing` interface —
+ * every other reader of `Listing` (map/listings feeds, detail screens) has
+ * no way to populate it, since `listing_holds` RLS only lets the owner or
+ * the held buyer read a hold row (see migration 20260830100100).
+ */
+export type ListingWithHold = Listing & {
+  /** Set only when `status === 'pending'` and a matching hold row exists. */
+  held_for_name?: string;
+};
+
+/**
+ * Pure hydration step, split out of `useMyListings` so it's testable without
+ * a Supabase client: given the owner's listings, the hold rows the RLS
+ * policy let them read, and the buyer profiles those holds point at,
+ * attach `held_for_name` to each held listing. A listing with no matching
+ * hold row (never held, or a desynced 'pending' — see release_hold's
+ * header comment in 20260830100100_listing_holds.sql) passes through
+ * unchanged.
+ */
+export function hydrateHeldForNames(
+  listings: Listing[],
+  holds: { listing_id: string; buyer_id: string }[],
+  buyers: { id: string; display_name: string | null }[],
+): ListingWithHold[] {
+  if (holds.length === 0) return listings;
+  const nameByBuyerId = new Map(buyers.map((b) => [b.id, b.display_name]));
+  const buyerIdByListingId = new Map(holds.map((h) => [h.listing_id, h.buyer_id]));
+  return listings.map((l) => {
+    const buyerId = buyerIdByListingId.get(l.id);
+    if (!buyerId) return l;
+    // A hold always references a real profile row (buyer_id is NOT NULL,
+    // FK'd to profiles) — the fallback covers a buyer with no display_name
+    // set, same as every other display_name ?? fallback in this codebase.
+    return { ...l, held_for_name: nameByBuyerId.get(buyerId) ?? 'a buyer' };
+  });
+}
+
 export interface ListingFilters {
   category: ItemCategory | null;
   categories?: ItemCategory[];
@@ -104,7 +143,7 @@ export function useListings(filters: ListingFilters) {
 }
 
 export function useMyListings(userId: string | undefined) {
-  const [listings, setListings] = useState<Listing[]>([]);
+  const [listings, setListings] = useState<ListingWithHold[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchMyListings = useCallback(async () => {
@@ -116,7 +155,42 @@ export function useMyListings(userId: string | undefined) {
         .select('*, media:listing_media(*)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
-      setListings(data ?? []);
+      const rows: Listing[] = data ?? [];
+
+      // Hold visibility is the seller's only failsafe against an abandoned
+      // hold (no expiry by design — see 20260830100100_listing_holds.sql),
+      // so a pending listing must show who it's held for. Skip the round
+      // trips entirely when nothing is pending.
+      const pendingIds = rows.filter((l) => l.status === 'pending').map((l) => l.id);
+      if (pendingIds.length === 0) {
+        setListings(rows);
+        return;
+      }
+
+      // RLS on listing_holds permits SELECT only to the listing's owner or
+      // the held buyer, so this only ever returns holds on rows we already
+      // own (`in ('listing_id', pendingIds)` where pendingIds are all ours).
+      const { data: holds } = await supabase
+        .from('listing_holds')
+        .select('listing_id, buyer_id')
+        .in('listing_id', pendingIds);
+
+      if (!holds || holds.length === 0) {
+        setListings(rows);
+        return;
+      }
+
+      // Separate query, not a PostgREST embed — the repo's no-embed
+      // convention (see the comment on the listings select above): an
+      // embed's inner join on buyer_id would drop any hold whose buyer has
+      // no profile row.
+      const buyerIds = Array.from(new Set(holds.map((h) => h.buyer_id)));
+      const { data: buyers } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', buyerIds);
+
+      setListings(hydrateHeldForNames(rows, holds, buyers ?? []));
     } finally {
       setLoading(false);
     }

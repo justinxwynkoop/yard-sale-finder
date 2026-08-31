@@ -13,7 +13,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { SubHeader } from '../../components/SubHeader';
 import { useAuth } from '../../hooks/useAuth';
-import { useMyListings } from '../../hooks/useListings';
+import { ListingWithHold, useMyListings } from '../../hooks/useListings';
 import { supabase } from '../../lib/supabase';
 import { setListingStatus } from '../../lib/listingStatus';
 import { Listing, ListingStatus } from '../../types';
@@ -30,6 +30,8 @@ const INK = '#171513';
 const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
 const ROSE = '#A23E2D';
+const AMBER = '#B8772C';
+const AMBER_SOFT = '#FBEFD6';
 
 type Segment = 'live' | 'sold';
 
@@ -86,6 +88,20 @@ export default function MyListingsScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Mark sold', onPress: () => mutateStatus(listing, 'sold') },
     ]);
+  };
+
+  // With no expiry on a hold (by design — see 20260830100100_listing_holds.sql),
+  // this confirm is the only guardrail between a seller and accidentally
+  // reopening an item someone else is waiting on.
+  const confirmReleaseHold = (listing: ListingWithHold) => {
+    Alert.alert(
+      'Release this hold?',
+      `${listing.held_for_name ?? 'The buyer'} will be notified “${listing.title}” is back on the market.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Release hold', style: 'destructive', onPress: () => mutateStatus(listing, 'available') },
+      ],
+    );
   };
 
   const confirmDelete = (listing: Listing) => {
@@ -209,6 +225,7 @@ export default function MyListingsScreen() {
               onShare={() => shareListing(item)}
               onMarkSold={() => confirmMarkSold(item)}
               onRelist={() => mutateStatus(item, 'available')}
+              onReleaseHold={() => confirmReleaseHold(item)}
               onDelete={() => confirmDelete(item)}
             />
           )}
@@ -233,16 +250,22 @@ function ListingManageRow({
   onShare,
   onMarkSold,
   onRelist,
+  onReleaseHold,
   onDelete,
 }: {
-  listing: Listing;
+  listing: ListingWithHold;
   onEdit: () => void;
   onShare: () => void;
   onMarkSold: () => void;
   onRelist: () => void;
+  onReleaseHold: () => void;
   onDelete: () => void;
 }) {
   const sold = listing.status === 'sold';
+  // No expiry on a hold by design — this row is the seller's only signal
+  // that an item is sitting held for someone, so it needs to be impossible
+  // to miss (see 20260830100100_listing_holds.sql).
+  const onHold = listing.status === 'pending';
   const firstImage = listing.media?.find((m) => m.type === 'image');
   const thumb = transformedImageUrl(firstImage?.url, {
     width: 200,
@@ -338,14 +361,40 @@ function ListingManageRow({
             ${listing.price.toFixed(0)}
           </Text>
         </View>
-        <Text style={{ fontSize: 11, color: INK_MUTED, marginTop: 3 }}>
-          {sold
-            ? `Sold for $${listing.price.toFixed(0)}`
-            : `${views} views · ${saves} saved`}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+        {sold ? (
+          <Text style={{ fontSize: 11, color: INK_MUTED, marginTop: 3 }}>
+            {`Sold for $${listing.price.toFixed(0)}`}
+          </Text>
+        ) : onHold ? (
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: AMBER_SOFT,
+              borderRadius: 99,
+              paddingVertical: 3,
+              paddingHorizontal: 8,
+              marginTop: 4,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: AMBER }}>
+              On hold for {listing.held_for_name ?? 'a buyer'}
+            </Text>
+          </View>
+        ) : (
+          <Text style={{ fontSize: 11, color: INK_MUTED, marginTop: 3 }}>
+            {`${views} views · ${saves} saved`}
+          </Text>
+        )}
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
           {sold ? (
             <PillButton label="Relist" onPress={onRelist} />
+          ) : onHold ? (
+            <>
+              <PillButton label="Edit" onPress={onEdit} />
+              <PillButton label="Share" onPress={onShare} />
+              <PillButton label="Mark sold" onPress={onMarkSold} />
+              <PillButton label="Release hold" onPress={onReleaseHold} />
+            </>
           ) : (
             <>
               <PillButton label="Edit" onPress={onEdit} />
