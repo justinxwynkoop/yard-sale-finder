@@ -14,21 +14,25 @@ const INK = '#171513';
 const INK_MUTED = '#8A857C';
 const HAIRLINE = '#E5DECC';
 
-// Only toggles backed by a real push path are shown. Saved reminders, offers,
-// weekly digest and tips have no sender yet, so they'd be misleading switches —
-// hidden until those features exist.
+// Only toggles backed by a real push path are shown. Saved reminders, weekly
+// digest and tips have no sender yet, so they'd be misleading switches —
+// hidden until those features exist. Offers now have a real path
+// (notify-new-message gates on notify_offers), so that toggle is shown.
 const RADII = [5, 10, 25, 50];
 
 /**
  * Notification preferences. Each flip persists to the profiles row
  * immediately (optimistic, rolled back on failure). The "Nearby sales"
  * toggle + radius drive the notify-new-sale edge function's proximity push;
- * Messages gates notify-new-message.
+ * Messages and Offers both gate notify-new-message, keyed off the message's
+ * `kind` (offer rows check notify_offers, text/system rows check
+ * notify_messages).
  */
 export default function NotificationsScreen() {
   const { profile } = useProfile();
   const [nearby, setNearby] = useState(true);
   const [messages, setMessages] = useState(true);
+  const [offers, setOffers] = useState(true);
   const [radius, setRadius] = useState(5);
   // Category alerts: alertCats is what's persisted; alertsOn is a local UI
   // gate so the picker can be revealed before the first category is chosen.
@@ -40,6 +44,7 @@ export default function NotificationsScreen() {
     if (!profile) return;
     setNearby(profile.notify_sales_nearby ?? true);
     setMessages(profile.notify_messages ?? true);
+    setOffers(profile.notify_offers ?? true);
     setRadius(profile.nearby_radius_miles ?? 5);
     const cats = (profile.alert_categories ?? []) as ItemCategory[];
     setAlertCats(cats);
@@ -70,6 +75,12 @@ export default function NotificationsScreen() {
     const next = !messages;
     setMessages(next);
     persist({ notify_messages: next }, () => setMessages(!next));
+  };
+
+  const toggleOffers = () => {
+    const next = !offers;
+    setOffers(next);
+    persist({ notify_offers: next }, () => setOffers(!next));
   };
 
   const pickRadius = (mi: number) => {
@@ -184,7 +195,8 @@ export default function NotificationsScreen() {
         {/* Activity */}
         <SectionLabel>Activity</SectionLabel>
         <Card>
-          <Row label="Messages" on={messages} onPress={toggleMessages} last />
+          <Row label="Messages" on={messages} onPress={toggleMessages} />
+          <Row label="Offers" on={offers} onPress={toggleOffers} last />
         </Card>
       </ScrollView>
     </View>
