@@ -69,6 +69,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
 import BlockedScreen from '../screens/profile/BlockedScreen';
+import ModerationScreen from '../screens/profile/ModerationScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 import AccountScreen from '../screens/profile/AccountScreen';
 import SavedScreen from '../screens/profile/SavedScreen';
@@ -268,6 +269,11 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="DeleteAccount"
         component={DeleteAccountScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Moderation"
+        component={ModerationScreen}
         options={{ headerShown: false }}
       />
       <ProfileStack.Screen

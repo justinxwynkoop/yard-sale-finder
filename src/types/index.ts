@@ -91,6 +91,15 @@ export interface Profile {
    * owner by useProfile so the completion gate still passes).
    */
   show_city?: boolean;
+  /**
+   * Moderator. Server-set only -- the profiles UPDATE grant is table-wide, so
+   * a trigger (guard_moderation_columns) is what actually stops a client
+   * writing this. Gating the Moderation row on it is a courtesy; every
+   * mod_* RPC re-checks server-side.
+   */
+  is_operator?: boolean;
+  /** Set by mod_set_suspended. Blocks posting and messaging via triggers. */
+  suspended_at?: string | null;
   created_at: string;
 }
 
@@ -316,6 +325,7 @@ export type SaleStackParamList = {
 };
 
 export type ProfileStackParamList = {
+  Moderation: undefined;
   ProfileHome: undefined;
   EditProfile: undefined;
   DeleteAccount: undefined;

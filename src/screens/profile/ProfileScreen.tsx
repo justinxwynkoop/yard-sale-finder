@@ -394,8 +394,20 @@ export default function ProfileScreen() {
             icon="shield-checkmark-outline"
             label="Blocked users"
             onPress={() => navigation.navigate('Blocked')}
-            last
+            last={!profile.is_operator}
           />
+          {/* Operator only. The gate is a courtesy -- mod_list_reports
+              returns nothing to a non-operator and every action RPC raises
+              'not authorized', so the screen is inert without the flag. */}
+          {profile.is_operator ? (
+            <Row
+              icon="flag-outline"
+              label="Moderation"
+              sublabel="Review reported sales, listings and people"
+              onPress={() => navigation.navigate('Moderation')}
+              last
+            />
+          ) : null}
         </RowList>
 
         {/* About */}
