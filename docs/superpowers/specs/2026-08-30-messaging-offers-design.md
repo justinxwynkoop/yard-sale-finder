@@ -111,12 +111,20 @@ Four RPCs, all `security definer`, `set search_path = public, pg_temp`, params
 | RPC | Who | Does |
 |---|---|---|
 | `send_offer(p_conversation_id, p_amount)` | any participant, listing conversations only | Inserts `kind='offer'` row with composed body. Rejects if the target is a sale, or if the caller already has a pending offer. **If the caller owns the listing** it is a counter and requires an existing pending offer from the buyer, which it stamps `countered` in the same transaction; a listing owner cannot open a negotiation against themselves. |
-| `respond_to_offer(p_offer_id, p_action)` | listing owner only | `accept` \| `decline`. Flips `offer_status`, and on accept sets `listings.status='pending'`, upserts `listing_holds`, inserts a system message. |
-| `release_hold(p_listing_id)` | listing owner | Deletes the hold, sets status back to `available`, inserts a system message so the buyer isn't left guessing. |
+| `respond_to_offer(p_offer_id, p_action)` | the participant who did **not** send the offer | `accept` \| `decline`. Flips `offer_status`, and on accept sets `listings.status='pending'`, upserts `listing_holds`, inserts a system message. `accept` additionally requires the listing to still be `available`; `decline` is legal in every status so a stale offer can always be cleared. |
+| `release_hold(p_listing_id)` | listing owner | Deletes the hold, sets status back to `available`, inserts a system message so the buyer isn't left guessing. Also serves the sold → available relist (`20260830100200`), since this is the single client write path to `available`. |
 | `mark_listing_sold(p_listing_id)` | listing owner | Sets `sold`, deletes the hold, inserts a system message. |
 
 A counter-offer is not a distinct RPC — it is `send_offer` from the seller, which
 stamps the prior pending offer `countered` in the same transaction.
+
+**Who responds is the participant who did not send the offer, never "the listing
+owner."** Authorizing on ownership is what the first draft of this table said and
+it is wrong in one direction that matters: a seller's *counter* is sent by the
+seller, so the self-response guard blocks the seller, and the buyer — the only
+person left who could accept it — is not the owner. Owner-only makes every
+counter sendable and un-acceptable by anyone. `src/lib/offers.ts`'s
+`canRespondToOffer` mirrors the shipped rule.
 
 ### Pre-existing holes fixed while we're here
 
@@ -154,13 +162,27 @@ Sale threads get "What time?" and "Still available?"; no offer chip.
    three regressions), enters an amount.
 2. `send_offer` inserts `kind='offer'`, body `"Offered $15 for Vintage Indiana glass"`.
 3. Push fires via the existing INSERT trigger, gated on `notify_offers`.
-4. Seller sees an offer bubble with Accept / Counter / Decline.
+4. The *other* participant — the seller on a buyer's offer, the buyer on a
+   seller's counter — sees an offer bubble with Accept / Counter / Decline.
+   Accept and Counter render only while the listing is still `available`;
+   Decline stays up in every status, because it is how a stale offer on a held
+   or sold item gets cleared. The composer's Make-offer button is gated the same
+   way.
 5. `respond_to_offer('accept')` → listing `pending` + hold row + system message
-   "Offer accepted — on hold for Kayla" (`recipient_id` = buyer).
+   "Offer accepted -- $15. This item is on hold." (`recipient_id` = the party who
+   did not just act). System bodies are deliberately **actor-free**: the same row
+   is rendered to both sides, so naming a person ("on hold for Kayla") or using
+   "you" would read false in one direction.
 6. Seller later taps **Mark sold** or **Release hold** from the thread header or
    My Listings.
 
 Declining touches no listing state. A later accept supersedes.
+
+`send_offer`'s one-pending-offer rule is per **conversation**, not per listing,
+so two buyers can each hold a live offer on the same item. That is why the
+status gate in step 4 is required and not belt-and-braces: accepting one buyer's
+offer flips the listing to `pending` while the other buyer's thread is still
+open.
 
 ### Realtime
 
@@ -195,8 +217,14 @@ real push path". This feature unhides it.
 
 ### Surfaces that need a `pending`/hold branch
 
-`pending` is **already live** — `ListingDetailScreen` has a shipped owner-facing
-available/pending/sold control. What's missing:
+`pending` is **already live** — `ListingDetailScreen` had a shipped owner-facing
+available/**pending**/sold control when this was written. That manual `pending`
+option is gone as shipped: an item goes on hold only by accepting an offer, so
+the control is available/sold and the PENDING badge carries the third state. On
+a held item "Available" *is* a hold release, so it routes through a destructive
+confirm — matching `MyListingsScreen`, since a hold has no expiry and the confirm
+is the only guardrail against reopening an item someone is waiting on. What was
+missing:
 
 - `ListingDetailScreen:720` — buyer CTA is gated on `!isOwnListing` only, so
   buyers can still message/offer on a sold or held item. **Pre-existing bug.**
@@ -207,25 +235,35 @@ available/pending/sold control. What's missing:
 - `site/api/share-page.js` — no status filter on fetch; `renderListing` treats
   anything not `sold` as `InStock` in JSON-LD and leaves it indexable. A held
   listing currently advertises availability to Google. **Pre-existing bug.**
-- Two parallel status-write paths exist (`MyListingsScreen:70-88`,
-  `ListingDetailScreen:86-99`), both inline `supabase.from('listings').update()`.
-  Every transition must now also manage the hold row, so extract one
-  `setListingStatus` helper and point both at it — leaving them separate
-  guarantees one path forgets.
+- **Three** parallel status-write paths exist, not two: `MyListingsScreen:70-88`,
+  `ListingDetailScreen:86-99`, and `MySalesScreen:222,227` (the third was missed
+  in the first pass — it flips a listing sold/available from the sale screen).
+  All three inline `supabase.from('listings').update()`. Every transition must
+  now also manage the hold row, so extract one `setListingStatus` helper
+  (`src/lib/listingStatus.ts`, RPC-backed) and point all three at it — leaving
+  any of them separate guarantees one path strands a hold.
 
 ## Testing
 
 Follows the repo's actual pattern: pure logic and presentational components are
 tested; screens and RPCs are not.
 
-- **`src/lib/__tests__/offers.test.ts`** — the core. `canRespond(offer, viewerId,
-  listing)`, `nextStatus(offer, action)`, `offerLabel(offer)`, and the guards
-  (no offering on your own listing, no second pending offer, sale conversations
-  rejected). Modeled on `eventMatch.test.ts`: typed factory with `Partial`
-  override, fixed date constants, behavioral test names that encode the rule.
+- **`src/lib/__tests__/offers.test.ts`** — the core. As shipped that is
+  `isOfferMessage(m)`, `canRespondToOffer(m, viewerId, participants)`,
+  `formatOfferAmount(amount)` and `offerStatusLabel(status)`. The planned
+  `nextStatus(offer, action)` was not built: the transition is decided inside
+  `respond_to_offer` in one transaction, and a client-side copy of it would be a
+  second, un-authoritative state machine. The guards it would have covered (no
+  offering on your own listing, no second pending offer, sale conversations
+  rejected) live in the RPC, which is the only place they can be enforced.
+  Modeled on `eventMatch.test.ts`: typed factory with `Partial` override, fixed
+  date constants, behavioral test names that encode the rule.
 - **`src/components/__tests__/OfferBubble.test.tsx`** — modeled on
-  `EventJoinPrompt.test.tsx`. Asserts Accept/Decline/Counter render only for the
-  seller and only while pending, and that callbacks fire with exact args.
+  `EventJoinPrompt.test.tsx`. Asserts Accept/Counter/Decline render only for the
+  participant who did **not** send the offer (not "the seller") and only while
+  pending; that Accept/Counter additionally require the listing to be
+  `available` while Decline survives `pending` and `sold`; and that callbacks
+  fire with exact args.
 - **`useInbox` tests** — widen the mocked select shape; assert an offer's preview
   reads as text, not "Tap to view".
 
