@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { REPORT_REASONS } from './useReports';
+import { ReportTargetType } from '../types';
 
 /**
  * The operator's report queue.
@@ -15,7 +17,7 @@ import { supabase } from '../lib/supabase';
  */
 
 export type ReportStatus = 'open' | 'resolved' | 'dismissed';
-export type ReportTargetType = 'sale' | 'listing' | 'profile';
+export type { ReportTargetType };
 
 export interface ModerationReport {
   id: string;
@@ -37,18 +39,18 @@ export interface ModerationReport {
   distinct_reporters: number;
 }
 
-/** Mirrors REASON_LABELS in the notify-new-report edge function. */
-const REASON_LABELS: Record<string, string> = {
-  inappropriate: 'Inappropriate content',
-  spam_misleading: 'Spam or misleading',
-  illegal: 'Illegal items',
-  safety: 'Safety concern',
-  off_topic: "Doesn't belong here",
-  other: 'Something else',
-};
-
+/**
+ * REPORT_REASONS (useReports) already calls itself the source of truth for
+ * "any future moderation tooling that wants to render the reason in a UI" --
+ * so use it rather than keeping a second copy in sync by hand. The
+ * notify-new-report edge function still has its own map because Deno cannot
+ * import from the app bundle; that copy is pinned by a test.
+ *
+ * Falls back to the raw value so a reason added to the DB check constraint
+ * before the client knows about it still renders as something.
+ */
 export function reasonLabel(reason: string): string {
-  return REASON_LABELS[reason] ?? reason;
+  return REPORT_REASONS.find((r) => r.value === reason)?.label ?? reason;
 }
 
 export function useModeration(status: ReportStatus | null = 'open') {

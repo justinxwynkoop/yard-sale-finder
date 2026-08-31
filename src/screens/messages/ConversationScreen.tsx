@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { uploadMessageImage } from '../../lib/messageImageUpload';
 import { getSignedMessageImage } from '../../lib/signedMessageImage';
 import { isOfferMessage } from '../../lib/offers';
+import { friendlySendError } from '../../lib/sendError';
 import {
   formatDaySeparator,
   formatMessageTime,
@@ -506,7 +507,7 @@ export default function ConversationScreen() {
     if (sendErr) {
       // Restore the draft and surface the message so the user knows.
       setDraft(body);
-      Alert.alert('Could not send', sendErr.message ?? 'Please try again.');
+      Alert.alert('Could not send', friendlySendError(sendErr.message));
     }
   };
 
@@ -623,7 +624,7 @@ export default function ConversationScreen() {
         }
         const { error: sendErr } = await send('', url);
         if (sendErr) {
-          Alert.alert('Could not send', sendErr.message ?? 'Please try again.');
+          Alert.alert('Could not send', friendlySendError(sendErr.message));
           break;
         }
       }

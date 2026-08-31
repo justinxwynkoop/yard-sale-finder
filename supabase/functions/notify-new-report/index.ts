@@ -43,11 +43,7 @@ Deno.serve(async (req: Request) => {
   const record = payload.record;
   if (!record) return new Response('No record', { status: 400 });
 
-  const operatorId = Deno.env.get('OPERATOR_USER_ID');
-  if (!operatorId) {
-    console.error('OPERATOR_USER_ID is not set');
-    return new Response('Not configured', { status: 500 });
-  }
+  const fallbackOperatorId = Deno.env.get('OPERATOR_USER_ID');
 
   const targetType = (record.target_type as string) ?? 'content';
   const targetId = record.target_id as string;
@@ -60,10 +56,30 @@ Deno.serve(async (req: Request) => {
     { auth: { persistSession: false } },
   );
 
+  // Every moderator, not one id from a secret. profiles.is_operator is what
+  // gates the in-app Moderation screen, so anyone granted the flag would
+  // otherwise get the screen but never the push that makes it useful --
+  // two sources of truth for "who moderates", drifting apart silently.
+  //
+  // OPERATOR_USER_ID stays as a fallback for the window where this function
+  // is deployed but no row carries the flag yet.
+  const { data: operators } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_operator', true);
+  let operatorIds = (operators ?? []).map((o) => o.id as string);
+  if (operatorIds.length === 0 && fallbackOperatorId) {
+    operatorIds = [fallbackOperatorId];
+  }
+  if (operatorIds.length === 0) {
+    console.error('No operators configured');
+    return new Response('Not configured', { status: 500 });
+  }
+
   const { data: tokens } = await supabase
     .from('user_push_tokens')
     .select('token')
-    .eq('user_id', operatorId);
+    .in('user_id', operatorIds);
   const toList = (tokens ?? []).map((t) => t.token as string).filter(Boolean);
   if (toList.length === 0) return new Response('No operator tokens', { status: 200 });
 
