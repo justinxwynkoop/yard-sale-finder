@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-31T22:05:08.911Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "8cc2832",
+    "sinceSha": "3b5e19a",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Reviewing a report shouldn't look like acting on one",
+        "sha": "8cc2832"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T21:54:54.154Z",
     "channel": "production",
     "appVersion": "1.0.0",
