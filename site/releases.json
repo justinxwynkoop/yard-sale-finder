@@ -1,5 +1,26 @@
 [
   {
+    "deployedAt": "2026-08-31T12:23:52.550Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "c05fa8d",
+    "sinceSha": "b1363b1",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "A quick reply now fills a thread you had already opened",
+        "sha": "c05fa8d"
+      },
+      {
+        "type": "fix",
+        "text": "Expire stale offers on sale/relist, keep the context pill live",
+        "sha": "540fa17"
+      }
+    ],
+    "otherCount": 2,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T12:04:33.885Z",
     "channel": "production",
     "appVersion": "1.0.0",
