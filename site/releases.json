@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-31T12:41:24.357Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "24d7f52",
+    "sinceSha": "c05fa8d",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Message times, day separators, and read receipts",
+        "sha": "24d7f52"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T12:23:52.550Z",
     "channel": "production",
     "appVersion": "1.0.0",
