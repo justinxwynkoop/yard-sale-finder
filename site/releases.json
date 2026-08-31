@@ -1,5 +1,31 @@
 [
   {
+    "deployedAt": "2026-08-31T20:23:46.861Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "044315b",
+    "sinceSha": "24d7f52",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "A profile report's push now opens the reported profile",
+        "sha": "044315b"
+      },
+      {
+        "type": "fix",
+        "text": "Blocking now stops the blocked user, not the blocker",
+        "sha": "bad659a"
+      },
+      {
+        "type": "feature",
+        "text": "Replace support.html split with a single merged landing page",
+        "sha": "7a9aa15"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T12:41:24.357Z",
     "channel": "production",
     "appVersion": "1.0.0",
