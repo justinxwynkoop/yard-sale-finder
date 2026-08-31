@@ -1,0 +1,80 @@
+:root{
+  --paper:#F7F2E8; --pine:#123A2E; --gold:#EBA22C; --coral:#E1552F;
+  --ink:#241F1A; --muted:#6B6558; --card:#FFFDF7;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--paper); color:var(--ink);
+  min-height:100vh; display:flex; justify-content:center; padding:24px 24px 64px;
+}
+.wrap{ width:100%; max-width:480px; }
+
+/* ---- hero download card ---- */
+.card{
+  width:100%; background:var(--card); border-radius:24px;
+  box-shadow:0 18px 44px rgba(18,58,46,.14),0 2px 0 rgba(18,58,46,.04);
+  padding:30px 26px 24px; text-align:center; border:1px solid rgba(18,58,46,.07);
+}
+.logo{width:190px;max-width:70%;height:auto;display:block;margin:2px auto 4px;}
+h1{font-size:23px;font-weight:800;color:var(--pine);letter-spacing:-.01em;margin-top:6px;}
+.tag{font-size:14.5px;line-height:1.5;color:var(--muted);margin:9px auto 20px;max-width:19rem;}
+
+#android-note{
+  display:none; background:rgba(235,162,44,.14); border:1px solid rgba(235,162,44,.5);
+  color:#7a5410; font-size:13px; line-height:1.45; border-radius:12px; padding:11px 13px; margin-bottom:16px; text-align:left;
+}
+#android-note b{color:#63430a;}
+
+.store{
+  display:flex; align-items:center; gap:12px; width:100%;
+  border-radius:13px; padding:12px 18px; margin-bottom:12px; text-decoration:none;
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.store svg{flex:none;}
+.store .lab{text-align:left;line-height:1.12;}
+.store .lab small{display:block;font-size:11px;letter-spacing:.02em;opacity:.85;}
+.store .lab b{display:block;font-size:19px;font-weight:600;letter-spacing:.01em;}
+
+.apple{background:#000;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18);}
+.apple:active{transform:translateY(1px);}
+.apple:hover{box-shadow:0 6px 16px rgba(0,0,0,.26);}
+
+.play{
+  background:#E7E3D8; color:#8B8676; cursor:default; position:relative;
+  border:1px dashed rgba(18,58,46,.18);
+}
+.play .soon{
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:var(--gold); color:#3a2a06; font-size:11px; font-weight:800;
+  letter-spacing:.04em; padding:4px 9px; border-radius:999px; font-style:normal;
+}
+
+.help{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.5;}
+.foot{margin-top:18px;padding-top:15px;border-top:1px solid rgba(18,58,46,.09);font-size:12.5px;}
+.foot a{color:var(--pine);font-weight:600;text-decoration:none;}
+
+/* ---- support / FAQ section, same theme tokens as the card above ---- */
+.support{ margin-top:28px; }
+.support-head{ text-align:center; margin-bottom:16px; }
+.support-head h2{ font-size:19px; font-weight:800; color:var(--pine); letter-spacing:-.01em; }
+.support-head p{ font-size:13px; color:var(--muted); margin-top:4px; }
+
+.s-card{
+  background:var(--card); border-radius:18px; padding:22px 22px 18px;
+  margin-bottom:14px; border:1px solid rgba(18,58,46,.07);
+  box-shadow:0 6px 18px rgba(18,58,46,.06);
+}
+.s-card h3{ font-size:15px; font-weight:800; color:var(--pine); margin-bottom:8px; }
+.s-card p{ font-size:13.5px; line-height:1.55; color:var(--ink); }
+.s-card p + p{ margin-top:10px; }
+.faq-q{ font-weight:700; font-size:13.5px; color:var(--ink); margin-top:14px; }
+.faq-q:first-child{ margin-top:0; }
+.faq-a{ font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:3px; }
+
+.contact-card{ text-align:center; border:1.5px solid var(--pine); }
+.contact-card a{ color:var(--pine); font-weight:700; font-size:15px; text-decoration:none; }
+.contact-card .note{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+.support-foot{ text-align:center; font-size:12px; color:var(--muted); margin-top:20px; }
+.support-foot a{ color:var(--muted); }
