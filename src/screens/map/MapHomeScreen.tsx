@@ -46,7 +46,7 @@ import { isOpenNow, isRecentlyPosted } from '../../utils/saleStatus';
 import { useMapFilters, countActiveFilters, resetMapFilters } from '../../lib/mapFilters';
 import { saleMatchesFilters } from '../../lib/filterSales';
 import { useSearchArea, setSearchArea } from '../../lib/searchArea';
-import { useViewport, setViewport, regionContains } from '../../lib/viewport';
+import { useViewport, setViewport, scopedByRegion } from '../../lib/viewport';
 import { zoomBucket, thinPins } from '../../lib/pinThinning';
 import { toast } from '../../lib/toast';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
@@ -404,20 +404,22 @@ export default function MapHomeScreen() {
   // LIST (bottom-sheet) set — the markers scoped to what's currently in the
   // map viewport (Zillow-style), sorted by distance from the map center.
   // This is the set that changes as you pan; the markers above don't.
-  const sortedSales = useMemo(() => {
-    if (!viewport) return mapSales;
-    const inView = mapSales.filter((s) =>
-      regionContains(viewport, s.latitude, s.longitude),
-    );
-    const d = (s: Sale) =>
-      haversineMeters(
-        viewport.latitude,
-        viewport.longitude,
-        s.latitude,
-        s.longitude,
-      );
-    return [...inView].sort((a, b) => d(a) - d(b));
-  }, [mapSales, viewport]);
+  // Never fall back to the UNSCOPED list here. `viewport` is null before the
+  // map's first settle (and after handleClearArea drops it with no GPS), and
+  // returning every sale in that window rendered a nationwide set under the
+  // "N sales nearby" header — the map sat on Yorktown while the list counted
+  // two sales in Kansas and Nebraska. Scope to whatever region the map is
+  // actually showing instead; sessionRegionRef/initialRegion track exactly
+  // that. With none of them the map hasn't mounted a region yet, so there is
+  // genuinely nothing nearby to report.
+  const sortedSales = useMemo(
+    () =>
+      scopedByRegion(
+        mapSales,
+        viewport ?? sessionRegionRef.current ?? initialRegion,
+      ),
+    [mapSales, viewport, initialRegion],
+  );
 
   const savedCount = useMemo(
     () => sales.filter((s) => isFavorited(s.id)).length,
@@ -642,15 +644,16 @@ export default function MapHomeScreen() {
   }, [areaQuery, saleEvents, navigation]);
 
   // Clear the text + any active area. When GPS is available the searchArea
-  // effect flies back to the user (and the viewport/list refreshes on
-  // settle). With no GPS there's nothing to fly to, so drop the viewport
-  // scope instead — otherwise the list stays stuck on the old searched area.
+  // effect flies back to the user and the viewport/list refresh on settle.
+  // With no GPS there's nothing to fly to and the map doesn't move, so the
+  // list stays scoped to what's still on screen. This used to drop the
+  // viewport, which un-scoped the list to every sale in the country under a
+  // "nearby" header; matching the visible map is the honest read.
   const handleClearArea = useCallback(() => {
     setAreaQuery('');
     setSearchArea(null);
     Keyboard.dismiss();
-    if (!userLocation) setViewport(null);
-  }, [userLocation]);
+  }, []);
 
   const handleFilterOpen = useCallback(() => {
     navigation.navigate('FilterSheet');

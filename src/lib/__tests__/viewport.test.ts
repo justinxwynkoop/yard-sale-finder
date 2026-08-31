@@ -1,5 +1,5 @@
 import type { Region } from 'react-native-maps';
-import { regionContains } from '../viewport';
+import { regionContains, scopedByRegion } from '../viewport';
 
 // A Region centered on Muncie. The deltas are the FULL span; regionContains
 // must treat the visible bounds as center ± delta/2 on each axis.
@@ -38,5 +38,46 @@ describe('regionContains', () => {
     expect(regionContains(half, 41, -84)).toBe(true); // NE corner, on bounds
     expect(regionContains(half, 41.001, -85)).toBe(false); // just past north edge
     expect(regionContains(half, 40, -83.999)).toBe(false); // just past east edge
+  });
+});
+
+describe('scopedByRegion', () => {
+  // Yorktown Heights NY, and the two mid-country points that exposed the bug.
+  const yorktown = { latitude: 41.2709, longitude: -73.7793 };
+  const mankatoKS = { latitude: 39.7288, longitude: -98.326 };
+  const almaNE = { latitude: 40.1389, longitude: -99.3887 };
+  const nearYorktown = { latitude: 41.2801, longitude: -73.7712 };
+
+  // A ~0.05° city view around Yorktown — what the map shows on a normal open.
+  const yorktownView = region(yorktown.latitude, yorktown.longitude, 0.05, 0.05);
+
+  it('returns EMPTY for a null scope — never the unscoped input', () => {
+    // The regression: before the map's first settle the scope is null, and
+    // returning the input here rendered every sale in the country under the
+    // "N sales nearby" header.
+    expect(scopedByRegion([mankatoKS, almaNE], null)).toEqual([]);
+  });
+
+  it('excludes sales 1,200 miles outside the visible region', () => {
+    expect(scopedByRegion([mankatoKS, almaNE], yorktownView)).toEqual([]);
+  });
+
+  it('keeps only the sales actually inside the region', () => {
+    const out = scopedByRegion([mankatoKS, nearYorktown, almaNE], yorktownView);
+    expect(out).toEqual([nearYorktown]);
+  });
+
+  it('sorts nearest-first from the region center', () => {
+    // Both inside a wide view; the closer one to center must come first.
+    const wide = region(yorktown.latitude, yorktown.longitude, 60, 60);
+    const out = scopedByRegion([almaNE, mankatoKS], wide);
+    expect(out).toEqual([mankatoKS, almaNE]); // Kansas is nearer to NY than Nebraska
+  });
+
+  it('does not mutate or reorder the caller’s array', () => {
+    const input = [almaNE, mankatoKS];
+    const wide = region(yorktown.latitude, yorktown.longitude, 60, 60);
+    scopedByRegion(input, wide);
+    expect(input).toEqual([almaNE, mankatoKS]);
   });
 });
