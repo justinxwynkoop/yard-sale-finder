@@ -19,6 +19,26 @@ import { ReportTargetType } from '../types';
 export type ReportStatus = 'open' | 'resolved' | 'dismissed';
 export type { ReportTargetType };
 
+/**
+ * One message from the reported thread. `has_image` rather than a URL:
+ * message-media is a private bucket whose signing path is participant-scoped,
+ * so a moderator cannot mint a URL for it. An image-only message shows as a
+ * placeholder and is a known blind spot for image-based reports.
+ */
+export interface ModerationMessage {
+  id: string;
+  created_at: string;
+  sender_id: string;
+  sender_name: string | null;
+  body: string | null;
+  kind: string;
+  offer_amount: number | null;
+  offer_status: string | null;
+  has_image: boolean;
+  /** Sent by the reported account (vs the reporter). Drives bubble side. */
+  from_reported: boolean;
+}
+
 export interface ModerationReport {
   id: string;
   created_at: string;
@@ -123,6 +143,20 @@ export function useModeration(status: ReportStatus | null = 'open') {
     return { error: err };
   }, []);
 
+  // Reads the thread the report is about. Server-side this is keyed on the
+  // REPORT, resolves to the single reporter<->reported conversation, and
+  // writes a moderation_audit row -- there is no way to ask for an arbitrary
+  // thread, and every read is recorded.
+  const getReportMessages = useCallback(async (reportId: string) => {
+    const { data, error: err } = await supabase.rpc('mod_get_report_messages', {
+      p_report_id: reportId,
+    });
+    return {
+      messages: (data ?? []) as ModerationMessage[],
+      error: err,
+    };
+  }, []);
+
   return {
     reports,
     loading,
@@ -132,5 +166,6 @@ export function useModeration(status: ReportStatus | null = 'open') {
     setReportStatus,
     setSuspended,
     sendSafetyNotice,
+    getReportMessages,
   };
 }

@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,10 +16,12 @@ import {
   reasonLabel,
   ModerationReport,
   ReportStatus,
+  ModerationMessage,
 } from '../../hooks/useModeration';
 import { SubHeader } from '../../components/SubHeader';
 import { navigateToSale, navigateToListing } from '../../lib/navigationRef';
 import { toast } from '../../lib/toast';
+import { formatMessageTime } from '../../lib/messageTime';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -111,8 +114,26 @@ export default function ModerationScreen() {
     setReportStatus,
     setSuspended,
     sendSafetyNotice,
+    getReportMessages,
   } = useModeration(tab);
   const [refreshing, setRefreshing] = useState(false);
+  // The reported thread, opened from a card. Fetched on demand rather than
+  // with the queue: each read writes a moderation_audit row, so pre-loading
+  // would log a read of every thread just for scrolling the list.
+  const [viewing, setViewing] = useState<ModerationReport | null>(null);
+  const [thread, setThread] = useState<ModerationMessage[] | null>(null);
+
+  const openThread = async (r: ModerationReport) => {
+    setViewing(r);
+    setThread(null);
+    const { messages, error: err } = await getReportMessages(r.id);
+    if (err) {
+      setViewing(null);
+      Alert.alert("Can't show the messages", err.message);
+      return;
+    }
+    setThread(messages);
+  };
 
   const run = async (
     fn: () => Promise<{ error: { message: string } | null }>,
@@ -285,6 +306,7 @@ export default function ModerationScreen() {
                     }
                   />
                 ) : null}
+                <Pill label="Messages" onPress={() => openThread(r)} />
                 <Pill label="Safety notice" onPress={() => confirmNotice(r)} />
                 {r.owner_id ? (
                   <Pill
@@ -315,6 +337,87 @@ export default function ModerationScreen() {
           ))
         )}
       </ScrollView>
+
+      <Modal
+        visible={!!viewing}
+        animationType="slide"
+        onRequestClose={() => setViewing(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: BONE }}>
+          <SubHeader
+            title={viewing?.owner_name ? `${viewing.owner_name} — thread` : "Thread"}
+            onBack={() => setViewing(null)}
+          />
+          <Text
+            style={{
+              fontSize: 11.5,
+              color: INK_MUTED,
+              paddingHorizontal: 16,
+              paddingTop: 10,
+            }}
+          >
+            Right side is the reported account. This read is recorded.
+          </Text>
+          {thread === null ? (
+            <ActivityIndicator color={BRAND} style={{ marginTop: 32 }} />
+          ) : (
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+              {thread.length === 0 ? (
+                <Text style={{ color: INK_SOFT, fontSize: 13 }}>
+                  No messages in this thread.
+                </Text>
+              ) : (
+                thread.map((m) => (
+                  <View
+                    key={m.id}
+                    style={{
+                      alignSelf: m.from_reported ? "flex-end" : "flex-start",
+                      maxWidth: "84%",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10.5,
+                        color: INK_MUTED,
+                        marginBottom: 2,
+                        textAlign: m.from_reported ? "right" : "left",
+                      }}
+                    >
+                      {m.sender_name || "Someone"} · {formatMessageTime(m.created_at)}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: m.from_reported ? "#FBEDEA" : "#fff",
+                        borderWidth: 1,
+                        borderColor: m.from_reported ? "#E9CFC9" : HAIRLINE,
+                        borderRadius: 13,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                      }}
+                    >
+                      {m.kind === "offer" ? (
+                        <Text style={{ fontSize: 14, fontWeight: "700", color: INK }}>
+                          Offer ${m.offer_amount} · {m.offer_status}
+                        </Text>
+                      ) : m.body ? (
+                        <Text style={{ fontSize: 14.5, color: INK, lineHeight: 20 }}>
+                          {m.body}
+                        </Text>
+                      ) : null}
+                      {m.has_image ? (
+                        <Text style={{ fontSize: 12.5, color: INK_MUTED, marginTop: m.body ? 4 : 0 }}>
+                          📷 Photo — not shown here
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
