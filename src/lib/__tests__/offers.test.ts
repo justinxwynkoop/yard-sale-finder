@@ -29,29 +29,49 @@ describe('isOfferMessage', () => {
 });
 
 describe('canRespondToOffer', () => {
-  it('lets the listing owner respond to a pending offer', () => {
-    expect(canRespondToOffer(msg({}), 'seller', 'seller')).toBe(true);
+  const participants = { buyer_id: 'buyer', seller_id: 'seller' };
+
+  it('lets the seller respond to the buyer’s offer', () => {
+    expect(canRespondToOffer(msg({ sender_id: 'buyer' }), 'seller', participants)).toBe(true);
   });
 
-  it('does NOT let the buyer respond to their own offer', () => {
-    expect(canRespondToOffer(msg({}), 'buyer', 'seller')).toBe(false);
+  it('lets the buyer respond to the seller’s counter-offer', () => {
+    expect(canRespondToOffer(msg({ sender_id: 'seller' }), 'buyer', participants)).toBe(true);
   });
 
-  it('does NOT let a non-owner respond even if they are in the thread', () => {
-    expect(canRespondToOffer(msg({}), 'buyer', 'seller')).toBe(false);
+  it('does NOT let either party respond to their own offer', () => {
+    expect(canRespondToOffer(msg({ sender_id: 'buyer' }), 'buyer', participants)).toBe(false);
+    expect(canRespondToOffer(msg({ sender_id: 'seller' }), 'seller', participants)).toBe(false);
   });
 
-  it('does NOT allow responding twice — only pending offers are actionable', () => {
-    expect(canRespondToOffer(msg({ offer_status: 'accepted' }), 'seller', 'seller')).toBe(false);
-    expect(canRespondToOffer(msg({ offer_status: 'countered' }), 'seller', 'seller')).toBe(false);
+  it('does NOT let a non-participant respond even to a valid pending offer', () => {
+    expect(canRespondToOffer(msg({ sender_id: 'buyer' }), 'stranger', participants)).toBe(false);
+  });
+
+  it('does NOT allow responding to a resolved offer — accepted, declined, or countered', () => {
+    expect(
+      canRespondToOffer(msg({ sender_id: 'buyer', offer_status: 'accepted' }), 'seller', participants),
+    ).toBe(false);
+    expect(
+      canRespondToOffer(msg({ sender_id: 'buyer', offer_status: 'declined' }), 'seller', participants),
+    ).toBe(false);
+    expect(
+      canRespondToOffer(msg({ sender_id: 'buyer', offer_status: 'countered' }), 'seller', participants),
+    ).toBe(false);
   });
 
   it('returns false for a signed-out viewer', () => {
-    expect(canRespondToOffer(msg({}), null, 'seller')).toBe(false);
+    expect(canRespondToOffer(msg({ sender_id: 'buyer' }), null, participants)).toBe(false);
+  });
+
+  it('returns false when participants is null', () => {
+    expect(canRespondToOffer(msg({ sender_id: 'buyer' }), 'seller', null)).toBe(false);
   });
 
   it('returns false for a non-offer row', () => {
-    expect(canRespondToOffer(msg({ kind: 'text', offer_status: null }), 'seller', 'seller')).toBe(false);
+    expect(
+      canRespondToOffer(msg({ kind: 'text', offer_status: null, sender_id: 'buyer' }), 'seller', participants),
+    ).toBe(false);
   });
 });
 
