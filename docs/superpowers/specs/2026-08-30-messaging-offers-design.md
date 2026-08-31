@@ -110,7 +110,7 @@ Four RPCs, all `security definer`, `set search_path = public, pg_temp`, params
 
 | RPC | Who | Does |
 |---|---|---|
-| `send_offer(p_conversation_id, p_amount)` | any participant, listing conversations only | Inserts `kind='offer'` row with composed body. Rejects if the target is a sale, or if the caller already has a pending offer. **If the caller owns the listing** it is a counter and requires an existing pending offer from the buyer, which it stamps `countered` in the same transaction; a listing owner cannot open a negotiation against themselves. |
+| `send_offer(p_conversation_id, p_amount)` | any participant, listing conversations only | Inserts `kind='offer'` row with composed body. Rejects if the target is a sale, if the listing is `sold`, or if the caller already has a pending offer. Stamps the **other** participant's pending offer `countered` in the same transaction — for **either** sender, not just the owner (owner-only stamping was a bug: it let a buyer's fresh offer and a seller's still-pending counter both sit `pending` at once, so two offers were simultaneously acceptable). **If the caller owns the listing** it is a counter and additionally requires that other-participant pending offer to exist; a listing owner cannot open a negotiation against themselves. |
 | `respond_to_offer(p_offer_id, p_action)` | the participant who did **not** send the offer | `accept` \| `decline`. Flips `offer_status`, and on accept sets `listings.status='pending'`, upserts `listing_holds`, inserts a system message. `accept` additionally requires the listing to still be `available`; `decline` is legal in every status so a stale offer can always be cleared. |
 | `release_hold(p_listing_id)` | listing owner | Deletes the hold, sets status back to `available`, inserts a system message so the buyer isn't left guessing. Also serves the sold → available relist (`20260830100200`), since this is the single client write path to `available`. |
 | `mark_listing_sold(p_listing_id)` | listing owner | Sets `sold`, deletes the hold, inserts a system message. |
@@ -160,7 +160,7 @@ Sale threads get "What time?" and "Still available?"; no offer chip.
 1. Buyer taps **Make offer** (a fourth sibling in the composer row — the comment
    at `ConversationScreen.tsx:649-653` warns against restructuring that row after
    three regressions), enters an amount.
-2. `send_offer` inserts `kind='offer'`, body `"Offered $15 for Vintage Indiana glass"`.
+2. `send_offer` inserts `kind='offer'`, body `"Offered $15.00 for Vintage Indiana glass"`.
 3. Push fires via the existing INSERT trigger, gated on `notify_offers`.
 4. The *other* participant — the seller on a buyer's offer, the buyer on a
    seller's counter — sees an offer bubble with Accept / Counter / Decline.
@@ -169,7 +169,7 @@ Sale threads get "What time?" and "Still available?"; no offer chip.
    or sold item gets cleared. The composer's Make-offer button is gated the same
    way.
 5. `respond_to_offer('accept')` → listing `pending` + hold row + system message
-   "Offer accepted -- $15. This item is on hold." (`recipient_id` = the party who
+   "Offer accepted -- $15.00. This item is on hold." (`recipient_id` = the party who
    did not just act). System bodies are deliberately **actor-free**: the same row
    is rendered to both sides, so naming a person ("on hold for Kayla") or using
    "you" would read false in one direction.
@@ -203,8 +203,8 @@ inbox — which is the desired behavior anyway.
 - Read `kind` (default `'text'`) and `recipient_id`.
 - Use `recipient_id` when present; otherwise the existing ternary, **plus** a
   participant assertion and self-guard to close the fails-open path.
-- Title: sender name for `text`/`offer`; the listing title (never a person) for
-  `system`.
+- Title: sender name for `text`/`offer`; the fixed string `'Trove'` (never a
+  person, and not the listing title) for `system`.
 - Pref: `notify_offers` for offers, `notify_messages` for text/system.
 - **Keep `channelId: 'messages'`.** Android silently drops notifications on an
   unregistered channel and `usePushNotifications` registers only

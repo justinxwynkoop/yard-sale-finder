@@ -536,6 +536,16 @@ export default function ConversationScreen() {
       conversationId,
       offerId,
     });
+    // An accept flips the listing's status server-side (available -> pending),
+    // but `target` (and the `listingStatus` derived from it) is a mount-time
+    // snapshot -- nothing else re-reads the listing row while the thread is
+    // open. Without this, the offer-action gating below keeps believing the
+    // listing is still 'available' for the rest of the session: the
+    // Make-offer button stays visible and a second send_offer/accept round
+    // trip gets refused by the server instead of the UI. refetch() re-pulls
+    // the conversation, target, and messages together (it's the hook's only
+    // affordance that re-reads the target row), so reuse it here too.
+    await refetch();
   };
 
   // Pick photo(s) from the library and send each as its own image
