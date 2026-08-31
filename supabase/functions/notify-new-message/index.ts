@@ -105,6 +105,29 @@ Deno.serve(async (req: Request) => {
     return new Response('Self-notification skipped', { status: 200 });
   }
 
+  // ── Block gate ────────────────────────────────────────────────────────
+  // Checked in BOTH directions and INDEPENDENTLY of RLS. The messages INSERT
+  // policy also refuses a blocked participant, but that policy was the only
+  // thing standing between a blocked sender and the recipient's phone -- and
+  // on 2026-08-31 a message landed 84 seconds after a block, so it is
+  // demonstrably not sufficient by itself. Same defence-in-depth gate that
+  // release_hold and mark_listing_sold already apply before their notices.
+  //
+  // Two .in() filters rather than an .or() string: both ids come off the
+  // webhook record, and interpolating them into a PostgREST filter would let
+  // a stray comma or paren rewrite the predicate.
+  const { data: blocks } = await supabase
+    .from('blocked_users')
+    .select('blocker_id')
+    .in('blocker_id', [senderId, recipientId])
+    .in('blocked_id', [senderId, recipientId])
+    .limit(1);
+  if (blocks && blocks.length > 0) {
+    // Either direction: a blocker must not hear from whom they blocked, and
+    // someone who has been blocked must not be told they still have reach.
+    return new Response('Blocked', { status: 200 });
+  }
+
   // ── 2. Check the recipient's notification pref, then look up their token ──
   const prefColumn = kind === 'offer' ? 'notify_offers' : 'notify_messages';
   const { data: recipient } = await supabase
