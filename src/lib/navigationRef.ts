@@ -113,3 +113,19 @@ export function navigateToListing(listingId: string) {
     params: { screen: 'ListingDetail', initial: false, params: { listingId } },
   } as any);
 }
+
+/**
+ * Open someone's public profile on the Profile tab -- used by the operator's
+ * "new report" push when the reported target is a PROFILE. Report pushes for a
+ * sale or listing carry {saleId}/{listingId}; a profile report used to ship an
+ * EMPTY data payload, so tapping the notification went nowhere and there was
+ * nothing the operator could act on.
+ */
+export function navigateToProfile(userId: string) {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Main' as any, { screen: 'Profile' } as any);
+  navigationRef.navigate('Main' as any, {
+    screen: 'Profile',
+    params: { screen: 'PublicProfile', initial: false, params: { userId } },
+  } as any);
+}

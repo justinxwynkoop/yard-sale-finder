@@ -79,7 +79,12 @@ Deno.serve(async (req: Request) => {
       ? { saleId: targetId }
       : targetType === 'listing'
         ? { listingId: targetId }
-        : {};
+        : targetType === 'profile'
+          // A profile report used to fall through to {} -- the push arrived
+          // with no destination, so the tap did nothing and there was nothing
+          // to act on. reports.target_id IS the reported user id here.
+          ? { profileId: targetId }
+          : {};
 
   const messages = toList.map((to) => ({
     to,

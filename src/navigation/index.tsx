@@ -25,6 +25,7 @@ import {
   navigateToSale,
   navigateToListing,
   navigateToEvent,
+  navigateToProfile,
 } from '../lib/navigationRef';
 import { LINKING_CONFIG, contentRouteFromUrl } from './deepLinks';
 import { sentryNavigationIntegration } from '../lib/sentryNav';
@@ -450,6 +451,7 @@ function MainTabs() {
       else if (data?.saleId) navigateToSale(data.saleId as string);
       else if (data?.listingId) navigateToListing(data.listingId as string);
       else if (data?.eventId) navigateToEvent({ eventId: data.eventId as string });
+      else if (data?.profileId) navigateToProfile(data.profileId as string);
     };
     Notifications.getLastNotificationResponseAsync().then((response) => {
       route(response?.notification.request.content.data);
