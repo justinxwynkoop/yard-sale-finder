@@ -96,4 +96,25 @@ describe('offerStatusLabel', () => {
     expect(offerStatusLabel('declined')).toBe('Declined');
     expect(offerStatusLabel('countered')).toBe('Countered');
   });
+
+  // Server-set when a sale completes or a sold item is relisted. It must NOT
+  // read as "Declined" -- nobody declined these, and telling a buyer the
+  // seller rejected an offer the seller never saw is a false statement.
+  it('distinguishes an expired offer from a declined one', () => {
+    expect(offerStatusLabel('expired')).toBe('Expired');
+    expect(offerStatusLabel('expired')).not.toBe(offerStatusLabel('declined'));
+  });
+});
+
+describe('canRespondToOffer — expired', () => {
+  it('offers no actions on an expired offer', () => {
+    const participants = { buyer_id: 'buyer', seller_id: 'seller' };
+    expect(
+      canRespondToOffer(
+        msg({ sender_id: 'buyer', offer_status: 'expired' }),
+        'seller',
+        participants,
+      ),
+    ).toBe(false);
+  });
 });

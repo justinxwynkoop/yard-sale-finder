@@ -233,6 +233,38 @@ export function useConversation(conversationId: string | undefined) {
     }
   }, [conversationId, user]);
 
+  // The ContextCard's SOLD / ON HOLD pill reads target.status, which fetchAll
+  // hydrates exactly once. ConversationScreen calls refetch() after the local
+  // user responds to an offer, but a change driven by the OTHER party (they
+  // accept, or the seller marks it sold from My Listings) left the pill stale
+  // until the thread was reopened. Re-pull just the listing row: `status` is
+  // the only field that can change under an open thread, so a full refetch()
+  // on every incoming message would be far more work for the same result.
+  const targetKeyRef = useRef<{ type: string; id: string } | null>(null);
+  useEffect(() => {
+    targetKeyRef.current = conversation
+      ? { type: conversation.target_type, id: conversation.target_id }
+      : null;
+  }, [conversation]);
+
+  const refreshTarget = useCallback(async () => {
+    const key = targetKeyRef.current;
+    // Sale threads have no status pill, so there is nothing to refresh.
+    if (!key || key.type !== 'listing') return;
+    const { data } = await supabase
+      .from('listings')
+      .select('status')
+      .eq('id', key.id)
+      .maybeSingle();
+    if (!data) return;
+    const next = (data as Pick<Listing, 'status'>).status;
+    setTarget((prev) =>
+      prev && prev.kind === 'listing' && prev.status !== next
+        ? { ...prev, status: next }
+        : prev,
+    );
+  }, []);
+
   // Live tail. We filter client-side by conversation_id because
   // Realtime's server-side filter needs the table to be enrolled
   // with row filters; the messages publication is enrolled without,
@@ -269,6 +301,9 @@ export function useConversation(conversationId: string | undefined) {
               })
               .then(() => undefined);
           }
+          // Every listing status change writes an offer or system row, so
+          // these are exactly the inserts after which the pill can be stale.
+          if (m.kind === 'offer' || m.kind === 'system') void refreshTarget();
         },
       )
       .on(
@@ -282,6 +317,9 @@ export function useConversation(conversationId: string | undefined) {
           setMessages((prev) =>
             prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)),
           );
+          // An accept flips the offer to 'accepted' AND the listing to
+          // 'pending' in the same RPC; this is the other party's half.
+          if (m.kind === 'offer') void refreshTarget();
         },
       )
       .subscribe((status) => {
@@ -298,11 +336,14 @@ export function useConversation(conversationId: string | undefined) {
       if (retry) clearTimeout(retry);
       supabase.removeChannel(channel);
     };
-  }, [conversationId, user, channelEpoch]);
+  }, [conversationId, user, channelEpoch, refreshTarget]);
 
   useAppForeground(() => {
     if (!conversationId || !user) return;
     syncMessages();
+    // Status can have changed while the socket was suspended, so the
+    // realtime hooks above would never have seen it.
+    void refreshTarget();
     setChannelEpoch((e) => e + 1);
   });
 

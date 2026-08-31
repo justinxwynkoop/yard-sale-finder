@@ -48,5 +48,7 @@ export function offerStatusLabel(status: OfferStatus): string {
       return 'Declined';
     case 'countered':
       return 'Countered';
+    case 'expired':
+      return 'Expired';
   }
 }
