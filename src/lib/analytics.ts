@@ -22,7 +22,10 @@ export type EventName =
   | 'sale_viewed'
   | 'listing_viewed'
   | 'conversation_started'
-  | 'message_sent';
+  | 'message_sent'
+  | 'offer_sent'
+  | 'offer_accepted'
+  | 'offer_declined';
 
 export function track(name: EventName, props: Record<string, unknown> = {}): void {
   // Mirror the event as a Sentry breadcrumb so crashes and traces carry the

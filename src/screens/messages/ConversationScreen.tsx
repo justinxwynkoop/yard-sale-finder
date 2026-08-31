@@ -5,6 +5,7 @@ import {
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -18,7 +19,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadMessageImage } from '../../lib/messageImageUpload';
 import { getSignedMessageImage } from '../../lib/signedMessageImage';
+import { isOfferMessage } from '../../lib/offers';
+import { track } from '../../lib/analytics';
 import { SubHeader } from '../../components/SubHeader';
+import { OfferBubble } from '../../components/OfferBubble';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useConversation } from '../../hooks/useConversation';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,6 +30,17 @@ import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import { MessagesStackParamList, Message } from '../../types';
 
 type Route = RouteProp<MessagesStackParamList, 'Conversation'>;
+
+/**
+ * Grouping (the bubble "tail" + tightened spacing) only ever applies between
+ * two consecutive TEXT rows from the same sender. An offer or system row
+ * must break any run it touches -- comparing by sender_id alone would let a
+ * centered system notice inherit a neighbor's bubble tail, which is
+ * meaningless once the row isn't rendered as a bubble at all.
+ */
+function isTextRow(m: Message): boolean {
+  return (m.kind ?? 'text') === 'text';
+}
 
 /**
  * iMessage-style bubble. No inline avatars; sender is conveyed by
@@ -294,12 +309,15 @@ export default function ConversationScreen() {
   const { user } = useAuth();
   const {
     conversation,
+    participants,
     otherProfile,
     target,
     messages,
     loading,
     error,
     send,
+    sendOffer,
+    respondToOffer,
     refetch,
     syncMessages,
   } = useConversation(conversationId);
@@ -310,6 +328,12 @@ export default function ConversationScreen() {
   const [draft, setDraft] = useState(initialDraft ?? '');
   const [refreshing, setRefreshing] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  // Make-an-offer amount sheet. Also serves a seller's counter -- send_offer
+  // on the server infers "counter" from who is calling, so onCounter just
+  // opens this same sheet again.
+  const [offerSheetOpen, setOfferSheetOpen] = useState(false);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [sendingOffer, setSendingOffer] = useState(false);
 
   // Pull-to-refresh re-pulls messages silently — the full refetch() would
   // flip `loading` and blank the thread under the user's finger.
@@ -399,12 +423,16 @@ export default function ConversationScreen() {
     // Walk forward to figure out "is this the last in its run"
     // (i.e. the next message is from a different sender, or this
     // is the newest message), then reverse for the inverted list.
+    // Grouping requires BOTH neighbors to be text rows -- an offer or
+    // system row never groups with anything.
     return messages
       .map((m, i) => {
+        const next = messages[i + 1];
+        const prev = messages[i - 1];
         const nextSameSender =
-          messages[i + 1] && messages[i + 1].sender_id === m.sender_id;
+          isTextRow(m) && !!next && isTextRow(next) && next.sender_id === m.sender_id;
         const prevSameSender =
-          messages[i - 1] && messages[i - 1].sender_id === m.sender_id;
+          isTextRow(m) && !!prev && isTextRow(prev) && prev.sender_id === m.sender_id;
         return {
           message: m,
           // The tail bubble is the *last* in a consecutive same-sender
@@ -430,6 +458,49 @@ export default function ConversationScreen() {
         sendErr.message ?? 'Please try again.',
       );
     }
+  };
+
+  const closeOfferSheet = () => {
+    setOfferSheetOpen(false);
+    setOfferAmount('');
+  };
+
+  const handleSendOffer = async () => {
+    const amount = Number(offerAmount.trim());
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Alert.alert('Enter an amount', 'Offers must be a positive dollar amount.');
+      return;
+    }
+    setSendingOffer(true);
+    const { error: offerErr } = await sendOffer(amount);
+    setSendingOffer(false);
+    if (offerErr) {
+      // The RPC's messages are the useful part (e.g. "you already have a
+      // pending offer", "listing is no longer available") -- surface them
+      // verbatim, same idiom as handleSend above.
+      Alert.alert('Could not send offer', offerErr.message ?? 'Please try again.');
+      return;
+    }
+    closeOfferSheet();
+    track('offer_sent', { conversationId, amount });
+  };
+
+  const handleRespond = async (
+    offerId: string,
+    action: 'accept' | 'decline',
+  ) => {
+    const { error: respondErr } = await respondToOffer(offerId, action);
+    if (respondErr) {
+      Alert.alert(
+        'Could not update offer',
+        respondErr.message ?? 'Please try again.',
+      );
+      return;
+    }
+    track(action === 'accept' ? 'offer_accepted' : 'offer_declined', {
+      conversationId,
+      offerId,
+    });
   };
 
   // Pick photo(s) from the library and send each as its own image
@@ -629,14 +700,48 @@ export default function ConversationScreen() {
               colors={['#1F4D3A']}
             />
           }
-          renderItem={({ item }) => (
-            <MessageBubble
-              message={item.message}
-              isMine={item.message.sender_id === user?.id}
-              isTail={item.isTail}
-              isGrouped={item.isGrouped}
-            />
-          )}
+          renderItem={({ item }) => {
+            if (isOfferMessage(item.message)) {
+              return (
+                <OfferBubble
+                  message={item.message}
+                  viewerId={user?.id}
+                  participants={participants}
+                  onAccept={() => handleRespond(item.message.id, 'accept')}
+                  onDecline={() => handleRespond(item.message.id, 'decline')}
+                  onCounter={() => setOfferSheetOpen(true)}
+                />
+              );
+            }
+            if (item.message.kind === 'system') {
+              // isMine (sender_id) is meaningless for a system notice -- it
+              // would render as a right-aligned green "me" bubble for one
+              // party and a left-aligned white one for the other. Centered,
+              // muted, non-bubble text instead.
+              return (
+                <Text
+                  style={{
+                    alignSelf: 'center',
+                    maxWidth: '80%',
+                    textAlign: 'center',
+                    color: '#8A857C',
+                    fontSize: 12.5,
+                    marginVertical: 8,
+                  }}
+                >
+                  {item.message.body}
+                </Text>
+              );
+            }
+            return (
+              <MessageBubble
+                message={item.message}
+                isMine={item.message.sender_id === user?.id}
+                isTail={item.isTail}
+                isGrouped={item.isGrouped}
+              />
+            );
+          }}
           ListEmptyComponent={
             <View
               style={{
@@ -697,6 +802,23 @@ export default function ConversationScreen() {
               <Ionicons name="image-outline" size={18} color="#54504A" />
             )}
           </Pressable>
+          {/* Make an offer -- listing conversations only, and never for the
+              listing's own owner (they counter from the bubble, not here).
+              A fourth sibling in this row, same as the Pressables around it
+              -- see the comment above this row. */}
+          {conversation?.target_type === 'listing' &&
+          !!user?.id &&
+          conversation.seller_id !== user.id ? (
+            <Pressable
+              onPress={() => setOfferSheetOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Make an offer"
+              style={{ paddingHorizontal: 10, justifyContent: 'center' }}
+            >
+              <Ionicons name="pricetag-outline" size={22} color="#1F4D3A" />
+            </Pressable>
+          ) : null}
           <TextInput
             ref={inputRef}
             value={draft}
@@ -737,6 +859,112 @@ export default function ConversationScreen() {
             <Ionicons name="paper-plane" size={15} color="#fff" />
           </Pressable>
         </View>
+
+        {/* Make-an-offer amount sheet. Doubles as the counter-offer sheet --
+            send_offer infers "counter" server-side from who is calling, so
+            OfferBubble's onCounter just opens this same sheet again. */}
+        <Modal
+          visible={offerSheetOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={closeOfferSheet}
+        >
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <Pressable
+              onPress={closeOfferSheet}
+              style={{ flex: 1, backgroundColor: 'rgba(20,18,15,0.42)' }}
+            />
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderTopLeftRadius: 22,
+                borderTopRightRadius: 22,
+                paddingHorizontal: 18,
+                paddingTop: 12,
+                paddingBottom: Math.max(insets.bottom, 12) + 20,
+              }}
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 4,
+                  borderRadius: 99,
+                  backgroundColor: '#E5DECC',
+                  alignSelf: 'center',
+                  marginBottom: 14,
+                }}
+              />
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#171513' }}>
+                Make an offer
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: '#8A857C',
+                  marginTop: 2,
+                  marginBottom: 14,
+                }}
+                numberOfLines={1}
+              >
+                {target?.kind === 'listing' ? target.title : 'this item'}
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#F7F2E8',
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  marginBottom: 16,
+                }}
+              >
+                <Text style={{ fontSize: 22, fontWeight: '700', color: '#171513' }}>
+                  $
+                </Text>
+                <TextInput
+                  value={offerAmount}
+                  onChangeText={setOfferAmount}
+                  placeholder="0"
+                  placeholderTextColor="#8A857C"
+                  keyboardType="decimal-pad"
+                  autoFocus
+                  style={{
+                    flex: 1,
+                    fontSize: 22,
+                    fontWeight: '700',
+                    color: '#171513',
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                  }}
+                />
+              </View>
+              <Pressable
+                onPress={handleSendOffer}
+                disabled={sendingOffer}
+                accessibilityRole="button"
+                accessibilityLabel="Send offer"
+                style={{
+                  backgroundColor: '#1F4D3A',
+                  borderRadius: 18,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  opacity: sendingOffer ? 0.6 : 1,
+                }}
+              >
+                {sendingOffer ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                    Send offer
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </KeyboardAvoidingView>
     </View>
   );
