@@ -395,6 +395,9 @@ export interface Conversation {
   has_unread?: boolean;
 }
 
+export type MessageKind = 'text' | 'offer' | 'system';
+export type OfferStatus = 'pending' | 'accepted' | 'declined' | 'countered';
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -404,4 +407,11 @@ export interface Message {
   /** Attached photo (message-media bucket public URL), if any. */
   image_url?: string | null;
   created_at: string;
+  /** 'text' for everything sent before offers shipped. */
+  kind?: MessageKind;
+  /** Set iff kind === 'offer'. */
+  offer_amount?: number | null;
+  offer_status?: OfferStatus | null;
+  /** Set iff kind === 'system' — who the notice is FOR. */
+  recipient_id?: string | null;
 }
