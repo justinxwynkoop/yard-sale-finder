@@ -329,6 +329,7 @@ function renderSale(row, seller, canonical) {
 
 function renderListing(row, seller, canonical) {
   const sold = row.status === 'sold';
+  const onHold = row.status === 'pending';
   const { title, description } = buildMeta({ type: 'listing', row, seller });
   const media = mediaBlock(row.media, row.title);
   const price = formatPrice(row.price);
@@ -347,7 +348,9 @@ function renderListing(row, seller, canonical) {
           priceCurrency: 'USD',
           availability: sold
             ? 'https://schema.org/SoldOut'
-            : 'https://schema.org/InStock',
+            : onHold
+              ? 'https://schema.org/LimitedAvailability'
+              : 'https://schema.org/InStock',
           url: canonical,
         }
       : undefined,
@@ -357,7 +360,11 @@ function renderListing(row, seller, canonical) {
   const body =
     media.html +
     '<div class="card">' +
-    (sold ? '<span class="badge end">Sold</span>' : '') +
+    (sold
+      ? '<span class="badge end">Sold</span>'
+      : onHold
+        ? '<span class="badge up">On hold</span>'
+        : '') +
     '<h1>' + esc(row.title) + '</h1>' +
     (price ? '<p class="price">' + esc(price) + '</p>' : '') +
     (row.pickup_display
@@ -367,7 +374,10 @@ function renderListing(row, seller, canonical) {
     (sold
       ? '<div class="banner">This item has been sold. Download Trove to browse more ' +
         'finds near you.</div>'
-      : '') +
+      : onHold
+        ? '<div class="banner">This item is on hold for another buyer. Download Trove ' +
+          'to browse more finds near you.</div>'
+        : '') +
     (row.description ? '<p class="desc">' + esc(row.description) + '</p>' : '') +
     '</div>' +
     sellerCard(seller) +
@@ -385,7 +395,7 @@ function renderListing(row, seller, canonical) {
         canonical,
       }) + jsonLd,
     body,
-    noindex: sold,
+    noindex: sold || onHold,
   });
 }
 
