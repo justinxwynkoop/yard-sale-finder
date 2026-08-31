@@ -57,7 +57,6 @@ import FilterSheet from '../screens/map/FilterSheet';
 import RoutePlannerScreen from '../screens/route/RoutePlannerScreen';
 import ActiveRouteScreen from '../screens/route/ActiveRouteScreen';
 import ListingsFilterSheet from '../screens/listings/ListingsFilterSheet';
-import MySalesScreen from '../screens/sale/MySalesScreen';
 import CreateSaleScreen from '../screens/sale/CreateSaleScreen';
 import EditSaleScreen from '../screens/sale/EditSaleScreen';
 import CaptureSaleScreen from '../screens/sale/CaptureSaleScreen';
@@ -268,11 +267,6 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="DeleteAccount"
         component={DeleteAccountScreen}
-        options={{ headerShown: false }}
-      />
-      <ProfileStack.Screen
-        name="MySalesHome"
-        component={MySalesScreen}
         options={{ headerShown: false }}
       />
       <ProfileStack.Screen

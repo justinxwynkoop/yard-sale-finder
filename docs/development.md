@@ -235,10 +235,10 @@ clean main checkout — never from a feature branch.
 You found a typo in the My Sales screen header. Walking through:
 
 ```bash
-# 1. Edit src/screens/sale/MySalesScreen.tsx — change "My sales" to "My Sales"
+# 1. Edit src/screens/profile/MySalesScreen.tsx — change "My sales" to "My Sales"
 # 2. Hot reload picks it up on your phone → looks right
 # 3. Commit
-git add src/screens/sale/MySalesScreen.tsx
+git add src/screens/profile/MySalesScreen.tsx
 git commit -m "fix: capitalize My Sales header"
 git push
 # 4. Ship to testers

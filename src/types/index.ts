@@ -305,7 +305,6 @@ export type MapStackParamList = {
 };
 
 export type SaleStackParamList = {
-  MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
   CreateSale: undefined;
   EditSale: { saleId: string };
   Capture: { max?: number } | undefined;
@@ -320,9 +319,6 @@ export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
   DeleteAccount: undefined;
-  // initialTab lets Profile → "Yard Sales" and Profile → "Listings" open
-  // MySalesScreen on the right tab without exposing the other tab.
-  MySalesHome: { initialTab?: 'sales' | 'listings' } | undefined;
   CreateSale: {
     eventId?: string;
     presetStart?: string;
@@ -396,7 +392,17 @@ export interface Conversation {
 }
 
 export type MessageKind = 'text' | 'offer' | 'system';
-export type OfferStatus = 'pending' | 'accepted' | 'declined' | 'countered';
+/**
+ * 'expired' is set by the server, never by a person: mark_listing_sold and a
+ * sold->available relist close out offers still awaiting a response. It is
+ * distinct from 'declined' because nobody declined them.
+ */
+export type OfferStatus =
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'countered'
+  | 'expired';
 
 export interface Message {
   id: string;
