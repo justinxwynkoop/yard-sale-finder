@@ -71,6 +71,13 @@ create policy "Owner or held buyer can read the hold"
 -- would have left the original in place and ADDED a second permissive policy --
 -- and permissive policies OR together, which is the opposite of a tightening.
 -- The USING expression below is the live text, unchanged.
+--
+-- Role scope also narrows here: the live policy has no TO clause, so it
+-- applies to PUBLIC; this one adds `to authenticated`. Safe in practice --
+-- anon gets no rows under either scope because auth.uid() is NULL for anon
+-- and both USING and WITH CHECK test against it, and postgres/service_role
+-- bypass RLS regardless of role grants -- but it is a real semantic change
+-- that was not called out when this migration was written. Recorded here.
 drop policy if exists "Users can update their own listings" on public.listings;
 create policy "Users can update their own listings"
   on public.listings for update to authenticated
@@ -308,8 +315,18 @@ begin
     raise exception 'cannot respond to offers in a blocked conversation';
   end if;
 
+  -- FOR UPDATE: send_offer's one-pending-offer rule is scoped per
+  -- CONVERSATION, not per listing, and it only rejects a 'sold' listing -- so
+  -- two different buyers can each hold a pending offer on the same listing,
+  -- as two different messages rows. The FOR UPDATE on the offer row above does
+  -- NOT serialize those two accepts; each locks a different message. Locking
+  -- the listing row here does: it serializes accepts on that listing, so the
+  -- loser re-reads 'pending' under EvalPlanQual and hits the accept-only
+  -- availability guard below ('listing is no longer available') instead of
+  -- silently winning the race and overwriting the other buyer's hold.
   select id, user_id, title, status into v_listing
-  from public.listings where id = v_conv.target_id;
+  from public.listings where id = v_conv.target_id
+  for update;
 
   if not found then
     raise exception 'listing not found';
