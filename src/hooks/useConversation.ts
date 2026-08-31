@@ -271,6 +271,19 @@ export function useConversation(conversationId: string | undefined) {
           }
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        (payload) => {
+          const m = payload.new as Message;
+          if (m.conversation_id !== conversationId) return;
+          // Offer status flips arrive as UPDATEs. The INSERT handler above
+          // deliberately ignores rows it already has, so it cannot merge these.
+          setMessages((prev) =>
+            prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)),
+          );
+        },
+      )
       .subscribe((status) => {
         if (!active) return;
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -345,8 +358,45 @@ export function useConversation(conversationId: string | undefined) {
     [conversationId, user],
   );
 
+  const sendOffer = useCallback(
+    async (amount: number): Promise<{ error: string | null }> => {
+      const { error: sendErr } = await supabase.rpc('send_offer', {
+        p_conversation_id: conversationId,
+        p_amount: amount,
+      });
+      // The row arrives via the realtime INSERT subscription, so there is no
+      // optimistic insert here -- an offer is a server-authoritative object
+      // (it can be rejected for a pending duplicate, a sold listing, etc.)
+      // and showing it before the server agrees would be a lie.
+      return { error: sendErr ? sendErr.message : null };
+    },
+    [conversationId],
+  );
+
+  const respondToOffer = useCallback(
+    async (
+      offerId: string,
+      action: 'accept' | 'decline',
+    ): Promise<{ error: string | null }> => {
+      const { error: respondErr } = await supabase.rpc('respond_to_offer', {
+        p_offer_id: offerId,
+        p_action: action,
+      });
+      return { error: respondErr ? respondErr.message : null };
+    },
+    [],
+  );
+
   return {
     conversation,
+    // The pair authorized to act on this conversation's offers -- "the
+    // participant who did NOT send the offer may respond", not "the
+    // listing owner". Derived from `conversation` (already fetched above)
+    // rather than adding a second copy of the same two ids under a new
+    // field name.
+    participants: conversation
+      ? { buyer_id: conversation.buyer_id, seller_id: conversation.seller_id }
+      : null,
     otherProfile,
     target,
     messages,
@@ -354,6 +404,8 @@ export function useConversation(conversationId: string | undefined) {
     error,
     sending,
     send,
+    sendOffer,
+    respondToOffer,
     refetch: fetchAll,
     // Silent message re-pull (no spinner) — for pull-to-refresh in the thread.
     syncMessages,
