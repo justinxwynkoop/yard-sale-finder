@@ -97,6 +97,34 @@ export default function ListingDetailScreen() {
       toast.error("Couldn't update status", error);
     }
   };
+
+  // Going pending -> available is a hold RELEASE: it drops someone's claim on
+  // the item and pushes them "The hold on this item was released." With no
+  // expiry on a hold (by design — see 20260830100100_listing_holds.sql), this
+  // confirm is the only guardrail between a seller and accidentally reopening
+  // an item someone else is waiting on. Same dialog shape and voice as
+  // MyListingsScreen's confirmReleaseHold; that screen knows the buyer's name
+  // from useMyListings, this one only ever loads the listing row, so it says
+  // "The buyer" — the fallback the other screen already uses.
+  const handleStatusPress = (status: Exclude<ListingStatus, 'pending'>) => {
+    if (!listing || listing.status === status) return;
+    if (status === 'available' && listing.status === 'pending') {
+      Alert.alert(
+        'Release this hold?',
+        `The buyer will be notified “${listing.title}” is back on the market.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Release hold',
+            style: 'destructive',
+            onPress: () => updateStatus('available'),
+          },
+        ],
+      );
+      return;
+    }
+    updateStatus(status);
+  };
   const favorited = listing ? isFavorited(listing.id) : false;
 
   useEffect(() => {
@@ -530,7 +558,9 @@ export default function ListingDetailScreen() {
 
           {/* Owner status controls — set this item available / sold. 'pending'
               only ever comes from accepting an offer, so it's not a manual
-              option here (the PENDING badge above still reflects it). */}
+              option here (the PENDING badge above still reflects it). On a held
+              item, "Available" means releasing that hold, so it routes through
+              a destructive confirm — see handleStatusPress. */}
           {isOwnListing && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
               {(['available', 'sold'] as Exclude<ListingStatus, 'pending'>[]).map((s) => {
@@ -539,7 +569,7 @@ export default function ListingDetailScreen() {
                 return (
                   <Pressable
                     key={s}
-                    onPress={() => updateStatus(s)}
+                    onPress={() => handleStatusPress(s)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     style={{
