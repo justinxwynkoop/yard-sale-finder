@@ -1,5 +1,146 @@
 [
   {
+    "deployedAt": "2026-08-31T06:18:11.151Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "b25896b",
+    "sinceSha": "d286223",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Refresh listing status after offer response; correct offer-doc drift",
+        "sha": "b25896b"
+      },
+      {
+        "type": "fix",
+        "text": "Confirm before releasing a hold from listing detail",
+        "sha": "eb82311"
+      },
+      {
+        "type": "fix",
+        "text": "Gate Accept/Counter on listing status, keep Decline",
+        "sha": "31b9cd0"
+      },
+      {
+        "type": "fix",
+        "text": "A held listing no longer advertises as in stock",
+        "sha": "a62096e"
+      },
+      {
+        "type": "fix",
+        "text": "Trim on-hold pills to Mark sold/Release hold, fix toast copy",
+        "sha": "f98dbfc"
+      },
+      {
+        "type": "feature",
+        "text": "Show who an item is held for, with one-tap release",
+        "sha": "f7b1712"
+      },
+      {
+        "type": "fix",
+        "text": "Relist a sold item, and route MySales through the status helper",
+        "sha": "f89c023"
+      },
+      {
+        "type": "fix",
+        "text": "Lock listing row in respond_to_offer to close double-accept race",
+        "sha": "9c58395"
+      },
+      {
+        "type": "feature",
+        "text": "Listing holds, release/sold RPCs, and an explicit WITH CHECK",
+        "sha": "0be7817"
+      },
+      {
+        "type": "feature",
+        "text": "Offer-aware last-message preview",
+        "sha": "43af362"
+      },
+      {
+        "type": "feature",
+        "text": "Kind-aware notifications and a real offers toggle",
+        "sha": "b3b6c09"
+      },
+      {
+        "type": "fix",
+        "text": "Pre-fill counter amount, guard double-tap offer response",
+        "sha": "3f2b5f7"
+      },
+      {
+        "type": "feature",
+        "text": "Offer and system rows in the conversation thread",
+        "sha": "b340089"
+      },
+      {
+        "type": "fix",
+        "text": "Return raw PostgrestError from sendOffer/respondToOffer",
+        "sha": "45b7ad1"
+      },
+      {
+        "type": "feature",
+        "text": "Send/respond RPCs and realtime UPDATE handling",
+        "sha": "ed417ef"
+      },
+      {
+        "type": "feature",
+        "text": "Offer bubble with non-sender accept/counter/decline",
+        "sha": "d0749c6"
+      },
+      {
+        "type": "fix",
+        "text": "CanRespondToOffer mirrors respond_to_offer RPC's responder rule",
+        "sha": "911ee05"
+      },
+      {
+        "type": "feature",
+        "text": "Offer types and pure transition rules",
+        "sha": "6914a06"
+      },
+      {
+        "type": "fix",
+        "text": "Guard listing status on accept, cascade recipient_id, single pending offer",
+        "sha": "6950cb9"
+      },
+      {
+        "type": "fix",
+        "text": "The non-sender responds, so a seller's counter can be accepted",
+        "sha": "f449ea4"
+      },
+      {
+        "type": "fix",
+        "text": "Close authz, block-bypass, and row-forgery holes in the offers migration",
+        "sha": "358e45a"
+      },
+      {
+        "type": "feature",
+        "text": "Offer columns and RPCs on messages",
+        "sha": "aa256eb"
+      },
+      {
+        "type": "fix",
+        "text": "Pin sold/pending status box as sticky footer",
+        "sha": "cfc478d"
+      },
+      {
+        "type": "fix",
+        "text": "Don't offer to message about a sold or held item",
+        "sha": "db194fa"
+      },
+      {
+        "type": "fix",
+        "text": "Gate QuickReplyChips on sale.profile to match host card",
+        "sha": "68dfc84"
+      },
+      {
+        "type": "feature",
+        "text": "One-tap conversation starters on sale and listing detail",
+        "sha": "c1875a4"
+      }
+    ],
+    "otherCount": 8,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-29T19:32:36.954Z",
     "channel": "production",
     "appVersion": "1.0.0",
