@@ -1,5 +1,26 @@
 [
   {
+    "deployedAt": "2026-08-31T22:24:08.788Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "b45aed6",
+    "sinceSha": "8cc2832",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "A safety notice is from Trove, not from the moderator",
+        "sha": "b45aed6"
+      },
+      {
+        "type": "fix",
+        "text": "Restore messaging — dropped archive columns broke every send",
+        "sha": "6540882"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T22:05:08.911Z",
     "channel": "production",
     "appVersion": "1.0.0",
