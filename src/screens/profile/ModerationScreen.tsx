@@ -438,7 +438,29 @@ export default function ModerationScreen() {
                   No messages in this thread.
                 </Text>
               ) : (
-                thread.map((m) => (
+                thread.map((m) =>
+                  // A system notice is written by Trove, not by whoever
+                  // triggered it. sender_id carries the operator only so the
+                  // NOT NULL column and the audit trail have a value -- it is
+                  // not authorship, and printing it here put a moderator's own
+                  // name above a message they did not write. The real thread
+                  // already renders these centred, muted and unattributed;
+                  // this matches it rather than inventing a second treatment.
+                  m.kind === "system" ? (
+                    <Text
+                      key={m.id}
+                      style={{
+                        alignSelf: "center",
+                        maxWidth: "80%",
+                        textAlign: "center",
+                        color: INK_MUTED,
+                        fontSize: 12,
+                        marginVertical: 8,
+                      }}
+                    >
+                      {m.body}
+                    </Text>
+                  ) : (
                   <View
                     key={m.id}
                     style={{
@@ -479,7 +501,8 @@ export default function ModerationScreen() {
                       {m.image_url ? <ModImage path={m.image_url} /> : null}
                     </View>
                   </View>
-                ))
+                  )
+                )
               )}
             </ScrollView>
           )}
