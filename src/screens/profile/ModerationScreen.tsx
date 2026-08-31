@@ -328,6 +328,42 @@ export default function ModerationScreen() {
                   : ''}
               </Text>
 
+              {/* Reviewing is not an action, so it must not look like one.
+                  As a pill it sat in the same row as Suspend and Dismiss --
+                  identical shape, one tap apart, and only one of them is
+                  reversible by a second tap. A link above the divider also
+                  puts the card in the order the job is done: read, then act. */}
+              <Pressable
+                onPress={() => openThread(r)}
+                hitSlop={6}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginTop: 10,
+                  paddingVertical: 7,
+                }}
+              >
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={15}
+                  color={BRAND}
+                />
+                <Text
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: '700',
+                    color: BRAND,
+                    marginLeft: 7,
+                  }}
+                >
+                  Read the conversation
+                </Text>
+                <Ionicons name="chevron-forward" size={15} color={BRAND} />
+              </Pressable>
+
+              <View
+                style={{ height: 1, backgroundColor: HAIRLINE, marginTop: 2 }}
+              />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {/* Only content can be hidden; a profile's lever is suspension. */}
                 {r.target_type !== 'profile' ? (
@@ -342,7 +378,6 @@ export default function ModerationScreen() {
                     }
                   />
                 ) : null}
-                <Pill label="Messages" onPress={() => openThread(r)} />
                 <Pill label="Safety notice" onPress={() => confirmNotice(r)} />
                 {r.owner_id ? (
                   <Pill
