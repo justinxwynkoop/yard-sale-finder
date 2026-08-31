@@ -20,6 +20,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { uploadMessageImage } from '../../lib/messageImageUpload';
 import { getSignedMessageImage } from '../../lib/signedMessageImage';
 import { isOfferMessage } from '../../lib/offers';
+import {
+  formatDaySeparator,
+  formatMessageTime,
+  isSameLocalDay,
+  lastSeenOwnMessageId,
+} from '../../lib/messageTime';
 import { track } from '../../lib/analytics';
 import { SubHeader } from '../../components/SubHeader';
 import { OfferBubble } from '../../components/OfferBubble';
@@ -329,6 +335,7 @@ export default function ConversationScreen() {
     send,
     sendOffer,
     respondToOffer,
+    otherLastReadAt,
     refetch,
     syncMessages,
   } = useConversation(conversationId);
@@ -458,9 +465,15 @@ export default function ConversationScreen() {
         const next = messages[i + 1];
         const prev = messages[i - 1];
         const nextSameSender =
-          isTextRow(m) && !!next && isTextRow(next) && next.sender_id === m.sender_id;
+          isTextRow(m) &&
+          !!next &&
+          isTextRow(next) &&
+          next.sender_id === m.sender_id;
         const prevSameSender =
-          isTextRow(m) && !!prev && isTextRow(prev) && prev.sender_id === m.sender_id;
+          isTextRow(m) &&
+          !!prev &&
+          isTextRow(prev) &&
+          prev.sender_id === m.sender_id;
         return {
           message: m,
           // The tail bubble is the *last* in a consecutive same-sender
@@ -468,10 +481,22 @@ export default function ConversationScreen() {
           isTail: !nextSameSender,
           // Tighter vertical spacing when grouping.
           isGrouped: prevSameSender,
+          // Computed in chronological order (before the reverse below), so
+          // "prev" means the message before this one in TIME, not in render
+          // order. The first message in the thread always starts a day.
+          showDaySeparator:
+            !prev || !isSameLocalDay(prev.created_at, m.created_at),
         };
       })
       .reverse();
   }, [messages]);
+
+  // The one message that carries a "Seen" marker -- the newest of mine they
+  // have read. See lastSeenOwnMessageId for why it is only ever one.
+  const lastSeenId = React.useMemo(
+    () => lastSeenOwnMessageId(messages, user?.id, otherLastReadAt),
+    [messages, user?.id, otherLastReadAt],
+  );
 
   const handleSend = async () => {
     const body = draft.trim();
@@ -481,10 +506,7 @@ export default function ConversationScreen() {
     if (sendErr) {
       // Restore the draft and surface the message so the user knows.
       setDraft(body);
-      Alert.alert(
-        'Could not send',
-        sendErr.message ?? 'Please try again.',
-      );
+      Alert.alert('Could not send', sendErr.message ?? 'Please try again.');
     }
   };
 
@@ -506,7 +528,10 @@ export default function ConversationScreen() {
   const handleSendOffer = async () => {
     const amount = Number(offerAmount.trim());
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert('Enter an amount', 'Offers must be a positive dollar amount.');
+      Alert.alert(
+        'Enter an amount',
+        'Offers must be a positive dollar amount.',
+      );
       return;
     }
     setSendingOffer(true);
@@ -516,7 +541,10 @@ export default function ConversationScreen() {
       // The RPC's messages are the useful part (e.g. "you already have a
       // pending offer", "listing is no longer available") -- surface them
       // verbatim, same idiom as handleSend above.
-      Alert.alert('Could not send offer', offerErr.message ?? 'Please try again.');
+      Alert.alert(
+        'Could not send offer',
+        offerErr.message ?? 'Please try again.',
+      );
       return;
     }
     closeOfferSheet();
@@ -756,46 +784,96 @@ export default function ConversationScreen() {
             />
           }
           renderItem={({ item }) => {
-            if (isOfferMessage(item.message)) {
+            const m = item.message;
+            const isMine = m.sender_id === user?.id;
+            const isSystem = m.kind === 'system';
+            const seen = m.id === lastSeenId;
+            // One time per burst, on the last bubble of a run -- a time under
+            // every bubble in a rapid three-message burst is noise. Non-text
+            // rows never group, so offers and system notices always get one.
+            const showMeta = item.isTail || seen;
+            const body = (() => {
+              if (isOfferMessage(item.message)) {
+                return (
+                  <OfferBubble
+                    message={item.message}
+                    viewerId={user?.id}
+                    participants={participants}
+                    listingStatus={listingStatus}
+                    onAccept={() => handleRespond(item.message.id, 'accept')}
+                    onDecline={() => handleRespond(item.message.id, 'decline')}
+                    onCounter={() =>
+                      openCounterSheet(item.message.offer_amount)
+                    }
+                  />
+                );
+              }
+              if (item.message.kind === 'system') {
+                // isMine (sender_id) is meaningless for a system notice -- it
+                // would render as a right-aligned green "me" bubble for one
+                // party and a left-aligned white one for the other. Centered,
+                // muted, non-bubble text instead.
+                return (
+                  <Text
+                    style={{
+                      alignSelf: 'center',
+                      maxWidth: '80%',
+                      textAlign: 'center',
+                      color: '#8A857C',
+                      fontSize: 12.5,
+                      marginVertical: 8,
+                    }}
+                  >
+                    {item.message.body}
+                  </Text>
+                );
+              }
               return (
-                <OfferBubble
+                <MessageBubble
                   message={item.message}
-                  viewerId={user?.id}
-                  participants={participants}
-                  listingStatus={listingStatus}
-                  onAccept={() => handleRespond(item.message.id, 'accept')}
-                  onDecline={() => handleRespond(item.message.id, 'decline')}
-                  onCounter={() => openCounterSheet(item.message.offer_amount)}
+                  isMine={item.message.sender_id === user?.id}
+                  isTail={item.isTail}
+                  isGrouped={item.isGrouped}
                 />
               );
-            }
-            if (item.message.kind === 'system') {
-              // isMine (sender_id) is meaningless for a system notice -- it
-              // would render as a right-aligned green "me" bubble for one
-              // party and a left-aligned white one for the other. Centered,
-              // muted, non-bubble text instead.
-              return (
-                <Text
-                  style={{
-                    alignSelf: 'center',
-                    maxWidth: '80%',
-                    textAlign: 'center',
-                    color: '#8A857C',
-                    fontSize: 12.5,
-                    marginVertical: 8,
-                  }}
-                >
-                  {item.message.body}
-                </Text>
-              );
-            }
+            })();
+
             return (
-              <MessageBubble
-                message={item.message}
-                isMine={item.message.sender_id === user?.id}
-                isTail={item.isTail}
-                isGrouped={item.isGrouped}
-              />
+              <View>
+                {item.showDaySeparator ? (
+                  <Text
+                    style={{
+                      alignSelf: 'center',
+                      color: '#A1A1AA',
+                      fontSize: 11.5,
+                      fontWeight: '600',
+                      marginTop: 14,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {formatDaySeparator(m.created_at)}
+                  </Text>
+                ) : null}
+                {body}
+                {showMeta ? (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: '#A1A1AA',
+                      marginTop: 2,
+                      marginHorizontal: 4,
+                      alignSelf: isSystem
+                        ? 'center'
+                        : isMine
+                          ? 'flex-end'
+                          : 'flex-start',
+                    }}
+                  >
+                    {formatMessageTime(m.created_at)}
+                    {seen ? ' · Seen' : ''}
+                  </Text>
+                ) : null}
+              </View>
             );
           }}
           ListEmptyComponent={
@@ -958,7 +1036,9 @@ export default function ConversationScreen() {
                   marginBottom: 14,
                 }}
               />
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#171513' }}>
+              <Text
+                style={{ fontSize: 17, fontWeight: '700', color: '#171513' }}
+              >
                 Make an offer
               </Text>
               <Text
@@ -982,7 +1062,9 @@ export default function ConversationScreen() {
                   marginBottom: 16,
                 }}
               >
-                <Text style={{ fontSize: 22, fontWeight: '700', color: '#171513' }}>
+                <Text
+                  style={{ fontSize: 22, fontWeight: '700', color: '#171513' }}
+                >
                   $
                 </Text>
                 <TextInput
@@ -1018,7 +1100,9 @@ export default function ConversationScreen() {
                 {sendingOffer ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                  <Text
+                    style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}
+                  >
                     Send offer
                   </Text>
                 )}
@@ -1030,4 +1114,3 @@ export default function ConversationScreen() {
     </View>
   );
 }
-

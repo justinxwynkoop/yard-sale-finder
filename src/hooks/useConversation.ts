@@ -136,9 +136,9 @@ export function useConversation(conversationId: string | undefined) {
         .maybeSingle();
       if (data) {
         const s = data as any as Sale;
-        const sortedMedia = (s.media ?? []).slice().sort(
-          (a, b) => (a.order ?? 0) - (b.order ?? 0),
-        );
+        const sortedMedia = (s.media ?? [])
+          .slice()
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setTarget({
           kind: 'sale',
           title: s.title,
@@ -162,9 +162,9 @@ export function useConversation(conversationId: string | undefined) {
         .maybeSingle();
       if (data) {
         const l = data as any as Listing;
-        const sortedMedia = (l.media ?? []).slice().sort(
-          (a, b) => (a.order ?? 0) - (b.order ?? 0),
-        );
+        const sortedMedia = (l.media ?? [])
+          .slice()
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setTarget({
           kind: 'listing',
           title: l.title,
@@ -322,6 +322,19 @@ export function useConversation(conversationId: string | undefined) {
           if (m.kind === 'offer') void refreshTarget();
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversations' },
+        (payload) => {
+          const c = payload.new as Conversation;
+          if (c.id !== conversationId) return;
+          // This is what keeps the read receipt live. mark_conversation_read
+          // stamps {buyer,seller}_last_read_at when the other side opens the
+          // thread, and that UPDATE is the only signal it happened -- no
+          // message is written, so the handlers above never fire for it.
+          setConversation((prev) => (prev ? { ...prev, ...c } : prev));
+        },
+      )
       .subscribe((status) => {
         if (!active) return;
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -439,6 +452,13 @@ export function useConversation(conversationId: string | undefined) {
     // field name.
     participants: conversation
       ? { buyer_id: conversation.buyer_id, seller_id: conversation.seller_id }
+      : null,
+    // When the OTHER participant last opened this thread -- the input to the
+    // "Seen" marker. Which column that is depends on which side you are.
+    otherLastReadAt: conversation
+      ? conversation.buyer_id === user?.id
+        ? conversation.seller_last_read_at
+        : conversation.buyer_last_read_at
       : null,
     otherProfile,
     target,
