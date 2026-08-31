@@ -28,7 +28,16 @@ alter table public.messages
   add column if not exists kind text not null default 'text',
   add column if not exists offer_amount numeric(10,2),
   add column if not exists offer_status text,
-  add column if not exists recipient_id uuid references public.profiles(id) on delete set null;
+  -- ON DELETE CASCADE, not SET NULL: messages_recipient_ck below requires
+  -- recipient_id to be non-null exactly when kind = 'system', so a SET NULL
+  -- action could never legally fire -- deleting a profile would issue
+  -- `UPDATE messages SET recipient_id = NULL` on its system rows, violate the
+  -- CHECK, and abort the delete. delete_my_account() routes through exactly
+  -- that path (profiles -> auth.users is ON DELETE CASCADE), so the two would
+  -- have deadlocked account deletion, masked only by RI trigger firing order.
+  -- Cascade matches messages_sender_id_fkey and every other FK to profiles in
+  -- this schema.
+  add column if not exists recipient_id uuid references public.profiles(id) on delete cascade;
 
 alter table public.messages drop constraint if exists messages_kind_ck;
 alter table public.messages
@@ -301,24 +310,35 @@ begin
     raise exception 'you already have a pending offer';
   end if;
 
-  if v_is_owner then
-    -- The owner may only COUNTER an existing offer, never open a negotiation
-    -- against their own item.
-    select id into v_pending
-    from public.messages
-    where conversation_id = p_conversation_id
-      and kind = 'offer' and offer_status = 'pending' and sender_id <> v_uid
-    limit 1;
+  -- The other party's pending offer, if any. Looked up for BOTH senders, not
+  -- just the owner: superseding it is what keeps one-pending-offer-per-
+  -- conversation true (the intent behind messages_pending_offers_idx). When the
+  -- stamp lived inside the owner-only branch, buyer offers -> seller counters
+  -- (buyer's stamped countered) -> buyer offers again (allowed, they have no
+  -- pending offer) left the seller's counter STILL pending, so two offers at
+  -- two different prices were simultaneously acceptable.
+  select id into v_pending
+  from public.messages
+  where conversation_id = p_conversation_id
+    and kind = 'offer' and offer_status = 'pending' and sender_id <> v_uid
+  limit 1;
 
-    if v_pending is null then
-      raise exception 'nothing to counter';
-    end if;
+  -- The owner may only COUNTER an existing offer, never open a negotiation
+  -- against their own item. This rule stays owner-only; the stamping below
+  -- does not.
+  if v_is_owner and v_pending is null then
+    raise exception 'nothing to counter';
+  end if;
 
+  if v_pending is not null then
     update public.messages set offer_status = 'countered' where id = v_pending;
   end if;
 
+  -- listings.title has no DB length cap, and messages_body_or_image_check caps
+  -- body at 2000 chars, so an untruncated title could make the composed body
+  -- illegal and blow up the RPC on an otherwise valid offer.
   v_body := 'Offered $' || trim(to_char(v_amount, 'FM999999990.00'))
-            || ' for ' || v_listing.title;
+            || ' for ' || left(v_listing.title, 200);
 
   insert into public.messages
     (conversation_id, sender_id, body, kind, offer_amount, offer_status)
@@ -366,10 +386,16 @@ begin
     raise exception 'invalid action';
   end if;
 
+  -- FOR UPDATE: the pending check below and the status flip further down are
+  -- two separate statements, so without the row lock two concurrent accepts
+  -- both read 'pending', both pass, and the item gets held twice (and the
+  -- system row emitted twice). The lock serializes them -- the loser re-reads
+  -- 'accepted' and raises 'offer is no longer pending'.
   select id, conversation_id, sender_id, offer_amount, offer_status, kind
     into v_msg
   from public.messages
-  where id = p_offer_id;
+  where id = p_offer_id
+  for update;
 
   if not found or v_msg.kind <> 'offer' then
     raise exception 'offer not found';
@@ -421,7 +447,7 @@ begin
     raise exception 'cannot respond to offers in a blocked conversation';
   end if;
 
-  select id, user_id, title into v_listing
+  select id, user_id, title, status into v_listing
   from public.listings where id = v_conv.target_id;
 
   if not found then
@@ -449,6 +475,23 @@ begin
 
   if v_responder is null or v_responder <> v_uid then
     raise exception 'only the other party can respond to this offer';
+  end if;
+
+  -- Accepting writes listings.status, and this function is SECURITY DEFINER --
+  -- so the owner-only UPDATE policy on listings does NOT apply here. Since a
+  -- seller's counter is accepted by the BUYER, without this guard a non-owner
+  -- could overwrite someone else's listing status at any later time: buyer
+  -- offers -> seller sells elsewhere (status='sold') -> the offer is still
+  -- pending -> accepting it resurrects the item as 'pending'. send_offer has
+  -- the mirror-image check at send time; this is the check at respond time.
+  --
+  -- 'pending' is refused as well as 'sold': the item is already held for some
+  -- buyer, and accepting a second offer would silently re-point that hold.
+  -- DECLINE stays legal in every status, so a stale offer on a sold item can
+  -- still be cleared. Checked before the offer_status update below, so a
+  -- refused accept mutates nothing.
+  if p_action = 'accept' and v_listing.status <> 'available' then
+    raise exception 'listing is no longer available';
   end if;
 
   -- Two different people, and they stop coinciding the moment a seller's
