@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-31T12:04:33.885Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "b1363b1",
+    "sinceSha": "b25896b",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Scope the sale list to the visible region, never the whole country",
+        "sha": "b1363b1"
+      }
+    ],
+    "otherCount": 2,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T06:18:11.151Z",
     "channel": "production",
     "appVersion": "1.0.0",
