@@ -49,10 +49,10 @@ alter table public.messages
   );
 
 -- Spec: recipient_id is non-null iff kind = 'system'. It names the party the
--- system row is *about* (the offer's sender), which is meaningless on a
--- human-authored row and required on a generated one. Existing production rows
--- are all kind='text' with a NULL recipient_id (the column is new), so this
--- validates without a backfill.
+-- system row is *for* -- the participant who did NOT perform the action that
+-- generated it -- which is meaningless on a human-authored row and required on
+-- a generated one. Existing production rows are all kind='text' with a NULL
+-- recipient_id (the column is new), so this validates without a backfill.
 alter table public.messages drop constraint if exists messages_recipient_ck;
 alter table public.messages
   add constraint messages_recipient_ck check (
@@ -333,7 +333,11 @@ $$;
 revoke execute on function public.send_offer(uuid, numeric) from public, anon;
 grant   execute on function public.send_offer(uuid, numeric) to authenticated;
 
--- Accept or decline. Only the listing owner may respond. Accept also holds the
+-- Accept or decline. The participant who did NOT send the offer responds -- so
+-- the seller answers a buyer's offer, and the buyer answers a seller's counter.
+-- Authorizing on listing ownership instead would have made a counter sendable
+-- but unacceptable by anyone: its sender is the seller (blocked by the
+-- self-response guard) and the buyer is not the owner. Accept also holds the
 -- item; the hold table itself arrives in 20260830100100.
 create or replace function public.respond_to_offer(
   p_offer_id uuid,
@@ -345,12 +349,14 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_uid     uuid := (select auth.uid());
-  v_msg     record;
-  v_conv    record;
-  v_listing record;
-  v_buyer   uuid;
-  v_body    text;
+  v_uid       uuid := (select auth.uid());
+  v_msg       record;
+  v_conv      record;
+  v_listing   record;
+  v_responder uuid;
+  v_buyer     uuid;
+  v_recipient uuid;
+  v_body      text;
 begin
   if v_uid is null then
     raise exception 'not authenticated' using errcode = '28000';
@@ -369,9 +375,12 @@ begin
     raise exception 'offer not found';
   end if;
 
-  -- A seller's counter has sender_id = seller. Without this, the ownership check
-  -- below passes for that seller and they can accept their OWN counter at a
-  -- price the buyer never agreed to. Checked before any mutation.
+  -- Nobody responds to their own offer -- a seller must not be able to accept
+  -- their own counter at a price the buyer never agreed to. Strictly this is
+  -- implied by the responder check further down (which also excludes the
+  -- sender), but it is kept: it fires before any lookup, it is the guard that
+  -- has to hold if that derivation is ever edited, and it names the actual
+  -- mistake instead of "not the responder". Checked before any mutation.
   if v_msg.sender_id = v_uid then
     raise exception 'cannot respond to your own offer';
   end if;
@@ -419,16 +428,53 @@ begin
     raise exception 'listing not found';
   end if;
 
-  if v_listing.user_id <> v_uid then
-    raise exception 'only the listing owner can respond';
+  -- Authorization: the responder is the participant who did NOT send this
+  -- offer. Owner-only was correct in exactly one direction. It handled a
+  -- buyer's offer (sender = buyer, responder = seller = owner) and made a
+  -- seller's COUNTER unacceptable by anyone -- its sender is the seller, so the
+  -- self-response guard above stopped the seller and this check stopped the
+  -- buyer, leaving an offer that could be sent and never answered.
+  --
+  -- The CASE is written to yield NULL rather than a participant if the offer's
+  -- sender is somehow neither party, and the `is null` arm rejects that
+  -- explicitly. Comparing against a bare NULL would have reproduced the same
+  -- fall-through the `not found` guards above exist to prevent: `v_uid <> NULL`
+  -- is NULL, and IF treats NULL as false, so the exception would be SKIPPED.
+  -- Non-participants are already turned away by the participant check above;
+  -- this narrows the two participants down to the one entitled to answer.
+  v_responder := case
+                   when v_msg.sender_id = v_conv.buyer_id  then v_conv.seller_id
+                   when v_msg.sender_id = v_conv.seller_id then v_conv.buyer_id
+                 end;
+
+  if v_responder is null or v_responder <> v_uid then
+    raise exception 'only the other party can respond to this offer';
   end if;
 
-  v_buyer := v_msg.sender_id;
+  -- Two different people, and they stop coinciding the moment a seller's
+  -- counter is in play, so neither may be read off v_msg.sender_id:
+  --
+  --   v_buyer     -- who the item is held FOR. Always the conversation's buyer.
+  --                  On a buyer's offer that happens to be the offer's sender;
+  --                  on a seller's counter it is v_uid, the accepter. Only
+  --                  v_conv.buyer_id is right in both directions, and it is
+  --                  what 20260830100100's listing_holds upsert consumes.
+  --   v_recipient -- who the system notice is addressed to: the participant who
+  --                  did not just act, i.e. never v_uid.
+  v_buyer     := v_conv.buyer_id;
+  v_recipient := case when v_uid = v_conv.buyer_id then v_conv.seller_id
+                      else v_conv.buyer_id end;
 
   update public.messages
   set offer_status = case when p_action = 'accept' then 'accepted' else 'declined' end
   where id = p_offer_id;
 
+  -- Both bodies are deliberately actor-free. The same row is generated whether
+  -- the seller accepted a buyer's offer or the buyer accepted the seller's
+  -- counter, and it is rendered to both parties, so any "you"/"the seller"
+  -- phrasing would be false in one direction. State the amount and the
+  -- resulting state; sender_id and recipient_id carry who did it and who it is
+  -- for.
   if p_action = 'accept' then
     update public.listings set status = 'pending' where id = v_listing.id;
     v_body := 'Offer accepted -- $'
@@ -441,7 +487,7 @@ begin
   insert into public.messages
     (conversation_id, sender_id, body, kind, recipient_id)
   values
-    (v_msg.conversation_id, v_uid, v_body, 'system', v_buyer);
+    (v_msg.conversation_id, v_uid, v_body, 'system', v_recipient);
 end;
 $$;
 
