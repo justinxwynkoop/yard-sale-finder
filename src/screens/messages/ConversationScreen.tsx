@@ -339,10 +339,20 @@ export default function ConversationScreen() {
   // offer affordance below is gated on this rather than on the offer alone.
   const listingStatus = target?.kind === 'listing' ? target.status : undefined;
 
-  // Seed the composer from the route (e.g. the Make-offer template).
-  // useState's initializer only runs on mount, so later param changes
-  // can't clobber what the user is typing.
+  // Seed the composer from the route (a QuickReplyChips prompt, or the
+  // Make-offer template). The useState initializer alone is NOT enough: it
+  // runs only on mount, and by the time a quick reply navigates here the
+  // thread is usually already mounted in the Inbox stack, so the prompt was
+  // silently dropped on every conversation the user had opened before. The
+  // effect consumes the param and clears it — same consume-and-clear pattern
+  // SaleDetailScreen uses for focusLat/focusLng — which also lets the same
+  // chip work twice in a row, since the param goes undefined in between.
   const [draft, setDraft] = useState(initialDraft ?? '');
+  useEffect(() => {
+    if (!initialDraft) return;
+    setDraft(initialDraft);
+    navigation.setParams({ initialDraft: undefined });
+  }, [initialDraft, navigation]);
   const [refreshing, setRefreshing] = useState(false);
   const [attaching, setAttaching] = useState(false);
   // Make-an-offer amount sheet. Also serves a seller's counter -- send_offer
