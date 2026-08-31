@@ -73,13 +73,16 @@ export default function MyListingsScreen() {
   const mutateStatus = async (
     listing: Listing,
     status: Exclude<ListingStatus, 'pending'>,
+    successMessage?: string,
   ) => {
     const { error } = await setListingStatus(listing.id, status);
     if (error) {
       toast.error("Couldn't update", error);
       return;
     }
-    toast.success(status === 'sold' ? 'Marked sold' : 'Relisted');
+    toast.success(
+      successMessage ?? (status === 'sold' ? 'Marked sold' : 'Relisted'),
+    );
     refetch();
   };
 
@@ -99,7 +102,11 @@ export default function MyListingsScreen() {
       `${listing.held_for_name ?? 'The buyer'} will be notified “${listing.title}” is back on the market.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Release hold', style: 'destructive', onPress: () => mutateStatus(listing, 'available') },
+        {
+          text: 'Release hold',
+          style: 'destructive',
+          onPress: () => mutateStatus(listing, 'available', 'Hold released'),
+        },
       ],
     );
   };
@@ -385,13 +392,11 @@ function ListingManageRow({
             {`${views} views · ${saves} saved`}
           </Text>
         )}
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
           {sold ? (
             <PillButton label="Relist" onPress={onRelist} />
           ) : onHold ? (
             <>
-              <PillButton label="Edit" onPress={onEdit} />
-              <PillButton label="Share" onPress={onShare} />
               <PillButton label="Mark sold" onPress={onMarkSold} />
               <PillButton label="Release hold" onPress={onReleaseHold} />
             </>
