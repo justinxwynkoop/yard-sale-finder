@@ -170,10 +170,7 @@ function ContextCard({
   const title = target?.title ?? '(no longer available)';
   let metaLine = '';
   if (target?.kind === 'listing') {
-    metaLine =
-      target.status === 'sold'
-        ? `Sold · $${target.price.toLocaleString()}`
-        : `$${target.price.toLocaleString()}`;
+    metaLine = `$${target.price.toLocaleString()}`;
   } else if (target?.kind === 'sale') {
     metaLine = `${formatSaleDate(target.start_date, target.end_date)} · ${formatSaleTime(
       target.start_time,
@@ -251,6 +248,15 @@ function ContextCard({
         >
           {title}
         </Text>
+        {target?.kind === 'listing' && target.status === 'sold' ? (
+          <Text style={{ fontSize: 12, fontWeight: '800', color: '#A23E2D' }}>
+            SOLD
+          </Text>
+        ) : target?.kind === 'listing' && target.status === 'pending' ? (
+          <Text style={{ fontSize: 12, fontWeight: '800', color: '#B8772C' }}>
+            ON HOLD
+          </Text>
+        ) : null}
         {metaLine ? (
           <Text
             style={{

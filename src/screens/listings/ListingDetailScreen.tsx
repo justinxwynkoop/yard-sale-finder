@@ -722,78 +722,97 @@ export default function ListingDetailScreen() {
 
       {/* Sticky CTA */}
       {!isOwnListing && (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#fff',
-            borderTopWidth: 1,
-            borderTopColor: HAIRLINE,
-            // Sits above the tab bar (which clears the home indicator) —
-            // no safe-area inset needed; it only made a big gap.
-            paddingBottom: 16,
-          }}
-        >
-          {listing.status === 'available' && (
-            <View style={{ paddingTop: 12 }}>
-              <QuickReplyChips
-                prompts={[
-                  'Is this still available?',
-                  'Can you hold it for me?',
-                  'Where can I pick it up?',
-                ]}
-                onPick={(text) => handleMessageSeller(text)}
-              />
-            </View>
-          )}
+        listing.status === 'available' ? (
           <View
             style={{
-              flexDirection: 'row',
-              paddingHorizontal: 14,
-              paddingTop: 12,
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: '#fff',
+              borderTopWidth: 1,
+              borderTopColor: HAIRLINE,
+              // Sits above the tab bar (which clears the home indicator) —
+              // no safe-area inset needed; it only made a big gap.
+              paddingBottom: 16,
             }}
           >
-            <Pressable
-              onPress={() => handleMessageSeller()}
-              disabled={startingConversation}
+            {listing.status === 'available' && (
+              <View style={{ paddingTop: 12 }}>
+                <QuickReplyChips
+                  prompts={[
+                    'Is this still available?',
+                    'Can you hold it for me?',
+                    'Where can I pick it up?',
+                  ]}
+                  onPick={(text) => handleMessageSeller(text)}
+                />
+              </View>
+            )}
+            <View
               style={{
-                flex: 1,
-                backgroundColor: BRAND,
-                borderRadius: 12,
-                paddingVertical: 14,
-                alignItems: 'center',
-                justifyContent: 'center',
                 flexDirection: 'row',
+                paddingHorizontal: 14,
+                paddingTop: 12,
               }}
-              accessibilityRole="button"
-              accessibilityLabel="Message seller"
             >
-              {startingConversation ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons
-                    name="chatbubble-ellipses-outline"
-                    size={16}
-                    color="#fff"
-                  />
-                  <Text
-                    style={{
-                      color: '#fff',
-                      fontSize: 14,
-                      fontWeight: '700',
-                      marginLeft: 6,
-                    }}
-                  >
-                    Message seller
-                  </Text>
-                </>
-              )}
-            </Pressable>
+              <Pressable
+                onPress={() => handleMessageSeller()}
+                disabled={startingConversation}
+                style={{
+                  flex: 1,
+                  backgroundColor: BRAND,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Message seller"
+              >
+                {startingConversation ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="chatbubble-ellipses-outline"
+                      size={16}
+                      color="#fff"
+                    />
+                    <Text
+                      style={{
+                        color: '#fff',
+                        fontSize: 14,
+                        fontWeight: '700',
+                        marginLeft: 6,
+                      }}
+                    >
+                      Message seller
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              backgroundColor: BONE,
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{ fontSize: 13.5, fontWeight: '700', color: INK_MUTED }}
+            >
+              {listing.status === 'sold'
+                ? 'This item has sold'
+                : 'This item is on hold'}
+            </Text>
+          </View>
+        )
       )}
     </View>
   );
