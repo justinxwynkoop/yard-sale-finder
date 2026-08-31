@@ -27,7 +27,6 @@ describe('computeLastMessagePreview (inbox row preview for the last message)', (
     const preview = computeLastMessagePreview({
       body: 'Offered $15 for Vintage Indiana glass',
       image_url: null,
-      kind: 'offer',
     });
     expect(preview).toBe('Offered $15 for Vintage Indiana glass');
     expect(preview).not.toBeUndefined();
@@ -38,7 +37,6 @@ describe('computeLastMessagePreview (inbox row preview for the last message)', (
     const preview = computeLastMessagePreview({
       body: 'Offer accepted -- $15. This item is on hold.',
       image_url: null,
-      kind: 'system',
     });
     expect(preview).toBe('Offer accepted -- $15. This item is on hold.');
   });

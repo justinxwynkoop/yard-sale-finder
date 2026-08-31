@@ -28,17 +28,13 @@ export function tombstoneHides(
  * Inbox row preview text for the most recent message in a conversation.
  * Offer and system rows carry real body text (e.g. "Offered $15 for
  * Vintage Indiana glass", "Offer accepted -- $15. This item is on hold."),
- * so today this is kind-agnostic -- any row with a body renders that body,
- * regardless of `kind`. `kind` is accepted (and threaded through by the
- * caller) so a future kind-specific prefix can be added here without
- * touching the caller. Falls back to a photo marker for image-only
- * messages, and to undefined (which InboxScreen renders as "Tap to view")
- * only when there is no last message at all.
+ * so this is kind-agnostic -- any row with a body renders that body. Falls
+ * back to a photo marker for image-only messages, and to undefined (which
+ * InboxScreen renders as "Tap to view") only when there is no last message
+ * at all.
  */
 export function computeLastMessagePreview(
-  lastMsg:
-    | { body: string | null; image_url: string | null; kind?: MessageKind | null }
-    | undefined,
+  lastMsg: { body: string | null; image_url: string | null } | undefined,
 ): string | undefined {
   return lastMsg
     ? (lastMsg.body ?? (lastMsg.image_url ? '📷 Photo' : undefined))
