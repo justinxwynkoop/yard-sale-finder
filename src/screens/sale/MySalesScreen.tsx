@@ -19,9 +19,17 @@ import { useSaleEvents } from '../../hooks/useSaleEvents';
 import { eventMatchForSale, localTodayIso } from '../../lib/eventMatch';
 import { EventJoinPrompt } from '../../components/EventJoinPrompt';
 import { supabase } from '../../lib/supabase';
+import { setListingStatus } from '../../lib/listingStatus';
 import { toast } from '../../lib/toast';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
-import { Listing, Sale, SaleEvent, ProfileStackParamList, SaleStatus } from '../../types';
+import {
+  Listing,
+  ListingStatus,
+  Sale,
+  SaleEvent,
+  ProfileStackParamList,
+  SaleStatus,
+} from '../../types';
 import { formatSaleDate, formatSaleTime } from '../../utils/format';
 import {
   Button,
@@ -218,15 +226,30 @@ export default function MySalesScreen() {
     );
   };
 
-  const markListingSold = async (listing: Listing) => {
-    await supabase.from('listings').update({ status: 'sold' }).eq('id', listing.id);
+  // Both flips go through the shared helper, not a direct `.update({ status })`:
+  // mark_listing_sold / release_hold also clear the listing_holds row and post
+  // the held buyer's system message. An inline update stranded the hold and left
+  // the buyer with no notice that the item they were promised had moved on.
+  //
+  // Unlike the sales chips above, this reports failure — the RPCs can legitimately
+  // refuse (auth, ownership), and a chip that silently does nothing is the exact
+  // failure mode this pass is fixing. Success stays quiet: the refetched card is
+  // the confirmation.
+  const mutateListingStatus = async (
+    listing: Listing,
+    status: Exclude<ListingStatus, 'pending'>,
+  ) => {
+    const { error } = await setListingStatus(listing.id, status);
+    if (error) {
+      toast.error("Couldn't update", error);
+      return;
+    }
     refetchListings();
   };
 
-  const markListingAvailable = async (listing: Listing) => {
-    await supabase.from('listings').update({ status: 'available' }).eq('id', listing.id);
-    refetchListings();
-  };
+  const markListingSold = (listing: Listing) => mutateListingStatus(listing, 'sold');
+
+  const markListingAvailable = (listing: Listing) => mutateListingStatus(listing, 'available');
 
   const deleteListing = (listing: Listing) => {
     Alert.alert(
