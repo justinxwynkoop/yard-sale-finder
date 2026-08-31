@@ -737,18 +737,16 @@ export default function ListingDetailScreen() {
               paddingBottom: 16,
             }}
           >
-            {listing.status === 'available' && (
-              <View style={{ paddingTop: 12 }}>
-                <QuickReplyChips
-                  prompts={[
-                    'Is this still available?',
-                    'Can you hold it for me?',
-                    'Where can I pick it up?',
-                  ]}
-                  onPick={(text) => handleMessageSeller(text)}
-                />
-              </View>
-            )}
+            <View style={{ paddingTop: 12 }}>
+              <QuickReplyChips
+                prompts={[
+                  'Is this still available?',
+                  'Can you hold it for me?',
+                  'Where can I pick it up?',
+                ]}
+                onPick={(text) => handleMessageSeller(text)}
+              />
+            </View>
             <View
               style={{
                 flexDirection: 'row',
@@ -798,19 +796,34 @@ export default function ListingDetailScreen() {
         ) : (
           <View
             style={{
-              padding: 14,
-              borderRadius: 12,
-              backgroundColor: BONE,
-              alignItems: 'center',
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: '#fff',
+              borderTopWidth: 1,
+              borderTopColor: HAIRLINE,
+              // Sits above the tab bar (which clears the home indicator) —
+              // no safe-area inset needed; it only made a big gap.
+              paddingBottom: 16,
             }}
           >
-            <Text
-              style={{ fontSize: 13.5, fontWeight: '700', color: INK_MUTED }}
+            <View
+              style={{
+                padding: 14,
+                borderRadius: 12,
+                backgroundColor: BONE,
+                alignItems: 'center',
+              }}
             >
-              {listing.status === 'sold'
-                ? 'This item has sold'
-                : 'This item is on hold'}
-            </Text>
+              <Text
+                style={{ fontSize: 13.5, fontWeight: '700', color: INK_MUTED }}
+              >
+                {listing.status === 'sold'
+                  ? 'This item has sold'
+                  : 'This item is on hold'}
+              </Text>
+            </View>
           </View>
         )
       )}
