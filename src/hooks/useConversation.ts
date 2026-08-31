@@ -358,8 +358,11 @@ export function useConversation(conversationId: string | undefined) {
     [conversationId, user],
   );
 
+  // Returns the raw Supabase error (or null on success) -- same contract as
+  // send() above. Never throws; callers read err.message themselves (see
+  // ConversationScreen's `sendErr.message ?? 'Please try again.'` idiom).
   const sendOffer = useCallback(
-    async (amount: number): Promise<{ error: string | null }> => {
+    async (amount: number) => {
       const { error: sendErr } = await supabase.rpc('send_offer', {
         p_conversation_id: conversationId,
         p_amount: amount,
@@ -368,21 +371,20 @@ export function useConversation(conversationId: string | undefined) {
       // optimistic insert here -- an offer is a server-authoritative object
       // (it can be rejected for a pending duplicate, a sold listing, etc.)
       // and showing it before the server agrees would be a lie.
-      return { error: sendErr ? sendErr.message : null };
+      return { error: sendErr };
     },
     [conversationId],
   );
 
+  // Same contract as send()/sendOffer above: raw Supabase error or null,
+  // never throws.
   const respondToOffer = useCallback(
-    async (
-      offerId: string,
-      action: 'accept' | 'decline',
-    ): Promise<{ error: string | null }> => {
+    async (offerId: string, action: 'accept' | 'decline') => {
       const { error: respondErr } = await supabase.rpc('respond_to_offer', {
         p_offer_id: offerId,
         p_action: action,
       });
-      return { error: respondErr ? respondErr.message : null };
+      return { error: respondErr };
     },
     [],
   );
