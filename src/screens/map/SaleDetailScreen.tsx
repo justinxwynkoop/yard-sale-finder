@@ -922,7 +922,7 @@ export default function SaleDetailScreen() {
               host card below. Sale-appropriate prompts: a yard sale has no
               single price, so no "hold it" prompt here (that's a listing
               thing). */}
-          {!isOwnSale && sale.allow_messages !== false && (
+          {!isOwnSale && sale.allow_messages !== false && sale.profile && (
             <View style={{ marginTop: 22, marginHorizontal: -20 }}>
               <QuickReplyChips
                 prompts={[
