@@ -27,6 +27,7 @@ import { Listing, ListingMedia, ListingStatus, ListingsStackParamList } from '..
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 import { PaymentAccepted } from '../../components/PaymentAccepted';
+import { QuickReplyChips } from '../../components/QuickReplyChips';
 import { useAuth } from '../../hooks/useAuth';
 import { useBlockedUsers } from '../../hooks/useBlockedUsers';
 import { useStartConversation } from '../../hooks/useConversation';
@@ -131,7 +132,10 @@ export default function ListingDetailScreen() {
       });
   }, [listingId, reloadKey]);
 
-  const handleMessageSeller = async () => {
+  // initialDraft: set when the buyer tapped a QuickReplyChips prompt instead
+  // of the bare CTA — pre-fills the composer, never auto-sends (the buyer
+  // still presses send themselves).
+  const handleMessageSeller = async (initialDraft?: string) => {
     if (!listing) return;
     if (!user) {
       promptSignIn('message sellers about their listings');
@@ -154,7 +158,7 @@ export default function ListingDetailScreen() {
       // initialized with InboxHome below Conversation. Otherwise React
       // Navigation lands Conversation as the stack root with no back
       // button. See navigationRef.ts for the rationale.
-      navigateToConversation(id);
+      navigateToConversation(id, { initialDraft });
     }
   };
 
@@ -727,51 +731,68 @@ export default function ListingDetailScreen() {
             backgroundColor: '#fff',
             borderTopWidth: 1,
             borderTopColor: HAIRLINE,
-            paddingHorizontal: 14,
-            paddingTop: 12,
             // Sits above the tab bar (which clears the home indicator) —
             // no safe-area inset needed; it only made a big gap.
             paddingBottom: 16,
-            flexDirection: 'row',
           }}
         >
-          <Pressable
-            onPress={handleMessageSeller}
-            disabled={startingConversation}
+          {listing.status === 'available' && (
+            <View style={{ paddingTop: 12 }}>
+              <QuickReplyChips
+                prompts={[
+                  'Is this still available?',
+                  'Can you hold it for me?',
+                  'Where can I pick it up?',
+                ]}
+                onPick={(text) => handleMessageSeller(text)}
+              />
+            </View>
+          )}
+          <View
             style={{
-              flex: 1,
-              backgroundColor: BRAND,
-              borderRadius: 12,
-              paddingVertical: 14,
-              alignItems: 'center',
-              justifyContent: 'center',
               flexDirection: 'row',
+              paddingHorizontal: 14,
+              paddingTop: 12,
             }}
-            accessibilityRole="button"
-            accessibilityLabel="Message seller"
           >
-            {startingConversation ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={16}
-                  color="#fff"
-                />
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontSize: 14,
-                    fontWeight: '700',
-                    marginLeft: 6,
-                  }}
-                >
-                  Message seller
-                </Text>
-              </>
-            )}
-          </Pressable>
+            <Pressable
+              onPress={() => handleMessageSeller()}
+              disabled={startingConversation}
+              style={{
+                flex: 1,
+                backgroundColor: BRAND,
+                borderRadius: 12,
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Message seller"
+            >
+              {startingConversation ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={16}
+                    color="#fff"
+                  />
+                  <Text
+                    style={{
+                      color: '#fff',
+                      fontSize: 14,
+                      fontWeight: '700',
+                      marginLeft: 6,
+                    }}
+                  >
+                    Message seller
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
         </View>
       )}
     </View>

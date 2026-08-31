@@ -52,6 +52,7 @@ import { Avatar, HeaderButton } from '../../components/ui';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 import { PaymentAccepted } from '../../components/PaymentAccepted';
+import { QuickReplyChips } from '../../components/QuickReplyChips';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
@@ -205,7 +206,10 @@ export default function SaleDetailScreen() {
     };
   }, [saleId, reloadKey]);
 
-  const handleMessageSeller = async () => {
+  // initialDraft: set when the buyer tapped a QuickReplyChips prompt instead
+  // of the bare CTA — pre-fills the composer, never auto-sends (the buyer
+  // still presses send themselves).
+  const handleMessageSeller = async (initialDraft?: string) => {
     if (!sale) return;
     if (!user) {
       promptSignIn('message sellers about their sales');
@@ -225,7 +229,7 @@ export default function SaleDetailScreen() {
       // with InboxHome below Conversation — otherwise React Navigation
       // sometimes lands Conversation as the stack root and the back
       // button disappears. See navigationRef.ts for the rationale.
-      navigateToConversation(id);
+      navigateToConversation(id, { initialDraft });
     }
   };
 
@@ -914,6 +918,23 @@ export default function SaleDetailScreen() {
             </View>
           ) : null}
 
+          {/* Quick-reply starters — directly above the Message CTA in the
+              host card below. Sale-appropriate prompts: a yard sale has no
+              single price, so no "hold it" prompt here (that's a listing
+              thing). */}
+          {!isOwnSale && sale.allow_messages !== false && (
+            <View style={{ marginTop: 22, marginHorizontal: -20 }}>
+              <QuickReplyChips
+                prompts={[
+                  'Is your sale still on?',
+                  'What time are you open?',
+                  'Do you have any tools?',
+                ]}
+                onPick={(text) => handleMessageSeller(text)}
+              />
+            </View>
+          )}
+
           {/* Host card */}
           {sale.profile && (
             <View
@@ -977,7 +998,7 @@ export default function SaleDetailScreen() {
               </Pressable>
               {!isOwnSale && sale.allow_messages !== false && (
                 <Pressable
-                  onPress={handleMessageSeller}
+                  onPress={() => handleMessageSeller()}
                   disabled={startingConversation}
                   style={{
                     borderWidth: 1,
