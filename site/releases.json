@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-08-31T21:54:54.154Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "3b5e19a",
+    "sinceSha": "0de0ad1",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Show images from reported threads; drop unreachable status",
+        "sha": "3b5e19a"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T21:35:41.489Z",
     "channel": "production",
     "appVersion": "1.0.0",
