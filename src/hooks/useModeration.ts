@@ -20,10 +20,9 @@ export type ReportStatus = 'open' | 'resolved' | 'dismissed';
 export type { ReportTargetType };
 
 /**
- * One message from the reported thread. `has_image` rather than a URL:
- * message-media is a private bucket whose signing path is participant-scoped,
- * so a moderator cannot mint a URL for it. An image-only message shows as a
- * placeholder and is a known blind spot for image-based reports.
+ * One message from the reported thread. image_url is the storage PATH, not a
+ * URL -- the client signs it, which now works for moderators because a
+ * storage policy grants read on media from REPORTED conversations only.
  */
 export interface ModerationMessage {
   id: string;
@@ -34,7 +33,8 @@ export interface ModerationMessage {
   kind: string;
   offer_amount: number | null;
   offer_status: string | null;
-  has_image: boolean;
+  /** Storage path; sign with getSignedMessageImage. Null for text rows. */
+  image_url: string | null;
   /** Sent by the reported account (vs the reporter). Drives bubble side. */
   from_reported: boolean;
 }

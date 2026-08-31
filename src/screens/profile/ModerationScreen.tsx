@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { SubHeader } from '../../components/SubHeader';
 import { navigateToSale, navigateToListing } from '../../lib/navigationRef';
 import { toast } from '../../lib/toast';
 import { formatMessageTime } from '../../lib/messageTime';
+import { getSignedMessageImage } from '../../lib/signedMessageImage';
+import { Image } from 'expo-image';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -91,6 +93,40 @@ function Tag({ label, color }: { label: string; color: string }) {
         {label}
       </Text>
     </View>
+  );
+}
+
+/** Signs a reported thread's image on demand. The storage policy scopes
+  * moderator reads to conversations that were actually reported, so this
+  * returns null for anything else rather than a broken image. */
+function ModImage({ path }: { path: string }) {
+  const [uri, setUri] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getSignedMessageImage(path).then((u) => {
+      if (!active) return;
+      setUri(u);
+      if (!u) setFailed(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [path]);
+  if (failed) {
+    return (
+      <Text style={{ fontSize: 12.5, color: INK_MUTED }}>
+        📷 Photo — could not load
+      </Text>
+    );
+  }
+  if (!uri) return <ActivityIndicator color={BRAND} style={{ marginVertical: 8 }} />;
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: 200, height: 200, borderRadius: 8, marginTop: 4 }}
+      contentFit="cover"
+    />
   );
 }
 
@@ -405,11 +441,7 @@ export default function ModerationScreen() {
                           {m.body}
                         </Text>
                       ) : null}
-                      {m.has_image ? (
-                        <Text style={{ fontSize: 12.5, color: INK_MUTED, marginTop: m.body ? 4 : 0 }}>
-                          📷 Photo — not shown here
-                        </Text>
-                      ) : null}
+                      {m.image_url ? <ModImage path={m.image_url} /> : null}
                     </View>
                   </View>
                 ))
