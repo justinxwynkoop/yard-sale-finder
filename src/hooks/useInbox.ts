@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Conversation } from '../types';
+import { Conversation, MessageKind } from '../types';
 import { useAuth } from './useAuth';
 import { useAppForeground } from './useAppForeground';
 
@@ -22,6 +22,27 @@ export function tombstoneHides(
 ): boolean {
   if (deletedAtMs == null) return false;
   return new Date(lastMessageAt).getTime() <= deletedAtMs;
+}
+
+/**
+ * Inbox row preview text for the most recent message in a conversation.
+ * Offer and system rows carry real body text (e.g. "Offered $15 for
+ * Vintage Indiana glass", "Offer accepted -- $15. This item is on hold."),
+ * so today this is kind-agnostic -- any row with a body renders that body,
+ * regardless of `kind`. `kind` is accepted (and threaded through by the
+ * caller) so a future kind-specific prefix can be added here without
+ * touching the caller. Falls back to a photo marker for image-only
+ * messages, and to undefined (which InboxScreen renders as "Tap to view")
+ * only when there is no last message at all.
+ */
+export function computeLastMessagePreview(
+  lastMsg:
+    | { body: string | null; image_url: string | null; kind?: MessageKind | null }
+    | undefined,
+): string | undefined {
+  return lastMsg
+    ? (lastMsg.body ?? (lastMsg.image_url ? '📷 Photo' : undefined))
+    : undefined;
 }
 
 /**
@@ -160,7 +181,7 @@ export function useInbox() {
     const convIds = rows.map((c) => c.id);
     const { data: recentMessages } = await supabase
       .from('messages')
-      .select('conversation_id, body, image_url, created_at, sender_id')
+      .select('conversation_id, body, image_url, created_at, sender_id, kind')
       .in('conversation_id', convIds)
       .order('created_at', { ascending: false })
       .limit(convIds.length * 4); // ~4 most-recent per conv is plenty
@@ -172,6 +193,7 @@ export function useInbox() {
         image_url: string | null;
         created_at: string;
         sender_id: string;
+        kind?: MessageKind | null;
       }
     >();
     for (const m of recentMessages ?? []) {
@@ -196,9 +218,7 @@ export function useInbox() {
         other_profile: profileById.get(otherId),
         target_title: targetPreview?.title,
         target_image_url: targetPreview?.image ?? undefined,
-        last_message_preview: lastMsg
-          ? (lastMsg.body ?? (lastMsg.image_url ? '📷 Photo' : undefined))
-          : undefined,
+        last_message_preview: computeLastMessagePreview(lastMsg),
         has_unread: isUnread,
       };
     });
