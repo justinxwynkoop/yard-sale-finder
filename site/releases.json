@@ -1,5 +1,15 @@
 [
   {
+    "deployedAt": "2026-08-31T21:20:09.119Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "9077357",
+    "sinceSha": "841cfb5",
+    "changes": [],
+    "otherCount": 2,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T20:57:57.097Z",
     "channel": "production",
     "appVersion": "1.0.0",
