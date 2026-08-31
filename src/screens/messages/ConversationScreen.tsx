@@ -43,6 +43,17 @@ function isTextRow(m: Message): boolean {
 }
 
 /**
+ * Seed value for the offer-amount TextInput when opening the sheet as a
+ * counter. Plain numeric string, no currency symbol -- mirrors
+ * formatOfferAmount's integer-vs-cents split minus the "$". A missing
+ * amount seeds empty rather than the string "null".
+ */
+function offerAmountInputValue(amount: number | null | undefined): string {
+  if (amount == null || Number.isNaN(amount)) return '';
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+}
+
+/**
  * iMessage-style bubble. No inline avatars; sender is conveyed by
  * left/right alignment + brand-orange vs. white bubbles. The "tail"
  * (the bottom-corner kink that points toward the sender) is only
@@ -334,6 +345,7 @@ export default function ConversationScreen() {
   const [offerSheetOpen, setOfferSheetOpen] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
   const [sendingOffer, setSendingOffer] = useState(false);
+  const [respondingToOffer, setRespondingToOffer] = useState(false);
 
   // Pull-to-refresh re-pulls messages silently — the full refetch() would
   // flip `loading` and blank the thread under the user's finger.
@@ -465,6 +477,16 @@ export default function ConversationScreen() {
     setOfferAmount('');
   };
 
+  // A counter is a new offer, but the seller shouldn't have to remember the
+  // other side's number from behind a dimmed backdrop -- seed the same
+  // amount input the fresh "make an offer" entry point uses. Every close
+  // path routes through closeOfferSheet (above), which always clears
+  // offerAmount, so the fresh-offer button never inherits a stale value.
+  const openCounterSheet = (amount: number | null | undefined) => {
+    setOfferAmount(offerAmountInputValue(amount));
+    setOfferSheetOpen(true);
+  };
+
   const handleSendOffer = async () => {
     const amount = Number(offerAmount.trim());
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -489,7 +511,14 @@ export default function ConversationScreen() {
     offerId: string,
     action: 'accept' | 'decline',
   ) => {
+    // Guard against a rapid double-tap firing two respond_to_offer RPCs --
+    // the server is safe (row lock + "no longer pending" on the loser) but
+    // a second call surfaces as a spurious error alert. Same idiom as
+    // sendingOffer above.
+    if (respondingToOffer) return;
+    setRespondingToOffer(true);
     const { error: respondErr } = await respondToOffer(offerId, action);
+    setRespondingToOffer(false);
     if (respondErr) {
       Alert.alert(
         'Could not update offer',
@@ -709,7 +738,7 @@ export default function ConversationScreen() {
                   participants={participants}
                   onAccept={() => handleRespond(item.message.id, 'accept')}
                   onDecline={() => handleRespond(item.message.id, 'decline')}
-                  onCounter={() => setOfferSheetOpen(true)}
+                  onCounter={() => openCounterSheet(item.message.offer_amount)}
                 />
               );
             }
