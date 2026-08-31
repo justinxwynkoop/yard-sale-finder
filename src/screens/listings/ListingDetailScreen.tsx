@@ -23,6 +23,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { supabase } from '../../lib/supabase';
 import { track } from '../../lib/analytics';
 import { toast } from '../../lib/toast';
+import { setListingStatus } from '../../lib/listingStatus';
 import { Listing, ListingMedia, ListingStatus, ListingsStackParamList } from '../../types';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
@@ -84,18 +85,16 @@ export default function ListingDetailScreen() {
 
   const isOwnListing = listing?.user_id === user?.id;
 
-  // Owner can flip the item's status (available / pending / sold) right here.
-  const updateStatus = async (status: ListingStatus) => {
+  // Owner can flip the item's status (available / sold) right here. 'pending'
+  // is not manually selectable — it's a consequence of accepting an offer.
+  const updateStatus = async (status: Exclude<ListingStatus, 'pending'>) => {
     if (!listing || listing.status === status) return;
     const prev = listing.status;
     setListing({ ...listing, status });
-    const { error } = await supabase
-      .from('listings')
-      .update({ status })
-      .eq('id', listing.id);
+    const { error } = await setListingStatus(listing.id, status);
     if (error) {
       setListing({ ...listing, status: prev });
-      toast.error("Couldn't update status", error.message);
+      toast.error("Couldn't update status", error);
     }
   };
   const favorited = listing ? isFavorited(listing.id) : false;
@@ -529,17 +528,14 @@ export default function ListingDetailScreen() {
             </Text>
           </View>
 
-          {/* Owner status controls — set this item available / pending / sold. */}
+          {/* Owner status controls — set this item available / sold. 'pending'
+              only ever comes from accepting an offer, so it's not a manual
+              option here (the PENDING badge above still reflects it). */}
           {isOwnListing && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-              {(['available', 'pending', 'sold'] as ListingStatus[]).map((s) => {
+              {(['available', 'sold'] as Exclude<ListingStatus, 'pending'>[]).map((s) => {
                 const active = listing.status === s;
-                const label =
-                  s === 'available'
-                    ? 'Available'
-                    : s === 'pending'
-                      ? 'Pending'
-                      : 'Sold';
+                const label = s === 'available' ? 'Available' : 'Sold';
                 return (
                   <Pressable
                     key={s}

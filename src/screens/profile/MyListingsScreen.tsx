@@ -15,6 +15,7 @@ import { SubHeader } from '../../components/SubHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { useMyListings } from '../../hooks/useListings';
 import { supabase } from '../../lib/supabase';
+import { setListingStatus } from '../../lib/listingStatus';
 import { Listing, ListingStatus } from '../../types';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../../lib/imageUrl';
 import { toast } from '../../lib/toast';
@@ -67,13 +68,13 @@ export default function MyListingsScreen() {
   const liveCount = listings.filter((l) => l.status !== 'sold').length;
   const soldCount = listings.filter((l) => l.status === 'sold').length;
 
-  const mutateStatus = async (listing: Listing, status: ListingStatus) => {
-    const { error } = await supabase
-      .from('listings')
-      .update({ status })
-      .eq('id', listing.id);
+  const mutateStatus = async (
+    listing: Listing,
+    status: Exclude<ListingStatus, 'pending'>,
+  ) => {
+    const { error } = await setListingStatus(listing.id, status);
     if (error) {
-      toast.error("Couldn't update", error.message);
+      toast.error("Couldn't update", error);
       return;
     }
     toast.success(status === 'sold' ? 'Marked sold' : 'Relisted');
