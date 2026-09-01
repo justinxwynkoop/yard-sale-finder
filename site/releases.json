@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-09-01T12:19:21.853Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "082feed",
+    "sinceSha": "b45aed6",
+    "changes": [
+      {
+        "type": "feature",
+        "text": "Record which platform a push token belongs to",
+        "sha": "082feed"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-08-31T22:24:08.788Z",
     "channel": "production",
     "appVersion": "1.0.0",
