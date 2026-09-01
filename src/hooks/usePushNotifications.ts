@@ -129,7 +129,13 @@ export function usePushNotifications() {
       // signed in. A plain client UPDATE can't clear the token from other
       // users' rows (profiles UPDATE RLS is owner-only), which is what let
       // a stale token deliver another account's message notifications here.
-      const { error } = await supabase.rpc('set_push_token', { p_token: token });
+      // p_platform records which OS this token belongs to -- Expo tokens don't
+      // encode it, and without it there is no way to tell iOS and Android
+      // users apart for crash rates, rollouts, or counting.
+      const { error } = await supabase.rpc('set_push_token', {
+        p_token: token,
+        p_platform: Platform.OS,
+      });
       if (error) {
         mark('set_push_token RPC FAILED', error.message);
         Sentry.captureMessage(`set_push_token failed: ${error.message}`, {
