@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Sale } from '../types';
 import { useBlockedUsers } from './useBlockedUsers';
+import { hasSaleEnded } from '../utils/saleStatus';
+import { useMinuteTick } from './useMinuteTick';
 
 // Stale-while-revalidate cache for the map's cold start: the last good
 // payload hydrates pins instantly while the network fetch replaces it a
@@ -94,15 +96,19 @@ export function useSales() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSales]);
 
-  // Hide sales whose owner the current user has blocked. Computed
-  // here (not at fetch time) so unblocking immediately surfaces the
-  // hidden sales without needing a network round-trip.
+  // Computed here, not at fetch time, for two reasons:
+  //  - Blocked owners: unblocking surfaces their sales with no round-trip.
+  //  - Closed sales drop out the minute they close. The server only flips
+  //    status on a cron, and the cold-start cache can be hours old, so "not
+  //    ended in the DB" isn't "still happening". The minute tick re-runs this
+  //    so an open map drops a sale that closes while you are looking at it.
+  const minuteTick = useMinuteTick();
   const visibleSales = useMemo(
     () =>
-      blockedIds.size === 0
-        ? sales
-        : sales.filter((s) => !blockedIds.has(s.user_id)),
-    [sales, blockedIds],
+      sales.filter((s) => !hasSaleEnded(s) && !blockedIds.has(s.user_id)),
+    // minuteTick is the real dependency: hasSaleEnded reads the clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, blockedIds, minuteTick],
   );
 
   return { sales: visibleSales, loading, error, refetch: fetchSales };

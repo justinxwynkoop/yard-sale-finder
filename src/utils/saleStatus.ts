@@ -35,6 +35,35 @@ export function isOpenNow(sale: Pick<Sale,
   return now >= start && now <= end;
 }
 
+/**
+ * True once a sale is OVER: the DB says ended, the end date has passed, or it
+ * is the final day and past end_time.
+ *
+ * The server only flips `status` on a cron, and the cold-start cache can be
+ * hours old, so "not ended in the DB" is not "still happening". Discovery
+ * surfaces use this to drop a sale the minute it closes -- it used to stay on
+ * the map until 8 PM, badged "SOON". Same rule as saleLiveState
+ * (site/api/_lib/share.js) and end_past_sales():
+ *   - the evening between days of a multi-day sale is NOT ended; it resumes
+ *   - a sale with no end_time runs to the end of its end date
+ *
+ * Device-local time, like isOpenNow -- shoppers browse sales near them. And
+ * like isOpenNow it compares HH:MM: isOpenNow is open THROUGH end_time
+ * (`now <= end`) and this is ended from the minute after (`now > end`), so a
+ * sale is never open and ended at once.
+ */
+export function hasSaleEnded(
+  sale: Pick<Sale, 'status' | 'end_date' | 'end_time'>,
+): boolean {
+  if (sale.status === 'ended') return true;
+  const today = todayString();
+  if (today > sale.end_date) return true;
+  if (today < sale.end_date) return false;
+  const end = trim5(sale.end_time);
+  if (!end) return false;
+  return nowHM() > end;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**

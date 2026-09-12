@@ -162,6 +162,12 @@ export interface Sale {
   event_id?: string | null;
   /** Set when auto-hidden from feeds (3+ distinct reporters); null = visible. */
   hidden_at?: string | null;
+  /**
+   * IANA zone the dates/times are local to, from the posting device. Lets
+   * end_past_sales() tell when "2 PM" has passed. Null = unknown (ended on
+   * the latest US zone: late, never early).
+   */
+  timezone?: string | null;
   created_at: string;
   updated_at: string;
   profile?: Profile;

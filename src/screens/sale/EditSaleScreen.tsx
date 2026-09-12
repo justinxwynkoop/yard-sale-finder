@@ -41,6 +41,7 @@ import { captureBus } from '../../lib/captureBus';
 import { toast } from '../../lib/toast';
 import { hourAfter } from '../../utils/format';
 import { compressImage } from '../../lib/imageCompression';
+import { deviceTimeZone } from '../../lib/deviceTimeZone';
 
 type Route = RouteProp<SaleStackParamList, 'EditSale'>;
 type Nav = NativeStackNavigationProp<SaleStackParamList, 'EditSale'>;
@@ -78,6 +79,9 @@ export default function EditSaleScreen() {
   const [pricingNotes, setPricingNotes] = useState('');
   const [allowMessages, setAllowMessages] = useState(true);
   const [status, setStatus] = useState<SaleStatus>('active');
+  // The zone the sale was posted in. Kept on save rather than replaced with
+  // this device's, so editing while travelling can't move a sale's close.
+  const [timezone, setTimezone] = useState<string | null>(null);
 
   // Where — editable location (address + draggable pin), prefilled from the
   // sale row. [lng, lat] to match CreateSaleScreen's convention.
@@ -124,6 +128,7 @@ export default function EditSaleScreen() {
         setPricingNotes(data.pricing_notes ?? '');
         setAllowMessages(data.allow_messages ?? true);
         setStatus(data.status);
+        setTimezone(data.timezone ?? null);
         setAddress(data.address ?? '');
         setAddressInput(data.address ?? '');
         if (typeof data.longitude === 'number' && typeof data.latitude === 'number') {
@@ -334,6 +339,8 @@ export default function EditSaleScreen() {
           pricing_notes: pricingNotes.trim() || null,
           allow_messages: allowMessages,
           status,
+          // Only fills sales that predate the column.
+          timezone: timezone ?? deviceTimeZone(),
         })
         .eq('id', saleId);
       if (error) throw error;

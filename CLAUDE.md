@@ -230,4 +230,21 @@ Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for require
   are catalogued with thresholds and fixes in `docs/SCALING.md` — check it
   before "optimizing" one of those paths early, or when a vital approaches
   its listed trigger.
+- **When a sale ends is ONE rule implemented in three places that must agree.**
+  Past `end_time` on the *final* day is over; the evening between days of a
+  multi-day sale is not; no `end_time` runs to the end of the end date.
+  - `hasSaleEnded` (`src/utils/saleStatus.ts`) — device-local; `useSales`,
+    `useSaleEvents`, `useUserProfile` and My Sales drop/split on it, re-run on
+    `useMinuteTick` (one shared, minute-aligned timer — `SaleCard` uses it too,
+    because its memo comparator can't see the clock)
+  - `end_past_sales()` — pg_cron every 5 min; `end_date + end_time` evaluated
+    in `sales.timezone`. This is what share pages, the sitemap, event counts
+    and older app bundles read
+  - `saleLiveState` (`site/api/_lib/share.js`) — the SEO share pages
+
+  `sales.timezone` is recorded from the posting device by `deviceTimeZone()`,
+  which refuses `UTC` (the Android emulator default — it would end US sales
+  hours early). A null zone is judged on `Pacific/Honolulu`, so a sale can end
+  late but never early. A trigger nulls any zone Postgres can't resolve,
+  because one bad value would make the cron's bulk UPDATE throw and end nothing.
 - Adding a new native dependency requires rebuilding the dev client (`npm run build:dev:ios`) before Metro or OTA will work, **and** bumping `expo.runtimeVersion` in `app.json`. The runtime version is a pinned string (not the fingerprint policy — that hash drifts on npm-script/.gitignore edits and once orphaned an OTA). `npm run ota` runs `scripts/check-runtime.mjs`, which refuses to publish unless the pinned value matches the latest FINISHED production iOS build on EAS; logic in `scripts/lib/runtime.js` (unit-tested)

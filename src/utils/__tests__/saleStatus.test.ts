@@ -1,4 +1,9 @@
-import { isOpenNow, isRecentlyPosted, minutesUntilClose } from '../saleStatus';
+import {
+  hasSaleEnded,
+  isOpenNow,
+  isRecentlyPosted,
+  minutesUntilClose,
+} from '../saleStatus';
 import { Sale } from '../../types';
 
 function pad(n: number) {
@@ -193,5 +198,76 @@ describe('minutesUntilClose', () => {
       end_time: '12:45:00',
     } as Sale;
     expect(minutesUntilClose(sale)).toBe(45);
+  });
+});
+
+describe('hasSaleEnded', () => {
+  // Fixed local time: 2026-06-14 15:00. Non-UTC constructor so the helper's
+  // local getDate()/getHours() line up with these fixtures.
+  const NOW = new Date(2026, 5, 14, 15, 0, 0, 0);
+  const day = (offset: number) => {
+    const d = new Date(NOW);
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const sale = (o: Partial<Sale>) =>
+    ({
+      status: 'active',
+      start_date: day(0),
+      end_date: day(0),
+      start_time: '08:00:00',
+      end_time: '14:00:00',
+      ...o,
+    }) as Sale;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('is ended once past end_time on the final day, though the DB says active', () => {
+    // The reported bug: closed at 2 PM, it is 3 PM, status is still active.
+    expect(hasSaleEnded(sale({}))).toBe(true);
+  });
+
+  it('is not ended earlier on the final day', () => {
+    expect(hasSaleEnded(sale({ end_time: '16:00:00' }))).toBe(false);
+  });
+
+  it('is not ended in the evening between days of a multi-day sale', () => {
+    // Past today's hours, but it resumes tomorrow.
+    expect(hasSaleEnded(sale({ end_date: day(1) }))).toBe(false);
+  });
+
+  it('is ended after the end date regardless of time', () => {
+    expect(
+      hasSaleEnded(sale({ start_date: day(-2), end_date: day(-1), end_time: '23:59:00' })),
+    ).toBe(true);
+  });
+
+  it('trusts the DB status over the clock', () => {
+    expect(hasSaleEnded(sale({ status: 'ended', end_time: '23:59:00' }))).toBe(true);
+  });
+
+  it('runs to the end of the final day when there is no end_time', () => {
+    expect(hasSaleEnded(sale({ end_time: null as unknown as string }))).toBe(false);
+  });
+
+  it('tolerates HH:MM as well as HH:MM:SS', () => {
+    expect(hasSaleEnded(sale({ end_time: '14:00' }))).toBe(true);
+  });
+
+  it('is never open and ended in the same minute around close', () => {
+    for (const [h, m] of [[13, 59], [14, 0], [14, 1]] as const) {
+      jest.setSystemTime(new Date(2026, 5, 14, h, m, 30, 0));
+      const s = sale({});
+      expect(isOpenNow(s) && hasSaleEnded(s)).toBe(false);
+      // ...and never neither, on the final day inside the window edges.
+      expect(isOpenNow(s) || hasSaleEnded(s)).toBe(true);
+    }
   });
 });

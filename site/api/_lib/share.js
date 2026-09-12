@@ -103,10 +103,10 @@ function combineDateTime(date, time) {
   return t ? iso + 'T' + t : iso;
 }
 
-/** Current date + wall-clock time in America/New_York as sortable strings. */
-function nyNow(nowDate) {
+/** Current date + wall-clock time in `timeZone` as sortable strings. */
+function wallClock(nowDate, timeZone) {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -125,8 +125,24 @@ function nyNow(nowDate) {
   };
 }
 
+// The sale's own zone when it has a usable one, else New York -- which is what
+// every sale was judged in before sales carried a zone. Intl throws a
+// RangeError on a zone it does not know; fall back rather than 500 the page.
+function saleWallClock(nowDate, timeZone) {
+  if (timeZone) {
+    try {
+      return wallClock(nowDate, timeZone);
+    } catch {
+      // unknown zone -- fall through
+    }
+  }
+  return wallClock(nowDate, 'America/New_York');
+}
+
 /**
- * 'on_now' | 'upcoming' | 'ended' for a sale, evaluated in America/New_York.
+ * 'on_now' | 'upcoming' | 'ended' for a sale, evaluated in the sale's own
+ * timezone (America/New_York when it has none). Mirrors end_past_sales() and
+ * the app's hasSaleEnded.
  * Zero-padded date/time strings compare lexicographically, so no Date math
  * on the sale side (dates are timezone-less DB values).
  */
@@ -135,7 +151,7 @@ function saleLiveState(nowDate, sale) {
   if (sale.status === 'ended') return 'ended';
   const start = parseDateParts(sale.start_date);
   if (!start) return 'upcoming';
-  const { date: today, time: nowTime } = nyNow(nowDate);
+  const { date: today, time: nowTime } = saleWallClock(nowDate, sale.timezone);
   const startDate = String(sale.start_date).slice(0, 10);
   const endDate = sale.end_date ? String(sale.end_date).slice(0, 10) : startDate;
 

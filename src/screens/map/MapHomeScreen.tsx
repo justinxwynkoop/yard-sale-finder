@@ -50,6 +50,7 @@ import { useViewport, setViewport, scopedByRegion } from '../../lib/viewport';
 import { zoomBucket, thinPins } from '../../lib/pinThinning';
 import { toast } from '../../lib/toast';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
+import { useMinuteTick } from '../../hooks/useMinuteTick';
 
 type Nav = NativeStackNavigationProp<MapStackParamList, 'MapHome'>;
 type Route = RouteProp<MapStackParamList, 'MapHome'>;
@@ -484,11 +485,7 @@ export default function MapHomeScreen() {
 
   // Re-derive openNow once a minute (a sale turning 8 AM should go green
   // without waiting for an unrelated re-render).
-  const [minuteTick, setMinuteTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setMinuteTick((n) => n + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  const minuteTick = useMinuteTick();
 
   // The 45-pin marker array, memoized so pans, selections, and unrelated
   // state changes stop re-running per-pin derivation on every render. The

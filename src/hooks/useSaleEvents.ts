@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { Sale, SaleEvent } from '../types';
 import { useBlockedUsers } from './useBlockedUsers';
 import { localTodayIso } from '../lib/eventMatch';
+import { hasSaleEnded } from '../utils/saleStatus';
+import { useMinuteTick } from './useMinuteTick';
 
 /**
  * Upcoming + in-progress neighborhood sale events (end_date >= today) with a
@@ -102,14 +104,17 @@ export function useSaleEvent({ eventId, slug }: { eventId?: string; slug?: strin
     return event;
   }, [event, blockedIds]);
 
-  // Roster sales from blocked users are hidden the same way useSales hides
-  // blocked sales from the map/list.
+  // Same public-feed rules as useSales: blocked owners hidden, and a stop
+  // drops off the roster the minute it closes rather than when the cron next
+  // runs -- a Saturday shopper must not be routed to a house that closed at
+  // noon. Re-evaluated on the minute tick.
+  const minuteTick = useMinuteTick();
   const visibleSales = useMemo(
     () =>
-      blockedIds.size === 0
-        ? sales
-        : sales.filter((s) => !blockedIds.has(s.user_id)),
-    [sales, blockedIds],
+      sales.filter((s) => !hasSaleEnded(s) && !blockedIds.has(s.user_id)),
+    // minuteTick is the real dependency: hasSaleEnded reads the clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, blockedIds, minuteTick],
   );
 
   return { event: visibleEvent, sales: visibleSales, loading, refetch };

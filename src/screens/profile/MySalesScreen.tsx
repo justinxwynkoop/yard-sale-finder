@@ -22,6 +22,8 @@ import { toast } from '../../lib/toast';
 import { shareSale } from '../../lib/share';
 import { Draft, clearDraft, loadDraft } from '../../lib/drafts';
 import { DraftRow } from '../../components/DraftRow';
+import { hasSaleEnded } from '../../utils/saleStatus';
+import { useMinuteTick } from '../../hooks/useMinuteTick';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -59,15 +61,21 @@ export default function MySalesScreen() {
     }, []),
   );
 
+  // Split on the clock, not just the DB flag: the cron flips status within
+  // minutes, but a sale that closed at 2:00 shouldn't sit under Active while
+  // every other screen already calls it ended.
+  const minuteTick = useMinuteTick();
   const filtered = useMemo(
     () =>
       sales.filter((s) =>
-        segment === 'active' ? s.status !== 'ended' : s.status === 'ended',
+        segment === 'active' ? !hasSaleEnded(s) : hasSaleEnded(s),
       ),
-    [sales, segment],
+    // minuteTick is the real dependency: hasSaleEnded reads the clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, segment, minuteTick],
   );
-  const activeCount = sales.filter((s) => s.status !== 'ended').length;
-  const endedCount = sales.filter((s) => s.status === 'ended').length;
+  const activeCount = sales.filter((s) => !hasSaleEnded(s)).length;
+  const endedCount = sales.filter((s) => hasSaleEnded(s)).length;
 
   const handleEnd = (sale: Sale) => {
     Alert.alert(

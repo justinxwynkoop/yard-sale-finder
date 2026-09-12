@@ -48,6 +48,7 @@ import {
   Input,
 } from '../../components/ui';
 import { PostSection, PostProgressBar } from '../../components/PostFormShell';
+import { deviceTimeZone } from '../../lib/deviceTimeZone';
 
 const MAX_TITLE = 80;
 const MAX_DESCRIPTION = 500;
@@ -566,6 +567,9 @@ export default function CreateSaleScreen() {
           allow_messages: allowMessages,
           status: 'active',
           event_id: eventIdParam ?? null,
+          // Lets the server tell when "2 PM" has passed -- sale times carry no
+          // zone. Null on any doubt; the server then ends it late, never early.
+          timezone: deviceTimeZone(),
         })
         .select()
         .single();

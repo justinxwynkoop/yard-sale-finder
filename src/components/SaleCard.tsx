@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Sale } from '../types';
 import { formatSaleTime } from '../utils/format';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
-import { isOpenNow } from '../utils/saleStatus';
+import { hasSaleEnded, isOpenNow } from '../utils/saleStatus';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
 import { saleDisplayLocation, approximateAreaLabel } from '../lib/locationPrivacy';
 import { useFavorites } from '../hooks/useFavorites';
 import { useAuth } from '../hooks/useAuth';
+import { useMinuteTick } from '../hooks/useMinuteTick';
 import { promptSignIn } from '../lib/guestGate';
 
 const BRAND = '#1F4D3A';
@@ -43,7 +44,15 @@ function SaleCardInner({
   const { isFavorited, toggle } = useFavorites();
   const { user } = useAuth();
   const saved = isFavorited(sale.id);
+  // The memo comparator below only sees props, and a sale that closes by the
+  // clock changes none of them -- so without this a card on Saved or a host's
+  // profile would keep saying OPEN or SOON after the sale is over. One shared
+  // app-wide timer, so a long list is not one interval per card.
+  useMinuteTick();
   const open = isOpenNow(sale);
+  // By the clock, not just the DB flag: a sale past its close on the final
+  // day used to fall through to the "SOON" label below.
+  const ended = hasSaleEnded(sale);
 
   const loc = saleDisplayLocation(sale, {
     isOwner: !!user && sale.user_id === user.id,
@@ -319,7 +328,7 @@ function SaleCardInner({
           height: 130,
           // Soft dim on the photo when the sale is over so the row
           // reads as "still here for reference, but past."
-          opacity: sale.status === 'ended' ? 0.7 : 1,
+          opacity: ended ? 0.7 : 1,
         }}
       >
         <Photo url={firstImage?.url} />
@@ -329,7 +338,7 @@ function SaleCardInner({
             top: 8,
             left: 8,
             backgroundColor:
-              sale.status === 'ended'
+              ended
                 ? '#F5DDD7'
                 : 'rgba(255,255,255,0.95)',
             paddingHorizontal: 6,
@@ -339,7 +348,7 @@ function SaleCardInner({
             alignItems: 'center',
           }}
         >
-          {sale.status !== 'ended' ? (
+          {!ended ? (
             <View
               style={{
                 width: 4,
@@ -354,16 +363,16 @@ function SaleCardInner({
             style={{
               fontSize: 9,
               fontWeight: '700',
-              letterSpacing: sale.status === 'ended' ? 0.4 : 0,
+              letterSpacing: ended ? 0.4 : 0,
               color:
-                sale.status === 'ended'
+                ended
                   ? ROSE
                   : open
                   ? BRAND
                   : INK_SOFT,
             }}
           >
-            {sale.status === 'ended' ? 'ENDED' : open ? 'OPEN' : 'SOON'}
+            {ended ? 'ENDED' : open ? 'OPEN' : 'SOON'}
           </Text>
         </View>
         {typeof index === 'number' && (

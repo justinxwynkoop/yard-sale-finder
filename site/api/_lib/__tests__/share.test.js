@@ -177,6 +177,19 @@ describe('saleLiveState (America/New_York)', () => {
     // the final day => ended (not "after end_date").
     expect(saleLiveState(at('2026-06-15T03:00:00Z'), sale)).toBe('ended');
   });
+
+  it("uses the sale's own timezone when it has one", () => {
+    // 18:30Z is 1:30 PM in Chicago (inside hours) but 2:30 PM in New York
+    // (past close). The zone decides.
+    const chicago = { ...sale, timezone: 'America/Chicago' };
+    expect(saleLiveState(at('2026-06-14T18:30:00Z'), chicago)).toBe('on_now');
+    expect(saleLiveState(at('2026-06-14T18:30:00Z'), sale)).toBe('ended');
+  });
+
+  it('falls back to New York for a timezone Intl does not know', () => {
+    const bogus = { ...sale, timezone: 'Not/AZone' };
+    expect(saleLiveState(at('2026-06-14T18:30:00Z'), bogus)).toBe('ended');
+  });
 });
 
 describe('cityFromAddress', () => {

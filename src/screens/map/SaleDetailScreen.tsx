@@ -34,7 +34,7 @@ import {
 } from '../../lib/imageUrl';
 import { formatHM } from '../../utils/format';
 import { saleScheduleTiles } from '../../utils/saleSchedule';
-import { isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
+import { hasSaleEnded, isOpenNow, minutesUntilClose } from '../../utils/saleStatus';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useVisited } from '../../hooks/useVisited';
 import { useAuth } from '../../hooks/useAuth';
@@ -53,6 +53,7 @@ import { PhotoViewer } from '../../components/PhotoViewer';
 import { ReportSheet } from '../../components/ReportSheet';
 import { PaymentAccepted } from '../../components/PaymentAccepted';
 import { QuickReplyChips } from '../../components/QuickReplyChips';
+import { useMinuteTick } from '../../hooks/useMinuteTick';
 
 type Route = RouteProp<MapStackParamList, 'SaleDetail'>;
 
@@ -123,6 +124,9 @@ export default function SaleDetailScreen() {
   const { start: startConversation } = useStartConversation();
   const [startingConversation, setStartingConversation] = useState(false);
   const userLocation = useUserLocation();
+  // Re-render once a minute so the chip flips from open to ended at close
+  // while this screen is open, not on the next unrelated render.
+  useMinuteTick();
   // Sticky-CTA height (the "Mark visited" row only shows for non-owners,
   // so it varies). Declared up here with the other hooks — NOT after the
   // loading/!sale early returns below — or the hook order changes once
@@ -383,6 +387,7 @@ export default function SaleDetailScreen() {
   );
   const images = media.filter((m) => m.type === 'image');
   const open = isOpenNow(sale);
+  const ended = hasSaleEnded(sale);
   const distance =
     userLocation != null
       ? haversineMeters(
@@ -555,11 +560,11 @@ export default function SaleDetailScreen() {
             paddingTop: 20,
           }}
         >
-          {open && <OpenNowChip sale={sale} />}
+          {open ? <OpenNowChip sale={sale} /> : ended ? <EndedChip /> : null}
 
           <Text
             style={{
-              marginTop: open ? 8 : 0,
+              marginTop: open || ended ? 8 : 0,
               fontSize: 24,
               fontWeight: '700',
               color: INK,
@@ -1306,12 +1311,30 @@ function GlassButton({
   );
 }
 
+// A closed sale is still reachable -- from a saved list, a share link, a push.
+// Say plainly that it is over. Showing no chip at all read as "not open yet".
+function EndedChip() {
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        backgroundColor: '#F5DDD7',
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+        borderRadius: 99,
+      }}
+    >
+      <Text
+        style={{ color: '#A23E2D', fontSize: 10, fontWeight: '800', letterSpacing: 0.4 }}
+      >
+        THIS SALE HAS ENDED
+      </Text>
+    </View>
+  );
+}
+
 function OpenNowChip({ sale }: { sale: Sale }) {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  useMinuteTick();
   const minsLeft = minutesUntilClose(sale);
   const close = formatHM(sale.end_time.slice(0, 5));
   const tail =

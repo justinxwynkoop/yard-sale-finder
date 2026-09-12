@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Sale, Listing } from '../types';
+import { hasSaleEnded } from '../utils/saleStatus';
 
 /**
  * Aggregate fetch for the PublicProfile screen — returns the target
@@ -56,7 +57,9 @@ export function useUserProfile(userId: string | undefined) {
           .eq('status', 'sold'),
       ]);
       setProfile((prof as Profile) ?? null);
-      setSales((salesRows as Sale[]) ?? []);
+      // A host's sale that closed today is over even if the cron hasn't
+      // flipped its status yet.
+      setSales(((salesRows as Sale[]) ?? []).filter((s) => !hasSaleEnded(s)));
       setListings((listingRows as Listing[]) ?? []);
       setSalesHostedTotal(hostedCount ?? 0);
       setItemsSoldTotal(soldCount ?? 0);
