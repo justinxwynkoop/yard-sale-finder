@@ -1,5 +1,21 @@
 [
   {
+    "deployedAt": "2026-09-12T23:08:21.762Z",
+    "channel": "production",
+    "appVersion": "1.0.0",
+    "headSha": "4d13761",
+    "sinceSha": "c33c28c",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "An ended sale says ENDED everywhere, not SOON",
+        "sha": "4d13761"
+      }
+    ],
+    "otherCount": 1,
+    "source": "stamped"
+  },
+  {
     "deployedAt": "2026-09-12T22:52:18.621Z",
     "channel": "production",
     "appVersion": "1.0.0",
