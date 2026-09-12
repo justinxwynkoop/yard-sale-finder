@@ -64,6 +64,22 @@ export function hasSaleEnded(
   return nowHM() > end;
 }
 
+export type SaleLiveState = 'on_now' | 'upcoming' | 'ended';
+
+/**
+ * The one answer to "what badge does this sale get?". Every sale label reads
+ * this, never isOpenNow alone: a component that only asked "open?" rendered a
+ * finished sale as SOON or CLOSED, and that same bug shipped in SaleCard AND
+ * the host profile rail -- fixing one copy left the other. Same three states
+ * and names as saleLiveState in site/api/_lib/share.js.
+ */
+export function saleLiveState(
+  sale: Pick<Sale, 'status' | 'start_date' | 'end_date' | 'start_time' | 'end_time'>,
+): SaleLiveState {
+  if (hasSaleEnded(sale)) return 'ended';
+  return isOpenNow(sale) ? 'on_now' : 'upcoming';
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**

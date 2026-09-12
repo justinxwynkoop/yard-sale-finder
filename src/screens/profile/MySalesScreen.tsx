@@ -303,7 +303,7 @@ function SaleManageCard({
   onRepost: () => void;
   onDelete: () => void;
 }) {
-  const ended = sale.status === 'ended';
+  const ended = hasSaleEnded(sale);
   const firstImage = sale.media?.find((m) => m.type === 'image');
   const thumb = transformedImageUrl(firstImage?.url, {
     width: 240,

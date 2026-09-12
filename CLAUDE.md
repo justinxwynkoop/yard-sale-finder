@@ -242,6 +242,11 @@ Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for require
     and older app bundles read
   - `saleLiveState` (`site/api/_lib/share.js`) — the SEO share pages
 
+  In the app, **every sale badge reads `saleLiveState`** (`on_now` | `upcoming` |
+  `ended`, same names as the share page) — never `isOpenNow` alone. Asking only
+  "open?" is how a finished sale got labelled SOON in `SaleCard` *and* in the
+  host-profile rail, and fixing one copy left the other.
+
   `sales.timezone` is recorded from the posting device by `deviceTimeZone()`,
   which refuses `UTC` (the Android emulator default — it would end US sales
   hours early). A null zone is judged on `Pacific/Honolulu`, so a sale can end

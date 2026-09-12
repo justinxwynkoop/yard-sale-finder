@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Sale, Listing } from '../types';
 import { hasSaleEnded } from '../utils/saleStatus';
+import { useMinuteTick } from './useMinuteTick';
 
 /**
  * Aggregate fetch for the PublicProfile screen — returns the target
@@ -57,9 +58,7 @@ export function useUserProfile(userId: string | undefined) {
           .eq('status', 'sold'),
       ]);
       setProfile((prof as Profile) ?? null);
-      // A host's sale that closed today is over even if the cron hasn't
-      // flipped its status yet.
-      setSales(((salesRows as Sale[]) ?? []).filter((s) => !hasSaleEnded(s)));
+      setSales((salesRows as Sale[]) ?? []);
       setListings((listingRows as Listing[]) ?? []);
       setSalesHostedTotal(hostedCount ?? 0);
       setItemsSoldTotal(soldCount ?? 0);
@@ -72,9 +71,20 @@ export function useUserProfile(userId: string | undefined) {
     refetch();
   }, [refetch]);
 
+  // A host's sale drops off their profile the minute it closes, even before the
+  // cron flips its status -- and on the tick, because this screen can sit open
+  // across a close. Filtering only at fetch time left it showing until refetch.
+  const minuteTick = useMinuteTick();
+  const liveSales = useMemo(
+    () => sales.filter((s) => !hasSaleEnded(s)),
+    // minuteTick is the real dependency: hasSaleEnded reads the clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, minuteTick],
+  );
+
   return {
     profile,
-    sales,
+    sales: liveSales,
     listings,
     salesHostedTotal,
     itemsSoldTotal,

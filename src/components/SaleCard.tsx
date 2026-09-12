@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Sale } from '../types';
 import { formatSaleTime } from '../utils/format';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
-import { hasSaleEnded, isOpenNow } from '../utils/saleStatus';
+import { saleLiveState } from '../utils/saleStatus';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
 import { saleDisplayLocation, approximateAreaLabel } from '../lib/locationPrivacy';
 import { useFavorites } from '../hooks/useFavorites';
@@ -49,10 +49,11 @@ function SaleCardInner({
   // profile would keep saying OPEN or SOON after the sale is over. One shared
   // app-wide timer, so a long list is not one interval per card.
   useMinuteTick();
-  const open = isOpenNow(sale);
-  // By the clock, not just the DB flag: a sale past its close on the final
-  // day used to fall through to the "SOON" label below.
-  const ended = hasSaleEnded(sale);
+  // One derivation for every size variant below. Asking only "open?" is how
+  // a finished sale ended up labelled SOON (comfy) or CLOSED (hero).
+  const live = saleLiveState(sale);
+  const open = live === 'on_now';
+  const ended = live === 'ended';
 
   const loc = saleDisplayLocation(sale, {
     isOwner: !!user && sale.user_id === user.id,
@@ -155,7 +156,7 @@ function SaleCardInner({
                 color: open ? BRAND : INK_MUTED,
               }}
             >
-              {open ? 'Open · ' : ''}
+              {ended ? 'Ended · ' : open ? 'Open · ' : ''}
               {hours}
             </Text>
           </View>
@@ -216,7 +217,7 @@ function SaleCardInner({
                 letterSpacing: 0.3,
               }}
             >
-              {open ? 'OPEN NOW' : 'CLOSED'}
+              {ended ? 'ENDED' : open ? 'OPEN NOW' : 'CLOSED'}
             </Text>
           </View>
           <Pressable

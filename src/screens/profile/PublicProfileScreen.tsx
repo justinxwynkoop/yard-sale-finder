@@ -34,11 +34,12 @@ import {
   PLACEHOLDER_BLURHASH,
   transformedImageUrl,
 } from '../../lib/imageUrl';
-import { isOpenNow } from '../../utils/saleStatus';
+import { saleLiveState } from '../../utils/saleStatus';
 import {
   saleDisplayLocation,
   approximateAreaLabel,
 } from '../../lib/locationPrivacy';
+import { useMinuteTick } from '../../hooks/useMinuteTick';
 
 const BRAND = '#1F4D3A';
 const BRAND_SOFT = '#E1ECDF';
@@ -120,6 +121,10 @@ export default function PublicProfileScreen() {
   const { block, blockedIds } = useBlockedUsers();
 
   const { user } = useAuth();
+
+  // Relabels the sale rail at close while this screen stays open.
+
+  useMinuteTick();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -437,7 +442,9 @@ export default function PublicProfileScreen() {
                   resize: 'cover',
                   quality: 75,
                 });
-                const open = isOpenNow(sale);
+                const live = saleLiveState(sale);
+                const open = live === 'on_now';
+                const ended = live === 'ended';
                 const isOwner =
                   !!self || (!!user && sale.user_id === user.id);
                 const loc = saleDisplayLocation(sale, { isOwner });
@@ -500,7 +507,7 @@ export default function PublicProfileScreen() {
                             color: open ? BRAND : INK_MUTED,
                           }}
                         >
-                          {open ? 'OPEN' : 'SOON'}
+                          {ended ? 'ENDED' : open ? 'OPEN' : 'SOON'}
                         </Text>
                       </View>
                       {/* Numbered badge top-right — matches the Map's

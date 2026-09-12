@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Sale } from '../types';
-import { isOpenNow } from '../utils/saleStatus';
+import { saleLiveState } from '../utils/saleStatus';
 import { formatDistanceMiles, haversineMeters } from '../utils/distance';
 import { PLACEHOLDER_BLURHASH, transformedImageUrl } from '../lib/imageUrl';
 import { saleDisplayLocation } from '../lib/locationPrivacy';
@@ -24,7 +24,9 @@ type Props = {
  */
 export function SelectedPinCallout({ sale, userLat, userLng, onPress }: Props) {
   const { user } = useAuth();
-  const open = isOpenNow(sale);
+  const live = saleLiveState(sale);
+
+  const open = live === 'on_now';
   const firstImage = sale.media?.find((m) => m.type === 'image');
   const thumb = transformedImageUrl(firstImage?.url, {
     width: 72,
@@ -108,7 +110,7 @@ export function SelectedPinCallout({ sale, userLat, userLng, onPress }: Props) {
                 letterSpacing: 0.2,
               }}
             >
-              {open ? 'OPEN' : 'CLOSED'}
+              {live === 'ended' ? 'ENDED' : open ? 'OPEN' : 'CLOSED'}
               {distLabel ? ` · ${distLabel}` : ''}
             </Text>
           </View>

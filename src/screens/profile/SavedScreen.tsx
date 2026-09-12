@@ -17,6 +17,8 @@ import { useUserLocation } from '../../hooks/useUserLocation';
 import { haversineMeters } from '../../utils/distance';
 import { toast } from '../../lib/toast';
 import { ROUTE_PLANNER_ENABLED } from '../../lib/featureFlags';
+import { hasSaleEnded } from '../../utils/saleStatus';
+import { useMinuteTick } from '../../hooks/useMinuteTick';
 
 const BONE = '#F7F2E8';
 const BRAND = '#1F4D3A';
@@ -47,6 +49,10 @@ export default function SavedScreen() {
     loading,
   } = useFavorites();
   const userLocation = useUserLocation();
+  // Saved keeps ended sales on purpose (sorted last, clearable), so "ended" has
+  // to mean over by the clock -- today's closed sales would otherwise sort with
+  // live ones and escape "Clear ended" until the cron catches up.
+  const minuteTick = useMinuteTick();
 
   // Pull fresh saves whenever this screen is focused so the list always
   // matches the count shown on Profile (and reaps any orphaned rows).
@@ -69,18 +75,21 @@ export default function SavedScreen() {
           )
         : Number.POSITIVE_INFINITY;
     return [...favorites].sort((a, b) => {
-      const aEnded = a.status === 'ended' ? 1 : 0;
-      const bEnded = b.status === 'ended' ? 1 : 0;
+      const aEnded = hasSaleEnded(a) ? 1 : 0;
+      const bEnded = hasSaleEnded(b) ? 1 : 0;
       if (aEnded !== bEnded) return aEnded - bEnded;
       return (
         dist(a.latitude, a.longitude) - dist(b.latitude, b.longitude)
       );
     });
-  }, [favorites, userLocation]);
+  // minuteTick is the real dependency: hasSaleEnded reads the clock.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favorites, userLocation, minuteTick]);
 
   const endedSaves = useMemo(
-    () => favorites.filter((s) => s.status === 'ended'),
-    [favorites],
+    () => favorites.filter((s) => hasSaleEnded(s)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [favorites, minuteTick],
   );
   const endedCount = endedSaves.length;
 

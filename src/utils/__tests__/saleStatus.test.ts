@@ -3,6 +3,7 @@ import {
   isOpenNow,
   isRecentlyPosted,
   minutesUntilClose,
+  saleLiveState,
 } from '../saleStatus';
 import { Sale } from '../../types';
 
@@ -268,6 +269,60 @@ describe('hasSaleEnded', () => {
       expect(isOpenNow(s) && hasSaleEnded(s)).toBe(false);
       // ...and never neither, on the final day inside the window edges.
       expect(isOpenNow(s) || hasSaleEnded(s)).toBe(true);
+    }
+  });
+});
+
+describe('saleLiveState', () => {
+  const NOW = new Date(2026, 5, 14, 15, 0, 0, 0);
+  const day = (offset: number) => {
+    const d = new Date(NOW);
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const sale = (o: Partial<Sale>) =>
+    ({
+      status: 'active',
+      start_date: day(0),
+      end_date: day(0),
+      start_time: '08:00:00',
+      end_time: '14:00:00',
+      ...o,
+    }) as Sale;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('is ended after close on the final day, not upcoming', () => {
+    // The reported bug: a finished sale was labelled SOON.
+    expect(saleLiveState(sale({}))).toBe('ended');
+  });
+
+  it('is on_now inside hours', () => {
+    expect(saleLiveState(sale({ end_time: '16:00:00' }))).toBe('on_now');
+  });
+
+  it('is upcoming before the start date', () => {
+    expect(saleLiveState(sale({ start_date: day(1), end_date: day(1) }))).toBe('upcoming');
+  });
+
+  it('is upcoming between days of a multi-day sale', () => {
+    expect(saleLiveState(sale({ end_date: day(1) }))).toBe('upcoming');
+  });
+
+  it('agrees with isOpenNow and hasSaleEnded at every minute around close', () => {
+    for (const [h, m] of [[13, 59], [14, 0], [14, 1]] as const) {
+      jest.setSystemTime(new Date(2026, 5, 14, h, m, 30, 0));
+      const s = sale({});
+      const st = saleLiveState(s);
+      expect(st === 'on_now').toBe(isOpenNow(s));
+      expect(st === 'ended').toBe(hasSaleEnded(s));
     }
   });
 });

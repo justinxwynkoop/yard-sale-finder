@@ -37,7 +37,7 @@ import {
   regionForCoords,
   Stop,
 } from '../../lib/routeItinerary';
-import { isOpenNow } from '../../utils/saleStatus';
+import { isOpenNow, saleLiveState } from '../../utils/saleStatus';
 import { formatDistanceMiles, haversineMeters } from '../../utils/distance';
 
 const BONE = '#F7F2E8';
@@ -1123,7 +1123,9 @@ function AddStopRow({
     resize: 'cover',
     quality: 75,
   });
-  const open = isOpenNow(sale);
+  const live = saleLiveState(sale);
+
+  const open = live === 'on_now';
   // Add-stop candidates are raw sales (not yet privacy-baked), so derive
   // the distance from the display location to avoid leaking exact
   // proximity for a non-owner's 'reply'-mode sale.
@@ -1191,7 +1193,7 @@ function AddStopRow({
           numberOfLines={1}
         >
           {dist != null ? `${formatDistanceMiles(dist)} · ` : ''}
-          {open ? 'Open now' : 'Closed'}
+          {live === 'ended' ? 'Ended' : open ? 'Open now' : 'Closed'}
         </Text>
       </View>
       <View
