@@ -172,7 +172,7 @@ No external state library — state lives in custom hooks:
 - **Storage**: `sale-media` and `avatars` buckets
 - **RLS**: Row-level security on all tables — anyone can read, only owners can write
 - **RPCs**: `start_conversation`, `mark_conversation_read`, `unmark_conversation_read`, `hide_conversation`, `set_conversation_archived`, `delete_my_account`, `my_blocked_user_ids`, `clear_push_token`, `set_push_token`, `increment_sale_view`, `increment_listing_view`, `review_summary`, `can_review`, `remove_sale_from_event`, `nearby_sale_recipients` (called from the `notify-new-sale` edge function, not the client); offers/holds: `send_offer`, `respond_to_offer`, `release_hold`, `mark_listing_sold` (see below)
-- **Edge functions** (`supabase/functions/`): `notify-new-sale`, `notify-new-listing`, `notify-new-message`, `notify-new-report` — invoked by DB webhook triggers with a bearer-token check; `notify-new-report` pushes report alerts to the operator (`OPERATOR_USER_ID` secret). `notify-new-message` is kind-aware: an `'offer'` message gates on `profiles.notify_offers` instead of `notify_messages`, a `'system'` message titles the push "Trove" instead of a sender's name (and uses the row's explicit `recipient_id` rather than deriving recipient from sender/buyer, which used to fail open), and every message kind keeps `channelId: 'messages'` — Android silently drops a push whose channel isn't registered
+- **Edge functions** (`supabase/functions/`): `notify-new-sale`, `notify-new-listing`, `notify-new-message`, `notify-new-report` — invoked by DB webhook triggers with a bearer-token check; `notify-new-report` pushes report alerts to every `profiles.is_operator` account (the `OPERATOR_USER_ID` secret is only a fallback). `notify-new-message` is kind-aware: an `'offer'` message gates on `profiles.notify_offers` instead of `notify_messages`, a `'system'` message titles the push "Trove" instead of a sender's name (and uses the row's explicit `recipient_id` rather than deriving recipient from sender/buyer, which used to fail open), and every message kind keeps `channelId: 'messages'` — Android silently drops a push whose channel isn't registered
 - **API pattern**: media sorted by `.order` field; profile NOT embedded in `useSales` (avoids PostgREST inner-join dropping sales whose owner has no profile row yet)
 
 ### Key Types (`src/types/index.ts`)
@@ -252,4 +252,18 @@ Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for require
   hours early). A null zone is judged on `Pacific/Honolulu`, so a sale can end
   late but never early. A trigger nulls any zone Postgres can't resolve,
   because one bad value would make the cron's bulk UPDATE throw and end nothing.
+- **Moderation** (`profiles.is_operator`) is entirely `SECURITY DEFINER` `mod_*`
+  RPCs — `reports` is reporter-only and content is owner-only, so a client can't
+  do any of it directly. Every read *and* action writes `moderation_audit` (RLS
+  on, no policies). Access boundary: while a report is not dismissed, a moderator
+  can list (`mod_list_subject_conversations`) and read
+  (`mod_get_report_messages(report, conversation)`) every conversation of the
+  reported account, photos included via the `is_reported_conversation` storage
+  policy; once dismissed, only the reporter↔reported thread stays readable.
+  `mod_send_safety_notice(report, conversation?)` can warn anyone that account
+  talked to (24h repeat guard). `mod_set_suspended` expires every pending offer
+  the account is party to, and a trigger blocks a suspended user from accepting
+  or declining — `expired` stays allowed so holds can't be stranded.
+  **Display names are not unique** (there are two "Justin"s): resolve people by
+  id, never by name.
 - Adding a new native dependency requires rebuilding the dev client (`npm run build:dev:ios`) before Metro or OTA will work, **and** bumping `expo.runtimeVersion` in `app.json`. The runtime version is a pinned string (not the fingerprint policy — that hash drifts on npm-script/.gitignore edits and once orphaned an OTA). `npm run ota` runs `scripts/check-runtime.mjs`, which refuses to publish unless the pinned value matches the latest FINISHED production iOS build on EAS; logic in `scripts/lib/runtime.js` (unit-tested)

@@ -12,6 +12,8 @@ import { ReportTargetType } from '../types';
  * are owner-write-only. The RPCs each re-check `is_operator()` server-side, so
  * the UI gate on `profile.is_operator` is a courtesy, not the control.
  *
+ * Every read AND every action is written to moderation_audit server-side.
+ *
  * Mutations return `{ error }` and never throw -- same contract as
  * useConversation's send/sendOffer, so callers read `err.message` themselves.
  */
@@ -20,9 +22,9 @@ export type ReportStatus = 'open' | 'resolved' | 'dismissed';
 export type { ReportTargetType };
 
 /**
- * One message from the reported thread. image_url is the storage PATH, not a
- * URL -- the client signs it, which now works for moderators because a
- * storage policy grants read on media from REPORTED conversations only.
+ * One message from a reported account's thread. image_url is the storage PATH,
+ * not a URL -- the client signs it, which works for moderators because a
+ * storage policy grants read on media from reported accounts' conversations.
  */
 export interface ModerationMessage {
   id: string;
@@ -35,8 +37,28 @@ export interface ModerationMessage {
   offer_status: string | null;
   /** Storage path; sign with getSignedMessageImage. Null for text rows. */
   image_url: string | null;
-  /** Sent by the reported account (vs the reporter). Drives bubble side. */
+  /** Sent by the reported account. Drives bubble side. */
   from_reported: boolean;
+}
+
+/**
+ * One conversation the reported account is part of. Metadata only -- but
+ * listing these is recorded, and opening one records a read.
+ */
+export interface ModerationConversation {
+  conversation_id: string;
+  other_id: string;
+  other_name: string | null;
+  /** The other person is the one who filed this report. */
+  is_reporter: boolean;
+  target_type: 'sale' | 'listing';
+  target_title: string | null;
+  message_count: number;
+  last_message_at: string;
+  /** Offers in this thread still awaiting a response. */
+  pending_offers: number;
+  /** A safety notice has already been sent to the other person here. */
+  notice_sent: boolean;
 }
 
 export interface ModerationReport {
@@ -121,6 +143,8 @@ export function useModeration(status: ReportStatus | null = 'open') {
     [refresh],
   );
 
+  // Suspending also expires every pending offer the account is party to, in
+  // both directions, and blocks them from accepting or declining offers.
   const setSuspended = useCallback(
     async (userId: string, suspended: boolean) => {
       const { error: err } = await supabase.rpc('mod_set_suspended', {
@@ -133,29 +157,51 @@ export function useModeration(status: ReportStatus | null = 'open') {
     [refresh],
   );
 
-  // Server-side this resolves the reporter and the thread they share with the
-  // reported account, so there is nothing for the caller to pick. It raises
-  // when no such thread exists rather than inventing one.
-  const sendSafetyNotice = useCallback(async (reportId: string) => {
-    const { error: err } = await supabase.rpc('mod_send_safety_notice', {
-      p_report_id: reportId,
-    });
-    return { error: err };
-  }, []);
+  // With no conversation: the reporter, in their thread with the reported
+  // account. With one: whoever the reported account was talking to there --
+  // which is how someone at risk who never filed a report gets warned. The
+  // server refuses a conversation the reported account isn't in, a dismissed
+  // report, and a repeat notice to the same person within 24 hours.
+  const sendSafetyNotice = useCallback(
+    async (reportId: string, conversationId?: string) => {
+      const { error: err } = await supabase.rpc('mod_send_safety_notice', {
+        p_report_id: reportId,
+        ...(conversationId ? { p_conversation_id: conversationId } : {}),
+      });
+      return { error: err };
+    },
+    [],
+  );
 
-  // Reads the thread the report is about. Server-side this is keyed on the
-  // REPORT, resolves to the single reporter<->reported conversation, and
-  // writes a moderation_audit row -- there is no way to ask for an arbitrary
-  // thread, and every read is recorded.
-  const getReportMessages = useCallback(async (reportId: string) => {
-    const { data, error: err } = await supabase.rpc('mod_get_report_messages', {
-      p_report_id: reportId,
-    });
+  // Everyone the reported account has messaged. Refused once the report is
+  // dismissed -- a moderator decided there was nothing there.
+  const listSubjectConversations = useCallback(async (reportId: string) => {
+    const { data, error: err } = await supabase.rpc(
+      'mod_list_subject_conversations',
+      { p_report_id: reportId },
+    );
     return {
-      messages: (data ?? []) as ModerationMessage[],
+      conversations: (data ?? []) as ModerationConversation[],
       error: err,
     };
   }, []);
+
+  // With no conversation: the reporter's thread with the reported account,
+  // readable at any report status. With one: any of the reported account's
+  // threads, while the report is not dismissed. Every read is recorded.
+  const getReportMessages = useCallback(
+    async (reportId: string, conversationId?: string) => {
+      const { data, error: err } = await supabase.rpc('mod_get_report_messages', {
+        p_report_id: reportId,
+        ...(conversationId ? { p_conversation_id: conversationId } : {}),
+      });
+      return {
+        messages: (data ?? []) as ModerationMessage[],
+        error: err,
+      };
+    },
+    [],
+  );
 
   return {
     reports,
@@ -167,5 +213,6 @@ export function useModeration(status: ReportStatus | null = 'open') {
     setSuspended,
     sendSafetyNotice,
     getReportMessages,
+    listSubjectConversations,
   };
 }

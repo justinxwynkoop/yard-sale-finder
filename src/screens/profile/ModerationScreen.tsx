@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   ModerationReport,
   ReportStatus,
   ModerationMessage,
+  ModerationConversation,
 } from '../../hooks/useModeration';
 import { SubHeader } from '../../components/SubHeader';
 import { navigateToSale, navigateToListing } from '../../lib/navigationRef';
@@ -96,9 +97,40 @@ function Tag({ label, color }: { label: string; color: string }) {
   );
 }
 
-/** Signs a reported thread's image on demand. The storage policy scopes
-  * moderator reads to conversations that were actually reported, so this
-  * returns null for anything else rather than a broken image. */
+/**
+ * A way to LOOK at something: a text link with a chevron, never a pill.
+ * Reviewing is not an action, so it must not look like one -- as a pill it sat
+ * in the same row as Suspend and Dismiss, identical shape, one tap apart, and
+ * only one of them is undone by a second tap. Links sit above the divider so
+ * the card reads in the order the job is done: read, then act.
+ */
+function ReviewLink({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7 }}
+    >
+      <Ionicons name={icon} size={15} color={BRAND} />
+      <Text style={{ fontSize: 13.5, fontWeight: '700', color: BRAND, marginLeft: 7 }}>
+        {label}
+      </Text>
+      <Ionicons name="chevron-forward" size={15} color={BRAND} />
+    </Pressable>
+  );
+}
+
+/** Signs a reported account's thread image on demand. The storage policy scopes
+  * moderator reads to reported accounts' conversations, so this returns null
+  * for anything else rather than a broken image. */
 function ModImage({ path }: { path: string }) {
   const [uri, setUri] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -130,6 +162,18 @@ function ModImage({ path }: { path: string }) {
   );
 }
 
+// One modal, two views. Stacking a second <Modal> on top of the first is
+// unreliable on iOS, so the conversation list and a thread share one sheet and
+// back() walks between them.
+type Panel =
+  | { kind: 'conversations'; report: ModerationReport }
+  | {
+      kind: 'thread';
+      report: ModerationReport;
+      /** Null = the reporter's thread, opened straight from the card. */
+      conversation: ModerationConversation | null;
+    };
+
 /**
  * Operator-only report queue. Reached from Profile → Moderation, a row that
  * only renders when profile.is_operator is true.
@@ -151,24 +195,65 @@ export default function ModerationScreen() {
     setSuspended,
     sendSafetyNotice,
     getReportMessages,
+    listSubjectConversations,
   } = useModeration(tab);
   const [refreshing, setRefreshing] = useState(false);
-  // The reported thread, opened from a card. Fetched on demand rather than
-  // with the queue: each read writes a moderation_audit row, so pre-loading
-  // would log a read of every thread just for scrolling the list.
-  const [viewing, setViewing] = useState<ModerationReport | null>(null);
-  const [thread, setThread] = useState<ModerationMessage[] | null>(null);
 
-  const openThread = async (r: ModerationReport) => {
-    setViewing(r);
+  // Threads and conversation lists are fetched on demand rather than with the
+  // queue: each one writes a moderation_audit row, so pre-loading would log a
+  // look at every account just for scrolling the list.
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [thread, setThread] = useState<ModerationMessage[] | null>(null);
+  const [conversations, setConversations] = useState<ModerationConversation[] | null>(
+    null,
+  );
+  // Bumped on every open and every back, so a slow response for a view the
+  // moderator already left can't pop it back open.
+  const requestRef = useRef(0);
+
+  const openThread = async (
+    r: ModerationReport,
+    conversation: ModerationConversation | null = null,
+  ) => {
+    const token = ++requestRef.current;
+    setPanel({ kind: 'thread', report: r, conversation });
     setThread(null);
-    const { messages, error: err } = await getReportMessages(r.id);
+    const { messages, error: err } = await getReportMessages(
+      r.id,
+      conversation?.conversation_id,
+    );
+    if (token !== requestRef.current) return;
     if (err) {
-      setViewing(null);
+      setPanel(conversation ? { kind: 'conversations', report: r } : null);
       Alert.alert("Can't show the messages", err.message);
       return;
     }
     setThread(messages);
+  };
+
+  const openConversations = async (r: ModerationReport) => {
+    const token = ++requestRef.current;
+    setPanel({ kind: 'conversations', report: r });
+    setConversations(null);
+    const { conversations: list, error: err } = await listSubjectConversations(r.id);
+    if (token !== requestRef.current) return;
+    if (err) {
+      setPanel(null);
+      Alert.alert("Can't show their conversations", err.message);
+      return;
+    }
+    setConversations(list);
+  };
+
+  const back = () => {
+    requestRef.current += 1;
+    if (panel?.kind === 'thread' && panel.conversation) {
+      // Came from the list: return to it. It is already loaded, so this does
+      // not re-read -- or re-log -- the list.
+      setPanel({ kind: 'conversations', report: panel.report });
+    } else {
+      setPanel(null);
+    }
   };
 
   const run = async (
@@ -188,11 +273,12 @@ export default function ModerationScreen() {
 
   const confirmSuspend = (r: ModerationReport) => {
     const on = !r.owner_suspended;
+    const name = r.owner_name || 'This person';
     Alert.alert(
       on ? 'Suspend this account?' : 'Lift the suspension?',
       on
-        ? `${r.owner_name || 'This person'} will not be able to post sales or listings, start conversations, or send messages. Their existing content stays visible unless you hide it separately. You can undo this.`
-        : `${r.owner_name || 'This person'} will be able to post and message again.`,
+        ? `${name} will not be able to post, message, make offers, or accept or decline offers. Any pending offers to or from them expire now. Their existing content stays visible unless you hide it separately. You can lift the suspension later, but expired offers stay expired.`
+        : `${name} will be able to post and message again.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -221,6 +307,61 @@ export default function ModerationScreen() {
       ],
     );
   };
+
+  const confirmWarn = (r: ModerationReport, c: ModerationConversation) => {
+    const name = c.other_name || 'this person';
+    const owner = r.owner_name || 'the reported account';
+    Alert.alert(
+      `Warn ${name}?`,
+      `${name} gets the standard scam-safety message in their thread with ${owner}, plus a push notification. ${owner} can read it too, so it reads as general guidance rather than an accusation.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: async () => {
+            const { error: err } = await sendSafetyNotice(r.id, c.conversation_id);
+            if (err) {
+              Alert.alert("Couldn't send it", err.message);
+              return;
+            }
+            toast.success(`Notice sent to ${name}`);
+            // Reflected locally instead of re-reading the thread, which would
+            // log a second read that nobody actually made.
+            setConversations((prev) =>
+              prev
+                ? prev.map((x) =>
+                    x.conversation_id === c.conversation_id
+                      ? { ...x, notice_sent: true }
+                      : x,
+                  )
+                : prev,
+            );
+            setPanel((p) =>
+              p &&
+              p.kind === 'thread' &&
+              p.conversation?.conversation_id === c.conversation_id
+                ? { ...p, conversation: { ...p.conversation, notice_sent: true } }
+                : p,
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  const listPanel = panel?.kind === 'conversations' ? panel : null;
+  const threadPanel = panel?.kind === 'thread' ? panel : null;
+  const threadConv = threadPanel?.conversation ?? null;
+
+  const panelTitle = listPanel
+    ? `${listPanel.report.owner_name ? `${listPanel.report.owner_name}'s` : 'Their'} conversations`
+    : threadPanel
+      ? threadConv
+        ? `${threadPanel.report.owner_name || 'Reported'} ↔ ${threadConv.other_name || 'Someone'}`
+        : threadPanel.report.owner_name
+          ? `${threadPanel.report.owner_name} — thread`
+          : 'Thread'
+      : '';
 
   return (
     <View style={{ flex: 1, backgroundColor: BONE }}>
@@ -328,38 +469,26 @@ export default function ModerationScreen() {
                   : ''}
               </Text>
 
-              {/* Reviewing is not an action, so it must not look like one.
-                  As a pill it sat in the same row as Suspend and Dismiss --
-                  identical shape, one tap apart, and only one of them is
-                  reversible by a second tap. A link above the divider also
-                  puts the card in the order the job is done: read, then act. */}
-              <Pressable
-                onPress={() => openThread(r)}
-                hitSlop={6}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginTop: 10,
-                  paddingVertical: 7,
-                }}
-              >
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={15}
-                  color={BRAND}
+              <View style={{ marginTop: 10 }}>
+                <ReviewLink
+                  icon="chatbubble-ellipses-outline"
+                  label="Read the conversation"
+                  onPress={() => openThread(r)}
                 />
-                <Text
-                  style={{
-                    fontSize: 13.5,
-                    fontWeight: '700',
-                    color: BRAND,
-                    marginLeft: 7,
-                  }}
-                >
-                  Read the conversation
-                </Text>
-                <Ionicons name="chevron-forward" size={15} color={BRAND} />
-              </Pressable>
+                {/* The wider look ends when a report is dismissed -- the server
+                    refuses it then, so the link isn't offered. */}
+                {r.owner_id && tab !== 'dismissed' ? (
+                  <ReviewLink
+                    icon="people-outline"
+                    label={
+                      r.owner_name
+                        ? `Everyone ${r.owner_name} has messaged`
+                        : 'Everyone they have messaged'
+                    }
+                    onPress={() => openConversations(r)}
+                  />
+                ) : null}
+              </View>
 
               <View
                 style={{ height: 1, backgroundColor: HAIRLINE, marginTop: 2 }}
@@ -409,103 +538,237 @@ export default function ModerationScreen() {
         )}
       </ScrollView>
 
-      <Modal
-        visible={!!viewing}
-        animationType="slide"
-        onRequestClose={() => setViewing(null)}
-      >
+      <Modal visible={!!panel} animationType="slide" onRequestClose={back}>
         <View style={{ flex: 1, backgroundColor: BONE }}>
-          <SubHeader
-            title={viewing?.owner_name ? `${viewing.owner_name} — thread` : "Thread"}
-            onBack={() => setViewing(null)}
-          />
-          <Text
-            style={{
-              fontSize: 11.5,
-              color: INK_MUTED,
-              paddingHorizontal: 16,
-              paddingTop: 10,
-            }}
-          >
-            Right side is the reported account. This read is recorded.
-          </Text>
-          {thread === null ? (
-            <ActivityIndicator color={BRAND} style={{ marginTop: 32 }} />
-          ) : (
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-              {thread.length === 0 ? (
-                <Text style={{ color: INK_SOFT, fontSize: 13 }}>
-                  No messages in this thread.
-                </Text>
+          <SubHeader title={panelTitle} onBack={back} />
+
+          {listPanel ? (
+            <>
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  color: INK_MUTED,
+                  paddingHorizontal: 16,
+                  paddingTop: 10,
+                }}
+              >
+                Everyone {listPanel.report.owner_name || 'the reported account'} has
+                messaged. Listing and opening these is recorded.
+              </Text>
+              {conversations === null ? (
+                <ActivityIndicator color={BRAND} style={{ marginTop: 32 }} />
               ) : (
-                thread.map((m) =>
-                  // A system notice is written by Trove, not by whoever
-                  // triggered it. sender_id carries the operator only so the
-                  // NOT NULL column and the audit trail have a value -- it is
-                  // not authorship, and printing it here put a moderator's own
-                  // name above a message they did not write. The real thread
-                  // already renders these centred, muted and unattributed;
-                  // this matches it rather than inventing a second treatment.
-                  m.kind === "system" ? (
-                    <Text
-                      key={m.id}
-                      style={{
-                        alignSelf: "center",
-                        maxWidth: "80%",
-                        textAlign: "center",
-                        color: INK_MUTED,
-                        fontSize: 12,
-                        marginVertical: 8,
-                      }}
-                    >
-                      {m.body}
+                <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+                  {conversations.length === 0 ? (
+                    <Text style={{ color: INK_SOFT, fontSize: 13 }}>
+                      No conversations.
                     </Text>
                   ) : (
-                  <View
-                    key={m.id}
-                    style={{
-                      alignSelf: m.from_reported ? "flex-end" : "flex-start",
-                      maxWidth: "84%",
-                      marginBottom: 10,
-                    }}
+                    conversations.map((c) => (
+                      <Pressable
+                        key={c.conversation_id}
+                        onPress={() => openThread(listPanel.report, c)}
+                        style={{
+                          backgroundColor: '#fff',
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: HAIRLINE,
+                          padding: 14,
+                          marginBottom: 10,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text
+                              style={{ flex: 1, fontSize: 15, fontWeight: '700', color: INK }}
+                              numberOfLines={1}
+                            >
+                              {c.other_name || 'Someone'}
+                            </Text>
+                            <Text style={{ fontSize: 11.5, color: INK_MUTED, marginLeft: 8 }}>
+                              {relativeTime(c.last_message_at)}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{ fontSize: 13, color: INK_SOFT, marginTop: 3 }}
+                            numberOfLines={1}
+                          >
+                            {c.target_title || '(no longer available)'} · {c.message_count}{' '}
+                            {c.message_count === 1 ? 'message' : 'messages'}
+                          </Text>
+                          {c.is_reporter || c.pending_offers > 0 || c.notice_sent ? (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 7 }}>
+                              {c.is_reporter ? <Tag label="REPORTER" color={BRAND} /> : null}
+                              {c.pending_offers > 0 ? (
+                                <Tag
+                                  label={
+                                    c.pending_offers === 1
+                                      ? 'PENDING OFFER'
+                                      : `${c.pending_offers} PENDING OFFERS`
+                                  }
+                                  color={WARN}
+                                />
+                              ) : null}
+                              {c.notice_sent ? <Tag label="WARNED" color={INK_SOFT} /> : null}
+                            </View>
+                          ) : null}
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={16}
+                          color={INK_MUTED}
+                          style={{ marginLeft: 8 }}
+                        />
+                      </Pressable>
+                    ))
+                  )}
+                </ScrollView>
+              )}
+            </>
+          ) : threadPanel ? (
+            <>
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  color: INK_MUTED,
+                  paddingHorizontal: 16,
+                  paddingTop: 10,
+                }}
+              >
+                Right side is the reported account. This read is recorded.
+              </Text>
+              {thread === null ? (
+                <ActivityIndicator color={BRAND} style={{ marginTop: 32 }} />
+              ) : (
+                <>
+                  <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 10.5,
-                        color: INK_MUTED,
-                        marginBottom: 2,
-                        textAlign: m.from_reported ? "right" : "left",
-                      }}
-                    >
-                      {m.sender_name || "Someone"} · {formatMessageTime(m.created_at)}
-                    </Text>
+                    {thread.length === 0 ? (
+                      <Text style={{ color: INK_SOFT, fontSize: 13 }}>
+                        No messages in this thread.
+                      </Text>
+                    ) : (
+                      thread.map((m) =>
+                        // A system notice is written by Trove, not by whoever
+                        // triggered it. sender_id carries the operator only so
+                        // the NOT NULL column and the audit trail have a value
+                        // -- it is not authorship. The real thread renders
+                        // these centred, muted and unattributed; this matches.
+                        m.kind === 'system' ? (
+                          <Text
+                            key={m.id}
+                            style={{
+                              alignSelf: 'center',
+                              maxWidth: '80%',
+                              textAlign: 'center',
+                              color: INK_MUTED,
+                              fontSize: 12,
+                              marginVertical: 8,
+                            }}
+                          >
+                            {m.body}
+                          </Text>
+                        ) : (
+                          <View
+                            key={m.id}
+                            style={{
+                              alignSelf: m.from_reported ? 'flex-end' : 'flex-start',
+                              maxWidth: '84%',
+                              marginBottom: 10,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10.5,
+                                color: INK_MUTED,
+                                marginBottom: 2,
+                                textAlign: m.from_reported ? 'right' : 'left',
+                              }}
+                            >
+                              {m.sender_name || 'Someone'} · {formatMessageTime(m.created_at)}
+                            </Text>
+                            <View
+                              style={{
+                                backgroundColor: m.from_reported ? '#FBEDEA' : '#fff',
+                                borderWidth: 1,
+                                borderColor: m.from_reported ? '#E9CFC9' : HAIRLINE,
+                                borderRadius: 13,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                              }}
+                            >
+                              {m.kind === 'offer' ? (
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: INK }}>
+                                  Offer ${m.offer_amount} · {m.offer_status}
+                                </Text>
+                              ) : m.body ? (
+                                <Text style={{ fontSize: 14.5, color: INK, lineHeight: 20 }}>
+                                  {m.body}
+                                </Text>
+                              ) : null}
+                              {m.image_url ? <ModImage path={m.image_url} /> : null}
+                            </View>
+                          </View>
+                        ),
+                      )
+                    )}
+                  </ScrollView>
+
+                  {/* The one ACTION in this view, below the thread: read first,
+                      then decide. Only for a thread opened from the list --
+                      the reporter already has "Safety notice" on the card. */}
+                  {threadConv ? (
                     <View
                       style={{
-                        backgroundColor: m.from_reported ? "#FBEDEA" : "#fff",
-                        borderWidth: 1,
-                        borderColor: m.from_reported ? "#E9CFC9" : HAIRLINE,
-                        borderRadius: 13,
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
+                        borderTopWidth: 1,
+                        borderTopColor: HAIRLINE,
+                        paddingHorizontal: 16,
+                        paddingTop: 12,
+                        paddingBottom: 28,
+                        backgroundColor: BONE,
                       }}
                     >
-                      {m.kind === "offer" ? (
-                        <Text style={{ fontSize: 14, fontWeight: "700", color: INK }}>
-                          Offer ${m.offer_amount} · {m.offer_status}
+                      {threadConv.notice_sent ? (
+                        <Text style={{ fontSize: 12.5, color: INK_MUTED, textAlign: 'center' }}>
+                          A safety notice was already sent to{' '}
+                          {threadConv.other_name || 'this person'} here.
                         </Text>
-                      ) : m.body ? (
-                        <Text style={{ fontSize: 14.5, color: INK, lineHeight: 20 }}>
-                          {m.body}
-                        </Text>
-                      ) : null}
-                      {m.image_url ? <ModImage path={m.image_url} /> : null}
+                      ) : (
+                        <Pressable
+                          onPress={() => confirmWarn(threadPanel.report, threadConv)}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 1.5,
+                            borderColor: BRAND,
+                            borderRadius: 12,
+                            paddingVertical: 12,
+                          }}
+                        >
+                          <Ionicons name="shield-outline" size={16} color={BRAND} />
+                          <Text
+                            style={{
+                              marginLeft: 8,
+                              fontSize: 14,
+                              fontWeight: '800',
+                              color: BRAND,
+                            }}
+                          >
+                            Send {threadConv.other_name || 'them'} a safety notice
+                          </Text>
+                        </Pressable>
+                      )}
                     </View>
-                  </View>
-                  )
-                )
+                  ) : null}
+                </>
               )}
-            </ScrollView>
-          )}
+            </>
+          ) : null}
         </View>
       </Modal>
     </View>
