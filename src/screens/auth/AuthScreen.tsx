@@ -734,11 +734,11 @@ function PrivacyContent() {
       <View style={{ height: 16 }} />
 
       <LegalSection title="1. Information We Collect">
-        {`To make the app work, we collect the following:\n\n• Account information — your email address, or if you use Sign in with Apple, the Apple ID identifier and name you choose to share. We also store the display name you set in onboarding.\n\n• Location data — while you have the app open, we access your device's location to show yard sales near you and to let you pin your own sale on the map. We do not collect your location in the background.\n\n• Content you post — photos, text, address, dates, times, categories, and pricing notes so that other users can see them on the map.\n\n• Device information — basic crash and diagnostic data (device model, OS version, crash stack traces) to help us fix bugs.`}
+        {`To make the app work, we collect the following:\n\n• Account information — your email address, or if you use Sign in with Apple, the Apple ID identifier and name you choose to share. We also store the display name you set in onboarding.\n\n• Location data — while you have the app open, we access your device's location to show yard sales near you and to let you pin your own sale on the map. We do not collect your location in the background.\n\n• Content you post — photos, text, address, dates, times, categories, and pricing notes so that other users can see them on the map.\n\n• Messages — when you message another user, we store your messages, the photos you send, and any offers, so the conversation works across your devices. Messages are visible to you and the person you're talking to.\n\n• Device information — basic crash and diagnostic data (device model, OS version, crash stack traces) to help us fix bugs.`}
       </LegalSection>
 
       <LegalSection title="2. How We Use Information">
-        {`• To show you yard sales near your current location.\n• To display sales you post to other users browsing the map.\n• To authenticate you when you sign in.\n• To improve the app and fix problems.\n• To contact you about your account if necessary.\n\nWe do not sell your data, and we do not use it for advertising or tracking across other apps or websites.`}
+        {`• To show you yard sales near your current location.\n• To display sales you post to other users browsing the map.\n• To authenticate you when you sign in.\n• To deliver your messages, and to investigate reports of scams, harassment, or other violations of our terms.\n• To improve the app and fix problems.\n• To contact you about your account if necessary.\n\nWe do not sell your data, and we do not use it for advertising or tracking across other apps or websites.`}
       </LegalSection>
 
       <LegalSection title="3. What Other Users Can See">
@@ -766,7 +766,7 @@ function PrivacyContent() {
       </LegalSection>
 
       <LegalSection title="8. User-Generated Content and Moderation">
-        {'Photos and text posted by users are public to other users of the app. We reserve the right to remove content that violates our terms or applicable law. Users can report content to us at the contact address below.'}
+        {"Sales and listings you post are public to other users. Messages are private between you and the other person, with one exception: if an account is reported, Trove moderators may review that account's conversations, including messages and photos, to investigate scams, harassment, or other violations of our terms. Each review is logged. Moderators may also send safety notices, suspend accounts, and hide or remove content. Users can report content to us at the contact address below."}
       </LegalSection>
 
       <LegalSection title="9. Changes to This Policy">

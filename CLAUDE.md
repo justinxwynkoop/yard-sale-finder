@@ -266,4 +266,8 @@ Prefixed with `EXPO_PUBLIC_` (exposed to client). See `.env.example` for require
   or declining — `expired` stays allowed so holds can't be stranded.
   **Display names are not unique** (there are two "Justin"s): resolve people by
   id, never by name.
+- **The privacy policy exists twice**, and both copies must change together:
+  `site/privacy.html` (trove.sale/privacy) and `PrivacyContent` in
+  `src/screens/auth/AuthScreen.tsx` (the in-app legal modal on sign-up). The
+  site ships with a Vercel deploy; the in-app copy ships with an OTA.
 - Adding a new native dependency requires rebuilding the dev client (`npm run build:dev:ios`) before Metro or OTA will work, **and** bumping `expo.runtimeVersion` in `app.json`. The runtime version is a pinned string (not the fingerprint policy — that hash drifts on npm-script/.gitignore edits and once orphaned an OTA). `npm run ota` runs `scripts/check-runtime.mjs`, which refuses to publish unless the pinned value matches the latest FINISHED production iOS build on EAS; logic in `scripts/lib/runtime.js` (unit-tested)

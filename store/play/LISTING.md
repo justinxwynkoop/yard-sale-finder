@@ -77,8 +77,8 @@ https://trove.sale/delete-account.
 | Date of birth (User IDs → "Personal info > Other") | Yes | No | Account management (age gate) | Required for accounts |
 | City/State/ZIP (coarse address) | Yes | No | App functionality | Required for accounts |
 | Precise location | Yes | No | App functionality (map centering, distance sorting, optional "sales near you" alerts) | Optional (permission prompt; guest can decline) |
-| Photos | Yes | No | App functionality (sale/listing/avatar photos, message media) | Optional |
-| In-app messages | Yes | No | App functionality | Optional |
+| Photos | Yes | No | App functionality (sale/listing/avatar photos, message media); Fraud prevention, security, and compliance (moderators may review photos in a reported account's conversations) | Optional |
+| In-app messages | Yes | No | App functionality; Fraud prevention, security, and compliance (moderators may review a reported account's conversations — privacy policy §8) | Optional |
 | App interactions (analytics) | Yes | No | Analytics (self-hosted event log, not third-party ad tech) | Not optional |
 | Crash logs & diagnostics | Yes | Yes (Sentry, service provider) | App functionality/diagnostics | Not optional |
 | Device push token | Yes | No | App functionality (notifications via Expo push) | Optional (notification permission) |
@@ -95,7 +95,8 @@ declared to be safe).
 - Category: Utility/Productivity/Communication or Shopping app
 - Violence/sexuality/profanity/drugs: No
 - User-generated content: YES (sale posts, photos, messages) — moderated:
-  in-app reporting, auto-hide at 3+ distinct reports, user blocking
+  in-app reporting, auto-hide at 3+ distinct reports, user blocking,
+  moderator review of a reported account's conversations, account suspension
 - Users can communicate: YES (1:1 messaging)
 - Users can share personal info (addresses on sale posts): YES
 - Location sharing: app shows user-provided sale addresses; host address
